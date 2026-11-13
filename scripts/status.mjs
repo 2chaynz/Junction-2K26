@@ -222,22 +222,35 @@ const commands = {
   },
 
   watch() {
-    // Runs on every prompt: must be quiet, fast and never fail.
+    // Runs on every prompt and after every tool call: must be quiet, fast and never fail.
+    // --post: emit PostToolUse JSON so the notice reaches the agent mid-run.
     try {
-      const s = readState();
+      let sid = "default";
+      // Only hooks pipe JSON on stdin. Reading it otherwise would hang a manual or Codex run.
+      if (flags.hook) try { sid = JSON.parse(readFileSync(0, "utf8")).session_id || sid; } catch {}
+      const all = readState();
+      const s = all[sid] || {};
+      const save = (v) => writeState({ ...readState(), [sid]: v });
+      const say = (text) => console.log(flags.post ? JSON.stringify({ hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: text } }) : text);
       if (!flags.force && Date.now() - (s.last || 0) < 60000) return;
-      writeState({ ...s, last: Date.now() });
+      save({ ...s, last: Date.now() });
       if (!fetchMain(8000)) return;
       const now = mainHash();
-      if (!s.seen || s.seen === now) return writeState({ ...s, seen: now, last: Date.now() });
+      // Safe auto-pull: only a clean local main fast-forwards. Feature branches are left to the agent.
+      try {
+        if (git(["branch", "--show-current"], { cwd: root }) === "main" && !git(["status", "--porcelain"], { cwd: root }))
+          git(["merge", "--ff-only", "--quiet", "origin/main"], { cwd: root });
+      } catch {}
+      if (!s.seen || s.seen === now) return save({ ...s, seen: now, last: Date.now() });
       const files = git(["diff", "--name-only", s.seen, now], { cwd: root }).split("\n").filter((f) => SHARED.test(f));
-      writeState({ ...s, seen: now, last: Date.now() });
+      save({ ...s, seen: now, last: Date.now() });
       if (!files.length) return;
       const subjects = git(["log", "--format=%s (%an)", "-5", `${s.seen}..${now}`], { cwd: root });
-      console.log(`[team] main changed: ${files.join(", ")}\n${subjects}`);
+      const out = [`[team] main changed: ${files.join(", ")}\n${subjects}`];
       if (files.some((f) => /^(DECISION|CONTRACT|AGENTS)\.md$/.test(f)))
-        console.log("[team] Decision, contract or rules changed. Read them from origin/main and rebase your branch before continuing.");
-      else console.log("[team] Run `node scripts/status.mjs show` if it affects your ticket.");
+        out.push("[team] Decision, contract or rules changed. Read them from origin/main and rebase your branch before continuing.");
+      else out.push("[team] Run `node scripts/status.mjs show` if it affects your ticket.");
+      say(out.join("\n"));
     } catch {}
   },
 };
