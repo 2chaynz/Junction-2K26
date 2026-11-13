@@ -2,6 +2,21 @@
 
 Main challenge: Stoa, Make Blueprints Talk (`context/challenges/stoa.md`). This file is the draft submission for the platform (due Fri 23:55).
 
+## Brief (from ccolver)
+- Challenge page: https://hackjunction.app/participate/45/challenges/335
+- Draft submission form: https://hackjunction.app/participate/45/project
+- Tool for reading the blueprints of an infrastructure construction project. Three parts:
+  1. **Photogrammetry → drawings.** User photographs the site; a model is built and the relevant drawings are outlined. For suppliers, clients and design engineers who aren't close to day-to-day construction. Must show a confidence score and explain why it chose each drawing.
+  2. **Ask the drawings.** Ask questions about the matched drawings and get detailed answers. Cite the relevant Eurocode and ASTM standards for that drawing and summarize their key points.
+  3. **Scope of work.** Analyze the project's scope-of-work document. Flag inconsistencies; split work covered by the bid from likely T&M work so contractors maximize revenue. Give specific reasoning for each out-of-scope flag.
+- Partner tech:
+  - Gemma (open model): final deployment.
+  - Gemini: model validation and testing.
+  - Verda: GPU photogrammetry testing.
+  - Nemotron: model usage.
+  - ElevenLabs: text to speech.
+  - Possible: dropdown so the user picks which model answers.
+
 ## Draft submission (paste into Junction Platform → Project)
 
 **Project Name** (max 30): `SiteLens`
