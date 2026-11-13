@@ -36,7 +36,7 @@ async function loadPrs() {
     });
     prError = null;
   } catch {
-    prError = "Install and log in to gh to see pull requests.";
+    prError = "Couldn't load pull requests. Check gh auth status.";
   }
 }
 const tryGit = (...a) => git(...a).catch(() => "");

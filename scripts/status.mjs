@@ -86,7 +86,7 @@ function onMain(message, mutate) {
         return;
       } catch (e) {
         const err = String(e.stderr || e.message);
-        if (!/non-fast-forward|fetch first|\[rejected\]/.test(err)) fail(err.trim());
+        if (!/non-fast-forward|fetch first|\[rejected\]|\[remote rejected\]|cannot lock ref/.test(err)) fail(err.trim());
         console.error(`main moved, retrying (${attempt}/4)`);
       }
     } finally {
@@ -115,7 +115,9 @@ const commands = {
     const online = fetchMain();
     const hash = mainHash();
     writeState({ ...readState(), seen: hash, last: Date.now() });
-    const t = parseTable(showFile("TASKS.md"));
+    const md = showFile("TASKS.md");
+    if (!/^\|\s*Ticket\s*\|/im.test(md)) return console.log(`main @ ${hash.slice(0, 7) || "?"}: no ticket table on origin/main yet. Push the repo setup first.`);
+    const t = parseTable(md);
     console.log(`main @ ${hash.slice(0, 7)}${online ? "" : " (offline, last fetched)"}`);
     for (const r of t.rows) {
       const bits = [r.owner, r.branch, r.device].filter(Boolean).join(" · ");
@@ -204,6 +206,19 @@ const commands = {
     onMain(`docs: update ${rels.join(", ").slice(0, 40)}`, (dir) => {
       for (const r of rels) { mkdirSync(dirname(join(dir, r)), { recursive: true }); cpSync(join(root, r), join(dir, r), { recursive: true }); }
     });
+    // Local copies would block the next pull/rebase. Undo them only where main has identical content.
+    git(["fetch", "--quiet", "origin", "main"], { cwd: root });
+    const touched = git(["ls-files", "--others", "--modified", "--exclude-standard", "--", ...rels], { cwd: root }).split("\n").filter(Boolean);
+    const tracked = new Set(git(["ls-files", "--", ...rels], { cwd: root }).split("\n").filter(Boolean));
+    let undone = 0;
+    for (const f of new Set(touched)) {
+      try {
+        if (git(["hash-object", f], { cwd: root }) !== git(["rev-parse", `origin/main:${f}`], { cwd: root })) continue;
+        if (tracked.has(f)) git(["checkout", "HEAD", "--", f], { cwd: root }); else rmSync(join(root, f));
+        undone++;
+      } catch {}
+    }
+    if (undone) console.log(`${undone} local copy(s) undone; the content is on main. Pull or rebase to see it.`);
   },
 
   watch() {
