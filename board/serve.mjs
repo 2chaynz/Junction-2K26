@@ -19,8 +19,26 @@ const SEP = "\x1f";
 
 let lastFetch = 0;
 let fetchError = null;
+let prs = null;
+let prError = null;
 
-const git = async (...a) => (await run("git", a, { cwd: repo, maxBuffer: 4e6 })).stdout;
+const env = { ...process.env, GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "never", GH_PROMPT_DISABLED: "1" };
+const git = async (...a) => (await run("git", a, { cwd: repo, env, maxBuffer: 4e6 })).stdout;
+
+async function loadPrs() {
+  try {
+    const out = (await run("gh", ["pr", "list", "--state", "open", "--limit", "30",
+      "--json", "number,title,author,headRefName,updatedAt,url,isDraft,comments"], { cwd: repo, env, maxBuffer: 8e6 })).stdout;
+    prs = JSON.parse(out).map((p) => {
+      const first = ([...p.comments].reverse().find((c) => /^\s*Cross-review:/i.test(c.body))?.body || "").split("\n")[0];
+      const review = !first ? "none" : /BLOCKING/i.test(first) ? "blocking" : /PASS/i.test(first) ? "pass" : "posted";
+      return { number: p.number, title: p.title, author: p.author?.login || "", branch: p.headRefName, updatedAt: p.updatedAt, url: p.url, draft: p.isDraft, review };
+    });
+    prError = null;
+  } catch {
+    prError = "Install and log in to gh to see pull requests.";
+  }
+}
 const tryGit = (...a) => git(...a).catch(() => "");
 
 async function state() {
@@ -29,6 +47,7 @@ async function state() {
     lastFetch = Date.now();
     try { await git("fetch", "--quiet", "--prune", "origin"); fetchError = null; }
     catch (e) { fetchError = String(e.stderr || e.message).trim().split("\n")[0]; }
+    await loadPrs();
   }
   const hasRemote = (await tryGit("rev-parse", "--verify", "--quiet", "origin/main")).trim();
   const ref = local || !hasRemote ? "HEAD" : "origin/main";
@@ -43,7 +62,7 @@ async function state() {
   ]);
   const rows = (s) => s.split("\n").filter(Boolean).map((l) => l.split(SEP));
   return {
-    ref, fetchedAt: lastFetch, fetchError, tasks, log, decision,
+    ref, fetchedAt: lastFetch, fetchError, tasks, log, decision, prs, prError,
     commits: rows(commits).map(([hash, author, date, subject]) => ({ hash, author, date, subject })),
     branches: rows(branches)
       .filter(([name]) => name !== "origin/HEAD" && name !== "origin")

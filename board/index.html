@@ -76,7 +76,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; al
 .row { display: grid; grid-template-columns: 4px 44px minmax(0, 1fr) auto; gap: 0 12px; align-items: center;
   padding: 10px 14px 10px 0; border-top: 1px solid var(--line); }
 .row:first-child { border-top: 0; }
-.row .stripe { align-self: stretch; margin-block: -10px; background: var(--muted); }
+.row .stripe { grid-row: 1 / span 3; align-self: stretch; margin-block: -10px; background: var(--muted); }
 .row .id { color: var(--muted); }
 .row .title { font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
 .row .meta { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: end; font-size: 13px; color: var(--muted); }
@@ -101,6 +101,12 @@ aside { display: grid; gap: 22px; min-width: 0; }
 .feed .what { font-size: 14px; overflow-wrap: anywhere; }
 .feed .who { color: var(--muted); }
 
+.row .q { grid-column: 3 / -1; margin-top: 4px; font-size: 13px; color: var(--blocked); overflow-wrap: anywhere; }
+.row .area { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; margin-left: 6px; font-weight: 400; }
+.feed a { color: var(--ink); text-decoration-color: var(--line); text-underline-offset: 3px; }
+.feed a:hover { text-decoration-color: var(--accent); }
+.verdict { font-size: 12px; font-weight: 600; white-space: nowrap; }
+.verdict.pass { color: var(--done); } .verdict.blocking { color: var(--blocked); } .verdict.none, .verdict.posted { color: var(--muted); font-weight: 400; }
 .error { border: 1px solid var(--blocked); color: var(--blocked); border-radius: 4px; padding: 12px 14px; }
 .error code { font-family: var(--mono); color: var(--ink); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -130,6 +136,7 @@ aside { display: grid; gap: 22px; min-width: 0; }
   <main>
     <div class="groups" id="groups"></div>
     <aside>
+      <section class="group"><h2>Pull requests <span class="count" id="prcount"></span></h2><ul class="feed" id="prs"></ul></section>
       <section class="group"><h2>Active branches</h2><ul class="feed" id="branches"></ul></section>
       <section class="group"><h2>Log</h2><ul class="feed" id="log"></ul></section>
       <section class="group"><h2>Merged to main</h2><ul class="feed" id="commits"></ul></section>
@@ -198,7 +205,8 @@ function parseTasks(md) {
     const get = (k) => c[head.indexOf(k)] ?? "";
     const m = get("ticket").match(/^(T\d+)\s+(.*)$/i);
     const status = get("status").replace(/`/g, "").toLowerCase() || "todo";
-    return { id: m ? m[1] : "", title: m ? m[2] : get("ticket"), owner: get("owner"), status, branch: get("branch"), device: get("device") };
+    return { id: m ? m[1] : "", title: m ? m[2] : get("ticket"), owner: get("owner"), status, branch: get("branch"),
+      device: get("device"), area: get("area"), question: get("question") };
   }).filter((r) => r.title);
 }
 
@@ -211,12 +219,13 @@ function drawTasks(md) {
           <div class="row">
             <span class="stripe"></span>
             <span class="id mono">${esc(r.id)}</span>
-            <span class="title">${esc(r.title)}</span>
+            <span class="title">${esc(r.title)}${r.area ? `<span class="area">${esc(r.area)}</span>` : ""}</span>
             <span class="meta">
               ${r.owner ? `<span class="owner">${esc(r.owner)}</span>` : `<span>Unclaimed</span>`}
               ${r.branch ? `<span class="mono">${esc(r.branch)}</span>` : ""}
               ${r.device ? `<span>${esc(r.device)}</span>` : ""}
             </span>
+            ${r.question ? `<span class="q">Question: ${esc(r.question)}</span>` : ""}
           </div>`).join("")}</div>`
       : `<div class="none">${empty}</div>`;
     return `<section class="group s-${key}"><h2>${label}<span class="count">${items.length}</span></h2>${body}</section>`;
@@ -233,7 +242,19 @@ function drawDecision(md) {
     : `<div><dt>Idea</dt><dd>Not decided yet. Target Fri 21:00, written to DECISION.md.</dd></div>`;
 }
 
+const VERDICT = { pass: "Review passed", blocking: "Review blocking", posted: "Reviewed", none: "Not reviewed" };
+function drawPrs(s) {
+  $("prcount").textContent = s.prs ? s.prs.length : "";
+  if (!s.prs) { $("prs").innerHTML = `<li class="none">${esc(s.prError || "Loading…")}</li>`; return; }
+  $("prs").innerHTML = s.prs.length
+    ? s.prs.map((p) => `<li><div class="line1"><a href="${esc(p.url)}" target="_blank" rel="noopener">#${p.number} ${esc(p.title)}</a>
+        <span class="verdict ${p.review}">${p.draft ? "Draft" : VERDICT[p.review]}</span></div>
+        <div class="what"><span class="mono muted">${esc(p.branch)}</span> <span class="who">· ${esc(p.author)} · ${ago(p.updatedAt)}</span></div></li>`).join("")
+    : `<li class="none">No open pull requests.</li>`;
+}
+
 function drawFeeds(s) {
+  drawPrs(s);
   const branches = s.branches.filter((b) => b.name !== "main");
   $("branches").innerHTML = branches.length
     ? branches.map((b) => `<li><div class="line1"><span class="mono">${esc(b.name)}</span><span class="when">${ago(b.date)}</span></div>

@@ -1,12 +1,53 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr comment:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(node:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(python:*)",
+      "Bash(bash scripts/check.sh)",
+      "Bash(codex exec:*)",
+      "Bash(claude -p:*)"
+    ],
+    "ask": [
+      "Bash(git reset --hard:*)",
+      "Bash(git clean:*)",
+      "Bash(git branch -D:*)",
+      "Bash(git checkout -- :*)"
+    ],
+    "deny": [
+      "Bash(gh pr merge:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git push --no-verify:*)",
+      "Bash(git push * --no-verify*)",
+      "Bash(git push origin main:*)",
+      "Bash(git push origin HEAD:main:*)",
+      "Bash(ALLOW_MAIN_PUSH=1:*)",
+      "Bash(git config core.hooksPath:*)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
-          {
-            "type": "command",
-            "command": "git pull --rebase --autostash -q 2>&1 || echo 'git pull failed: resolve before working'; echo '--- LOG.md (latest) ---'; head -n 15 LOG.md 2>/dev/null"
-          }
+          { "type": "command", "command": "node scripts/status.mjs show", "timeout": 60 }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node scripts/status.mjs watch", "timeout": 15 }
         ]
       }
     ]
