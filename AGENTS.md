@@ -29,6 +29,7 @@ Shared by Claude Code (via CLAUDE.md) and Codex. Edit this file, not CLAUDE.md.
 | `LOG.md` | Decisions, dead ends, learnings. Newest first. | Anyone, append at top |
 | `context/` | Challenge briefs, judging criteria, partner docs. | Anyone; read-only facts |
 | `ideas/` | Per-person ideas from `ideas/TEMPLATE.md`. | Owner of each file |
+| `board/` | Live progress page for humans: `node board/serve.mjs`. Reads `origin/main`. | Don't edit during the event |
 | `scripts/check.sh` | Build/compile + tests + smoke run. Must pass before merge. | Integrator |
 
 ## Every session
@@ -45,6 +46,7 @@ Shared by Claude Code (via CLAUDE.md) and Codex. Edit this file, not CLAUDE.md.
 
 ## Tickets (how work flows)
 - Only work on a ticket in `TASKS.md`. No ticket → add one, then start.
+- Ticket status lives on `main` (the board reads it there). On claim, status change or finish: commit your work, `git switch main`, `git pull --rebase`, edit only your `TASKS.md` row (+ `LOG.md`), commit, push, `git switch -`.
 - Ticket must have: goal, files you may touch, done-when, how to verify.
 - Stay inside the ticket's files. Need to change `CONTRACT.md` or another area → stop, tell the human.
 - Done = `scripts/check.sh` passes + verification step done. Then status `review`.
