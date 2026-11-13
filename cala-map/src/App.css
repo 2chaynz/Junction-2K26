@@ -39,6 +39,8 @@ nav b { margin-left: auto; color: var(--accent); font-weight: 400; }
 .profile { display: flex; gap: 10px; align-items: center; padding: 12px; border-top: 1px solid var(--line); }
 .avatar { width: 32px; height: 32px; background: linear-gradient(135deg, #546, #a6c); border-radius: 2px; }
 .who { color: var(--accent); }
+.profile-text { flex: 1; min-width: 0; }
+.login { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-top: 1px solid var(--line); }
 
 .map { position: relative; overflow: hidden; }
 .map-top { position: absolute; top: 8px; left: 12px; right: 12px; display: flex; justify-content: center; gap: 12px; pointer-events: none; font-family: var(--serif); }

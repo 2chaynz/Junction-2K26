@@ -22,6 +22,7 @@ node scripts/embed.mjs              # similarity positions (TF-IDF now, Gemini l
 - Optional stack: Context.dev for live news per startup; Gemini/Gemma for embeddings and summaries.
 
 ## Config
+- Login (optional): create a Supabase project, run `supabase/schema.sql` in its SQL editor, enable Email auth, then set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env` (see `.env.example`). Without them the app runs as guest with localStorage.
 - `.env` (gitignored): `CALA_API_KEY`, sent as header `X-API-KEY`. Key from https://console.cala.ai/api-keys.
 
 ## Todo from humans

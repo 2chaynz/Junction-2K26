@@ -6,6 +6,7 @@ import { IS_MOCK, POSITIONS, SECTORS, STAGES, STARTUPS } from './data/load'
 import type { Startup } from './data/types'
 import { layoutIslands, type Tile } from './layout'
 import { useStored } from './useStored'
+import { sendMagicLink, signOut, supabase, useSession } from './auth'
 import './App.css'
 
 const { tiles: TILES, islands: ISLANDS } = layoutIslands(STARTUPS, SECTORS, POSITIONS)
@@ -44,10 +45,15 @@ export default function App() {
   const [moreFilters, setMoreFilters] = useState(true)
   const [panel, setPanel] = useState<Panel>('map')
   const [collapsed, setCollapsed] = useState(false)
-  const [gems, setGems] = useStored<string[]>('gems', [])
-  const [lists, setLists] = useStored<Record<string, string[]>>('lists', {})
-  const [discovered, setDiscovered] = useStored<string[]>('discovered', [])
-  const [savedFilters, setSavedFilters] = useStored<Filters[]>('savedFilters', [])
+  const session = useSession()
+  const uid = session?.user.id
+  const [gems, setGems] = useStored<string[]>('gems', [], uid, 'gems')
+  const [lists, setLists] = useStored<Record<string, string[]>>('lists', {}, uid, 'lists')
+  const [discovered, setDiscovered] = useStored<string[]>('discovered', [], uid, 'discovered')
+  const [savedFilters, setSavedFilters] = useStored<Filters[]>('savedFilters', [], uid, 'saved_filters')
+  const [loginOpen, setLoginOpen] = useState(false)
+  const [email, setEmail] = useState('')
+  const [loginMsg, setLoginMsg] = useState('')
   const [sofa, setSofa] = useState(false)
   const [explored, setExplored] = useState(false)
 
@@ -203,12 +209,27 @@ export default function App() {
             <button key={name} className="list-row" onClick={() => setPanel('lists')}>{name}<b>{ids.length}</b></button>
           ))}
         </div>
+        {loginOpen && !session && (
+          <form className="login" onSubmit={async (e) => {
+            e.preventDefault()
+            setLoginMsg('sending…')
+            const err = await sendMagicLink(email)
+            setLoginMsg(err ?? 'Check your inbox for the sign-in link.')
+          }}>
+            <input type="email" required placeholder="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <button type="submit">send sign-in link</button>
+            {loginMsg && <p className="muted">{loginMsg}</p>}
+          </form>
+        )}
         <div className="profile">
           <div className="avatar" />
-          <div>
-            <div className="who">investor</div>
+          <div className="profile-text">
+            <div className="who">{session?.user.email?.split('@')[0] ?? 'guest investor'}</div>
             <div className="muted">{discovered.length} discovered · {gems.length} gemmed</div>
           </div>
+          {supabase && (session
+            ? <button className="icon" title="Sign out" onClick={() => signOut()}>⏻</button>
+            : <button className="icon" title="Sign in" onClick={() => setLoginOpen(!loginOpen)}>⇥</button>)}
         </div>
       </aside>
 
