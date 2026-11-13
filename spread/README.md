@@ -16,7 +16,8 @@ set -a; . ./.env; set +a
 - Ranking run: add `--board`. Final Sun 08:00: not wired yet (use the kit's `spread-starter --final` as fallback).
 
 ## What it does (on top of the kit starter)
-- Quotes: list price x per-dealer markup. Starts at the level's competitor band, +2% after a win, -3% after a loss. Declines when the expected driver fee is over 85% of the price.
+- Quotes (default): online logistic model of P(win) by price/list, with offsets per dealer, pickup and delivery place. Quotes the ratio that maximises P(win) x (price - expected fee). Expected fee uses the booked/typical fee ratio learned from bookings, raised when many orders wait for a driver. `winprob=False` falls back to:
+- Quotes (old): list price x per-dealer markup. Starts at the level's competitor band, +2% after a win, -3% after a loss. Declines when the expected driver fee is over 85% of the price.
 - Fees: opening fee scaled up at levels 7-8 (driver shortage).
 - OR-Tools: won single-car orders wait up to 30 min. CP-SAT pairs them so one driver delivers car A then picks up car B nearby (12h rule, windows, deadlines). Pair fee = 85% of the two fees.
 
@@ -34,3 +35,14 @@ set -a; . ./.env; set +a
 | 1.60 | 85% | €587 | €545 |
 | 1.60 | 100% | -€1,588 | €476 |
 All ranked (>=90% on time) except some 100% runs. Pairing rarely fires (0-8 pairs a week): windows are tight.
+
+## Win-probability pricing (level 8, `evaluate.py --flag winprob`)
+| Seed | Markup (old) | Win-prob | On time (win-prob) |
+|---|---|---|---|
+| eval-0 | €1,499 | €4,834 | 96.3% |
+| eval-1 | €1,001 | €3,709 | 88.0% (not ranked) |
+| eval-2 | €380 | €4,349 | 93.1% |
+| eval-3 | -€206 | €1,786 | 90.3% |
+| Total | €2,674 | €14,678 | |
+
+Next: eval-1 misses the 90% minimum. Likely cars going to or from towns with few drivers; decline or price those up by measured time-to-book per town.

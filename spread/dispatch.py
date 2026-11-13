@@ -5,6 +5,7 @@ Run: python dispatch.py --level 8 --seed s1   (needs SPREAD_URL, SPREAD_KEY)
 from __future__ import annotations
 
 import argparse
+import math
 import sys
 from dataclasses import dataclass
 from typing import Optional
@@ -31,6 +32,12 @@ class Params:
     hold: int = 30
     max_link: int = 75
     combine: float = 0.85
+    winprob: bool = True
+    win_scale: float = 0.08
+    win_lr: float = 0.03
+    max_backlog: int = 15
+    backlog_free: int = 5
+    backlog_cost: float = 0.05
 
 
 def default_params() -> Params:
@@ -38,6 +45,35 @@ def default_params() -> Params:
         markup={1: 1.0, 2: 1.0, 3: 1.0, 4: 1.05, 5: 1.05, 6: 1.08, 7: 1.3, 8: 1.45},
         fee_base={1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 5: 1.0, 6: 1.05, 7: 1.3, 8: 1.35},
     )
+
+
+class WinModel:
+    """Online logistic model: P(win) = sigmoid((threshold - price/list) / scale).
+    Threshold = base + offsets for dealer, pickup place and delivery place, as the
+    competitor's price is list x lane x day factors and dealers differ."""
+
+    def __init__(self, base: float, scale: float, lr: float):
+        self.base, self.scale, self.lr = base, scale, lr
+        self.offset: dict[str, float] = {}
+
+    @staticmethod
+    def keys(request: PriceRequest) -> list[str]:
+        leg = request["legs"][0]
+        return [f"d:{request['dealerId']}", f"p:{leg['pickup']['placeId']}", f"q:{leg['delivery']['placeId']}"]
+
+    def threshold(self, keys: list[str]) -> float:
+        return self.base + sum(self.offset.get(k, 0.0) for k in keys)
+
+    def p_win(self, keys: list[str], x: float) -> float:
+        z = (self.threshold(keys) - x) / self.scale
+        return 1 / (1 + math.exp(-max(-30.0, min(30.0, z))))
+
+    def update(self, keys: list[str], x: float, won: bool) -> None:
+        grad = (float(won) - self.p_win(keys, x)) * self.lr
+        # The base moves with the day factor and price war; offsets learn lanes and dealers.
+        self.base += grad
+        for k in keys:
+            self.offset[k] = self.offset.get(k, 0.0) + grad
 
 
 class Roads:
@@ -53,6 +89,9 @@ class SmartDesk(Desk):
         super().__init__(world, level, now)
         self.p, self.roads = params, roads
         self.dealer_markup: dict[str, float] = {}
+        self.model = WinModel(params.markup[level] + 0.05, params.win_scale, params.win_lr)
+        self.fee_ratio = params.fee_base[level]  # booked fee / typical fee, learned
+        self.quoted: dict[str, float] = {}  # request id -> lowest quoted price/list ratio
         self.held: dict[str, int] = {}  # order id -> minute won, waiting for a partner
         self.paired = 0
 
@@ -65,6 +104,8 @@ class SmartDesk(Desk):
         self.requests[request["id"]] = request
         if self.level <= 3:
             return super().quote(request)
+        if self.p.winprob:
+            return self.quote_winprob(request)
         m = self.markup_for(request["dealerId"])
         cost = request["referenceFeeCents"] * self.p.fee_base[self.level]
         prices = {}
@@ -73,10 +114,56 @@ class SmartDesk(Desk):
             prices[option["kind"]] = price if cost <= self.p.max_cost_share * price else option["listPriceCents"] * 10
         self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
 
+    def quote_winprob(self, request: PriceRequest) -> None:
+        """Quotes the price/list ratio that maximises P(win) x (price - cost)."""
+        backlog = self.backlog()
+        if backlog >= self.p.max_backlog:
+            prices = {o["kind"]: o["listPriceCents"] * 10 for o in request["options"]}
+            self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
+            return
+        crowd = 1 + self.p.backlog_cost * max(0, backlog - self.p.backlog_free)
+        cost = request["referenceFeeCents"] * self.fee_ratio * crowd / self.p.max_cost_share
+        keys = self.model.keys(request)
+        prices = {}
+        for option in request["options"]:
+            listed = option["listPriceCents"]
+            best, best_x = 0.0, None
+            for i in range(56):
+                x = 0.9 + i * 0.02
+                gain = self.model.p_win(keys, x) * (x * listed - cost)
+                if gain > best:
+                    best, best_x = gain, x
+            prices[option["kind"]] = int(listed * best_x) if best_x else listed * 10
+        self.quoted[request["id"]] = min(prices[o["kind"]] / o["listPriceCents"] for o in request["options"])
+        self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
+
+    def backlog(self) -> int:
+        """Won orders still waiting for a driver: more of them means late cars."""
+        waiting = 0
+        for oid, order in self.orders.items():
+            if all(d is not None for d in order["deliveredAt"]):
+                continue
+            gigs = self.gigs_of(oid)
+            if oid in self.held or not gigs or not all(g in self.booked for g in gigs):
+                waiting += 1
+        return waiting
+
+    def learn_fee(self, gig_id: str, fee: int) -> None:
+        action = self.posts.get(gig_id)
+        if action is None:
+            return
+        ref = sum(self.requests[s["orderId"]]["referenceFeeCents"] / len(self.requests[s["orderId"]]["legs"])
+                  for s in action["stops"] if s["kind"] == "pickup" and s["orderId"] in self.requests)
+        if ref > 0:
+            self.fee_ratio += 0.1 * (fee / ref - self.fee_ratio)
+
     def learn(self, request_id: str, won: bool) -> None:
         request = self.requests.get(request_id)
         if request is None or self.level <= 3:
             return
+        x = self.quoted.get(request_id)
+        if x is not None and x < 5:
+            self.model.update(self.model.keys(request), x, won)
         m = self.markup_for(request["dealerId"]) * (self.p.win_step if won else self.p.loss_step)
         self.dealer_markup[request["dealerId"]] = min(self.p.max_markup, max(self.p.min_markup, m))
 
@@ -85,6 +172,8 @@ class SmartDesk(Desk):
             self.learn(event["requestId"], False)
         elif event["kind"] == "order_won":
             self.learn(event["order"]["id"], True)
+        elif event["kind"] == "gig_booked":
+            self.learn_fee(event["gigId"], event["feeCents"])
         elif event["kind"] == "order_cancelled":
             self.held.pop(event["orderId"], None)
         elif event["kind"] == "order_changed":
