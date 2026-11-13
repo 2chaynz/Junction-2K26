@@ -1,5 +1,11 @@
 # Ideas — 2chaynz
 
+## Summary
+- **Main candidates:** Aalto Humanoid (in, world-model training on Verda). Liked, to discuss: Stoa Blueprints, Arduino Green, Cala startup map, Beyond the Clinic (Timestral EEG), AfterQuery (hidden-rules game).
+- **Side project:** Bahn Spread (2chaynz + agents, OR-Tools).
+- **Blocked:** Intel (no station), Meta (no glasses), Rokoko (no gloves).
+- **Stack on top:** Verda, Gemini, Gemma, Nemotron (pick Gemini/Gemma or Nemotron), Arduino UNO Q (if hardware), Context.dev (if Cala), ElevenLabs.
+
 ## Challenge triage
 Verdict per challenge: in / maybe / out, plus ideas. Briefs: Junction Platform → Challenges.
 
@@ -24,3 +30,26 @@ Verdict per challenge: in / maybe / out, plus ideas. Briefs: Junction Platform �
 | 17 | Web as Real-Time DB | Context.dev | €2k | out | (tech-challenge version still stackable with Cala map) |
 | 18 | Rethinking Recruitment | City of Espoo | €1.5k | out | Too vague |
 | 19 | Wikipedia Through Time | MariaDB | €1k | out | Small prize |
+
+## Tech challenges (stackable)
+| # | Challenge | Prize (1st) | Verdict | Notes |
+|---|---|---|---|---|
+| T1 | Best Use of Verda | $10k credits | in | Free GPUs for Aalto humanoid training; post summary on Verda Discord |
+| T2 | Best Use of Gemini API | €4k + $1k GCP/member | in | Parse humanoid text instruction + vision; must be central |
+| T3 | Best Use of Gemma | €1k x3 teams | in | Local open model in humanoid policy (instruction parsing) on Verda; 3 equal winners |
+| T4 | Best Use of Codex | $10k API credits | out | |
+| T5 | Best Use of Nemotron | RTX 5080 x2 teams | in (pick one) | Choose Gemini/Gemma vs Nemotron later; Nemotron strong for Stoa (reads drawings) |
+| T6 | Best Use of Modal | $2k + $3k credits | out | Overlaps Verda |
+| T7 | Best Use of Aiven | €1k | out | |
+| T8 | Best Use of Arduino UNO Q | UNO Q + kit/member | in | If hardware main (Arduino Green / Beyond the Clinic) |
+| T9 | Atech Real World | Pro kit | out | Overlaps Arduino |
+| T10 | Best Use of Context.dev | €750 | in | If Cala map: enrich startups with live web data |
+| T11 | Oxylabs Web API | €1k Apple + $500/member | out | Redundant with Context.dev |
+| T12 | Best use of CRACI | LEGO/member | out | |
+| T13 | Best Use of Cloudinary | $500 Amazon/member | out | |
+| T14 | Best Use of ElevenLabs (MLH) | Earbuds | in | Voice coach for Beyond the Clinic; robot narration for Aalto; promo code in MLH email |
+| T15 | Best Use of Entire (MLH) | Projector | out | Our repo workflow already covers it |
+| T16 | Best Use of Solana (MLH) | HW wallets | out | |
+| T17 | Best Use of Tiger Data (MLH) | Stream Deck Mini | out | |
+| T18 | Best Use of Vultr (MLH) | M5Stack monitor | out | Overlaps Verda |
+| T19 | Best Use of MongoDB Atlas (MLH) | M5Stack IoT kit | out | |
