@@ -87,6 +87,9 @@ class SmartDesk(Desk):
             self.learn(event["order"]["id"], True)
         elif event["kind"] == "order_cancelled":
             self.held.pop(event["orderId"], None)
+        elif event["kind"] == "order_changed":
+            # A held order has no gig yet: the base change() posts it, so it must stop waiting.
+            self.held.pop(event["order"]["id"], None)
         super().handle(event)
 
     # --- fees ---------------------------------------------------------------
