@@ -15,7 +15,7 @@ from dispatch import Roads, default_params, play_practice
 def run(client: Client, roads: Roads, level: int, seed: str, batch: bool) -> dict:
     params = default_params()
     params.batch = batch
-    world = client.create(level=level, seed=seed)
+    world = Client().create(level=level, seed=seed)
     try:
         return play_practice(world, level, params, roads, quiet=True)
     except BaseException:

@@ -24,3 +24,13 @@ set -a; . ./.env; set +a
 - Measure batching vs no batching on 4+ seeds, tune `Params`.
 - Final mode (stream) using `SmartDesk`.
 - Learn lane prices from reveals; read notes better.
+
+## Results (level 8, seeds s1/s2)
+| Markup | Decline if fee > | s1 | s2 |
+|---|---|---|---|
+| kit starter | - | -€72,613 | - |
+| 1.32 | 85% | €285 | €613 |
+| 1.45 (default) | 85% | €1,008 | €518 |
+| 1.60 | 85% | €587 | €545 |
+| 1.60 | 100% | -€1,588 | €476 |
+All ranked (>=90% on time) except some 100% runs. Pairing rarely fires (0-8 pairs a week): windows are tight.
