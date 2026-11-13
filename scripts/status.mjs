@@ -226,7 +226,8 @@ const commands = {
     // --post: emit PostToolUse JSON so the notice reaches the agent mid-run.
     try {
       let sid = "default";
-      try { if (!process.stdin.isTTY) sid = JSON.parse(readFileSync(0, "utf8")).session_id || sid; } catch {}
+      // Only hooks pipe JSON on stdin. Reading it otherwise would hang a manual or Codex run.
+      if (flags.hook) try { sid = JSON.parse(readFileSync(0, "utf8")).session_id || sid; } catch {}
       const all = readState();
       const s = all[sid] || {};
       const save = (v) => writeState({ ...readState(), [sid]: v });

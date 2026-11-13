@@ -1,6 +1,6 @@
 # Agent instructions
 
-Shared by Claude Code (via CLAUDE.md) and Codex. Changes to this file go through a PR.
+Shared by Claude Code (via CLAUDE.md) and Codex. Every rule here binds both equally. Hooks and permissions in `.claude/` are only a convenience for Claude Code: Codex follows the same rules by hand. Changes to this file go through a PR.
 
 ## How to talk to us
 - Short, concise, direct. Answer first.
@@ -60,8 +60,9 @@ node scripts/status.mjs publish ideas/<name>.md context/...
 
 **During**
 - A `[team] main changed` notice → read the changed files from `origin/main`. Decision, contract or rules changed → rebase before continuing.
-- Claude Code gets the notice after every prompt and every tool call (60s throttle, per session). A clean local `main` fast-forwards by itself; feature branches never do, so rebase them yourself.
-- Codex: run `show` before each new step; you get no automatic notices.
+- All agents (Claude Code and Codex): before each new step run `node scripts/status.mjs watch --force`. It prints `[team] main changed` if main moved since you last looked. Silent means nothing new.
+- Claude Code does this by hook after every prompt and tool call, so it needs no manual run. Codex has no hooks, so it must run it.
+- A clean local `main` fast-forwards inside `watch`. Feature branches never do: rebase them yourself.
 
 **End** (or after any meaningful step)
 - `status.mjs set` your ticket. `status.mjs log` anything you decided, learned or abandoned.

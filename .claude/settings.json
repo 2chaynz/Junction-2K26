@@ -47,14 +47,14 @@
     "PostToolUse": [
       {
         "hooks": [
-          { "type": "command", "command": "node scripts/status.mjs watch --post", "timeout": 15 }
+          { "type": "command", "command": "node scripts/status.mjs watch --post --hook", "timeout": 15 }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "command", "command": "node scripts/status.mjs watch", "timeout": 15 }
+          { "type": "command", "command": "node scripts/status.mjs watch --hook", "timeout": 15 }
         ]
       }
     ]
