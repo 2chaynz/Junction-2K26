@@ -26,7 +26,7 @@ Main challenge: Stoa, Make Blueprints Talk (`context/challenges/stoa.md`). This 
 
 **Challenge:** Make Blueprints Talk (Stoa)
 
-**Tech challenges:** Best Use of Gemini API, Best Use of Gemma, Verda Compute Track, Best Use of Nemotron, Best Use of ElevenLabs
+**Tech challenges:** Best Use of Gemini API, Best Use of Gemma, Verda Compute Track, Best Use of Nemotron, Best Use of ElevenLabs, Best Use of Aiven, Best use of Modal, Best Use of Codex
 
 **Description** (max 5000, markdown):
 
@@ -50,7 +50,10 @@ Construction drawings are hard to search, and general AI models often misread th
 - Gemini API: validation and evaluation of answers.
 - Nemotron 3.5 Super VL: alternative model for reading drawings and documents.
 - Verda GPUs: photogrammetry reconstruction and testing.
+- Modal: serves Gemma on a GPU behind a public URL.
+- Aiven PostgreSQL (pgvector) and OpenSearch: index of drawing regions, sheets and scope-of-work clauses for retrieval.
 - ElevenLabs: spoken answers for hands-free use on site.
+- Codex: used by the team to build and cross-review the code.
 - Data: Stoa's dataset of real construction drawings and models.
 
 ## Status
@@ -58,12 +61,12 @@ Draft. Building over the weekend.
 ```
 
 ## Idea 1: SiteLens
-- **Challenge:** Stoa, Make Blueprints Talk. Stacks: Gemini, Gemma, Verda, Nemotron, ElevenLabs.
+- **Challenge:** Stoa, Make Blueprints Talk. Stacks: Gemini, Gemma, Verda, Nemotron, ElevenLabs, Aiven, Modal, Codex.
 - **Problem:** People not on site can't tie what they see to the right drawing, standard or bid scope.
 - **User:** Suppliers, clients, design engineers; contractors for scope/T&M.
 - **Demo:** Photo of a structure → matched drawing with confidence + reasoning → question answered with highlighted region and Eurocode/ASTM reference → scope-of-work flags.
 - **Medium:** software.
-- **Partner tech:** Stoa dataset, Gemma, Gemini, Nemotron, Verda, ElevenLabs.
+- **Partner tech:** Stoa dataset, Gemma, Gemini, Nemotron, Verda, Modal, Aiven, ElevenLabs, Codex.
 - **Hardware needed:** phone camera only.
 - **Riskiest part:** photo → drawing matching; Stoa data may have no site photos to test with.
 - **Buildable in 36h?** maybe. Q&A with citations is the core; photogrammetry and scope check are add-ons.
