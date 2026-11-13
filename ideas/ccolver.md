@@ -78,6 +78,25 @@ Draft. Building over the weekend.
 - Photogrammetry and scope-of-work are the creativity angle, but outside the brief's core ask. Keep them thin if time runs short.
 - Eurocode and ASTM full texts are paywalled; cite clause numbers and public summaries only.
 
+## Partner feedback (Stoa, on the scope-of-work part)
+- Stoa's product already detects design changes, so the scope-of-work feature overlaps with what they have.
+- Their gap: design changes are often quick and only show up in 2D drawings. They can't yet estimate the quantities in a change accurately.
+- They said solving this would be useful. Possible pivot for part 3: from flagging scope to **quantities of 2D design changes**.
+
+### Open question (answer it, or ask Stoa)
+- How do you get 3D quantities (volume, area, length, counts) from 2D drawings accurately, without sending someone to do a manual material takeoff?
+- Ideas to test:
+  - Combine plan, section and elevation views: plan gives footprint, section/elevation gives depth/height → volume.
+  - Read dimensions, scale bar and annotations (thickness, rebar schedules, callouts) with a VLM; use geometry for the measuring.
+  - Diff revision A vs B of the same sheet → measure only the changed region → delta quantity.
+  - Use the 3D model of the previous revision (if one exists) as the base and apply the 2D change to it.
+  - Show confidence per quantity and which view/dimension it came from, so an estimator can check it fast.
+- Ask Stoa:
+  - Can we get example revision pairs (before/after 2D change) with the true quantities?
+  - Which quantities matter most (concrete m³, rebar kg, formwork m², linear items)?
+  - What error is acceptable for an estimate?
+  - Do their projects usually have a 3D/BIM model of the earlier revision?
+
 ## Critique (written by another agent)
 -
 
