@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git pull --rebase --autostash -q 2>&1 || echo 'git pull failed: resolve before working'; echo '--- LOG.md (latest) ---'; head -n 15 LOG.md 2>/dev/null"
+          }
+        ]
+      }
+    ]
+  }
+}
