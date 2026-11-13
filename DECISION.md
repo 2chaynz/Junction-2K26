@@ -4,7 +4,7 @@ _Decided Fri 13 Nov. Brief: `context/challenges/intel.md`._
 
 - **Challenge:** Ignite Next x Intel, Physical AI Challenge (Hardware track).
 - **Idea:** Autonomous inspection cell. An SO-101 arm picks each Duplo brick, shows it to the inspection camera and drops it into a "good" or "defective" bowl. No human in the loop.
-- **One-line pitch:** A factory inspection robot taught in an afternoon by demonstration, not programmed, running fully on a laptop.
+- **One-line pitch:** A factory inspection robot taught by demonstration in one weekend, not programmed, running fully on a laptop.
 - **Demo flow:**
   1. Pile of mixed bricks, some marked defective.
   2. Arm picks a brick, holds it at the inspection camera, live anomaly score on screen.
