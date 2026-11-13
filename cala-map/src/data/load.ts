@@ -21,5 +21,8 @@ export const STARTUPS: Startup[] = raw
   ? raw.map((s) => ({ ...s, sector: SECTOR_LABEL[s.sector] ?? s.sector, stage: s.rounds.length || s.sources.length ? stageOf(s.rounds.length) : 'Unknown' }))
   : mockStartups()
 export const IS_MOCK = !raw
+
+const posFiles = import.meta.glob<Record<string, [number, number]>>('./positions.json', { eager: true, import: 'default' })
+export const POSITIONS = posFiles['./positions.json'] ?? {}
 export const SECTORS = [...new Set(STARTUPS.map((s) => s.sector))].sort()
 export { STAGES }

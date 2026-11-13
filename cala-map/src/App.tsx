@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { DeckGL } from '@deck.gl/react'
 import { OrthographicView } from '@deck.gl/core'
 import { PolygonLayer, TextLayer } from '@deck.gl/layers'
-import { IS_MOCK, SECTORS, STAGES, STARTUPS } from './data/load'
+import { IS_MOCK, POSITIONS, SECTORS, STAGES, STARTUPS } from './data/load'
 import type { Startup } from './data/types'
 import { layoutIslands, type Tile } from './layout'
 import { useStored } from './useStored'
 import './App.css'
 
-const { tiles: TILES, islands: ISLANDS } = layoutIslands(STARTUPS, SECTORS)
+const { tiles: TILES, islands: ISLANDS } = layoutIslands(STARTUPS, SECTORS, POSITIONS)
 const BY_ID = new Map(TILES.filter((t) => t.startup).map((t) => [t.startup!.id, t]))
 const COUNTRIES = [...new Set(STARTUPS.map((s) => s.country))].sort()
 
@@ -121,10 +121,14 @@ export default function App() {
     new TextLayer({
       id: 'labels',
       data: ISLANDS,
-      getPosition: (i) => [i.cx, i.cy - 8],
+      getPosition: (i) => [i.cx, i.cy],
       getText: (i) => i.sector,
       getColor: [240, 160, 200, 230],
-      getSize: 26,
+      // World units, so labels grow and shrink with the island like a map.
+      getSize: (i) => Math.max(4, i.radius * 0.55),
+      sizeUnits: 'common',
+      sizeMinPixels: 9,
+      sizeMaxPixels: 64,
       fontFamily: 'Georgia, serif',
       fontSettings: { sdf: true },
       outlineWidth: 2,
