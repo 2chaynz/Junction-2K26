@@ -18,9 +18,9 @@ from spread.types import (
     Score, StopRef, TimeWindow,
 )
 
-import json, os
+import json, math, os
 HOUR, DAY = 60, 24 * 60
-P = {"qm": 1.0, "opt": "first", "f0": 1.0, "fstep": 0.10, "fn": 6, "fint": 60, "s0": 1.5, "sstep": 0.25, "sn": 5, "sint": 30, "trust": 0.0, "ramp": 0, "f1": 1.4, "rn": 8, "minslack": 0, "lowslack": 600, "lowmult": 1.0, "suplo": 0, "supmult": 1.3, "supdecl": 0, "offer": 0, "ofee": 0.6, "orad": 30, "onear": 30, "omax": 6}
+P = {"qm": 1.0, "opt": "first", "f0": 1.0, "fstep": 0.10, "fn": 6, "fint": 60, "s0": 1.5, "sstep": 0.25, "sn": 5, "sint": 30, "trust": 0.0, "ramp": 0, "f1": 1.4, "rn": 8, "minslack": 0, "lowslack": 600, "lowmult": 1.0, "suplo": 0, "supmult": 1.3, "supdecl": 0, "offer": 0, "ofee": 0.6, "orad": 30, "onear": 30, "omax": 6, "rq": 0, "model": 0, "cc": 1.1, "eta": 0.08, "mmin": 0.9}
 P.update(json.loads(os.environ.get("SPREAD_PARAMS", "{}")))
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 # The events that need an answer. Views and account lines arrive with the next event that needs an answer.
@@ -82,6 +82,16 @@ def km(a: str, b: str) -> float:
     return 111 * math.hypot(x, A["lat"] - B["lat"])
 
 
+MODEL: dict = {}
+
+
+def load_model() -> dict:
+    if not MODEL:
+        import pathlib
+        MODEL.update(json.loads((pathlib.Path(__file__).with_name("model.json")).read_text()))
+    return MODEL
+
+
 class Desk:
     """What the starter remembers, and its answer to each event. The answers wait in the outbox
     until the starter sends them, and the world applies them at the current minute."""
@@ -97,6 +107,8 @@ class Desk:
         self.urgent: set[str] = set()  # the orders whose deadline warning has come
         self.trust: dict[str, int] = {}  # dealer id -> orders delivered on time (level 8 trust count)
         self.late_seen: set[str] = set()
+        self.bias = 0.0
+        self.pending_q: dict[str, tuple] = {}
         self.offer_queue: dict[str, list[str]] = {}
         self.offer_fee: dict[str, int] = {}
         self.offers_day: dict = {}
@@ -154,6 +166,8 @@ class Desk:
                 self.next_offer(event["gigId"])
         elif event["kind"] in ("gig_dropped", "no_show"):  # after a no-show the gig is open again; a late driver still comes
             self.booked.discard(event["gigId"])
+        elif event["kind"] == "order_lost" and event["requestId"] in self.pending_q:
+            self.learn(event["requestId"], 0.0)
         elif event["kind"] == "ledger":
             self.ledger(event["line"])
         elif event["kind"] == "delivered":
@@ -207,9 +221,48 @@ class Desk:
         if not chosen:
             self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {opts[0]["kind"]: opts[0]["listPriceCents"] * 5}})
             return
+        if P["model"] and chosen:
+            mdl = load_model()
+            leg0 = request["legs"][0]
+            o0 = chosen[0]
+            feats = [f"dealer:{request['dealerId']}", f"pk:{leg0['pickup']['placeId']}", f"dl:{leg0['delivery']['placeId']}", f"k:{o0['kind']}"]
+            base = mdl["icpt"] + sum(mdl["w"].get(f, 0.0) for f in feats) + self.bias
+            tr = 1 + P["trust"] * self.trust.get(request["dealerId"], 0) / 100
+            cost = request["referenceFeeCents"] * P["cc"] * max(mults.values())
+            if P["suplo"] and supply(self.world, leg0["pickup"]["placeId"]) < P["suplo"]:
+                cost *= P["supmult"]
+            best, bm = 0.0, None
+            for i in range(0, 160):
+                m = P["mmin"] + i * 0.01
+                p = 1 / (1 + math.exp(-(base + mdl["slope"] * math.log(m / tr))))
+                gain = (m * o0["listPriceCents"] - cost) * p
+                if gain > best:
+                    best, bm = gain, m
+            self.pending_q[request["id"]] = (base, math.log(bm / tr) if bm else None)
+            if bm is None:
+                self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {o0["kind"]: o0["listPriceCents"] * 5}})
+                return
+            self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {o["kind"]: int(o["listPriceCents"] * bm) for o in chosen}})
+            return
+        if P["rq"]:
+            import random
+            m = math.exp(random.Random(request["id"] + str(request["arrivedAt"])).uniform(math.log(1.0), math.log(2.4)))
+            self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {o["kind"]: int(o["listPriceCents"] * m) for o in chosen}})
+            return
         self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {o["kind"]: int(o["listPriceCents"] * P["qm"] * mults[o["kind"]] * (1 + P["trust"] * self.trust.get(request["dealerId"], 0) / 100)) for o in chosen}})
 
+    def learn(self, rid: str, won: float) -> None:
+        base, lmeff = self.pending_q.pop(rid)
+        if lmeff is None:
+            return
+        mdl = load_model()
+        p = 1 / (1 + math.exp(-(base + mdl["slope"] * lmeff)))
+        self.bias += P["eta"] * (won - p)
+        self.bias = max(-2.0, min(2.0, self.bias))
+
     def win(self, order: Order) -> None:
+        if order["id"] in self.pending_q:
+            self.learn(order["id"], 1.0)
         if order["id"] in self.requests and order["id"] not in self.orders:  # rejoin can know it already
             self.orders[order["id"]] = order
             self.post(order, undelivered(order))
@@ -267,8 +320,10 @@ class Desk:
 
     def post(self, order: Order, legs: list[int], retry: Retry = Retry()) -> None:
         # A premium car needs an experienced driver: the fine is €150 a car.
-        audience: Audience = {"experienced": any(leg["car"]["premium"] for leg in order["legs"]), "manualLicence": retry.manual_licence}
-        stops = without_windows(stops_for(order, legs, self.requests[order["id"]]["note"], retry), self.now)
+        request = self.requests[order["id"]]
+        manual, _, _ = note_flags(request)
+        audience: Audience = {"experienced": any(leg["car"]["premium"] for leg in order["legs"]), "manualLicence": retry.manual_licence or manual}
+        stops = without_windows(stops_for(order, legs, request, retry), self.now)
         self.outbox.append({"type": "post", "stops": stops, "audience": audience, "schedule": self.fees_for(order, len(legs))})
         if len(legs) == 1:
             return
@@ -383,20 +438,21 @@ def steep(now: int, fee: float, level: int) -> list[FeeStep]:
     return [{"at": now + k * P["sint"], "feeCents": max(1, int(fee * (P["s0"] + k * P["sstep"]) + 0.5))} for k in range(1 if level == 1 else P["sn"])]
 
 
-def stops_for(order: Order, legs: list[int], note: Optional[Note], retry: Retry) -> list[StopRef]:
-    """A pickup and a delivery for each leg. An electric car under 30% gets a charging stop.
-    A stop has its own window only when the note or the retry makes it narrower. Without
-    one, the world plans the pickup in the order's window and the delivery by the deadline."""
+def stops_for(order: Order, legs: list[int], request: PriceRequest, retry: Retry) -> list[StopRef]:
+    """A pickup and a delivery for each leg. A stop has its own window only when the note or the retry
+    makes it narrower. Without one, the world plans the pickup in the order's window and the delivery by
+    the deadline. A note that needs plates or a charge gets them on the first post."""
+    _, plates, low_battery_note = note_flags(request)
     stops: list[StopRef] = []
     for leg in legs:
         car, pickup, delivery = order["legs"][leg]["car"], order["legs"][leg]["pickup"], order["legs"][leg]["delivery"]
-        noted = window_from_note(note, pickup["window"], "pickup")
+        noted = window_from_note(request, pickup["window"], "pickup")
         start = max(noted["from"], retry.pickup_from)
         pickup_window: TimeWindow = {"from": start, "to": max(noted["to"], start)}
         delivery_base: TimeWindow = {"from": delivery["window"]["from"], "to": max(delivery["window"]["from"], order["deadline"])}
-        delivery_window = window_from_note(note, delivery_base, "delivery")
-        low_battery = car["electric"] and car["chargePercent"] is not None and car["chargePercent"] < 30
-        first: StopRef = {"orderId": order["id"], "leg": leg, "kind": "pickup", "withPlates": retry.plates, "withCharging": low_battery}
+        delivery_window = window_from_note(request, delivery_base, "delivery")
+        low_battery = car["electric"] and ((car["chargePercent"] is not None and car["chargePercent"] < 30) or low_battery_note)
+        first: StopRef = {"orderId": order["id"], "leg": leg, "kind": "pickup", "withPlates": retry.plates or plates, "withCharging": low_battery}
         second: StopRef = {"orderId": order["id"], "leg": leg, "kind": "delivery"}
         stops += [narrower(first, pickup_window, pickup["window"]), narrower(second, delivery_window, delivery_base)]
     return stops
@@ -406,49 +462,193 @@ def narrower(stop: StopRef, window: TimeWindow, base: TimeWindow) -> StopRef:
     return {**stop, "window": window} if window["from"] > base["from"] or window["to"] < base["to"] else stop
 
 
-# "Not before", "at the earliest" and a ready time all mean from then on; read them before BEFORE.
-# re.ASCII makes \b and \d mean what they mean in JavaScript, so both starters read a note alike.
-AFTER = re.compile(r"jälkeen|alkaen|aikaisintaan|\bafter\b|\bfrom\b|earliest|not before|ei ennen|valmis|\bready\b|efter|tidigast|inte före|klar", re.ASCII)
-BEFORE = re.compile(r"ennen|mennessä|viim|\bbefore\b|\bby\b|latest|före|senast", re.ASCII)
-DELIVERY = re.compile(r"toimit|perillä|perille|vastaanot|kohde|deliver|arrive|destination|receiv|leverera|leverans|framme|mottag", re.ASCII)
-CLOCK = re.compile(r"(?:klo|kl\.?)\s*(\d{1,2})(?:[.:](\d{2}))?|\b(\d{1,2})[.:](\d{2})\b", re.ASCII)
+# Keywords, matched on lower-cased clauses. A closing word turns a time after it into the site's closing time.
+AFTER = re.compile(r"j.{0,2}keen|alkaen|aikaisintaan|\bafter\b|\bfrom\b|earliest|not before|ei ennen|valmi|\bready\b|efter|tidigast|inte före|\bklar\b|först|\bvasta\b|once paid|payment", re.ASCII)
+BEFORE = re.compile(r"ennen|mennessä|mennessa|viim|\bbefore\b|\bby\b|latest|ltaest|före|senast|\basti\b|\buntil\b|\btill\b|\btills\b|innan", re.ASCII)
+CLOSED = re.compile(r"kiinni|sulkee|suljet|\bcloses?\b|\bclosed\b|stänger|stängt|ei ketään|ei kukaan|nobody|no one|ingen", re.ASCII)
+DELIVERY = re.compile(r"toimit|perill|perila|perilä|peril[ae]|vastaanot|kohde|destination|dstination|deliver|arriv|receiv|leverera|leverans|framme|mottag", re.ASCII)
+PICKUP = re.compile(r"nou[dt]|hake|haett|hämt|\bhaku|collect|pick ?up|\bready\b|valmi|\bklar\b|luovut|handover|hand over|maks|maskaa|payment|pays|release", re.ASCII)
+CORRECTION = re.compile(r"korjaus|correction|corrected|\bcorr\b|ei kun|ei vaan|i mean|instead|rättelse", re.ASCII)
+HANDOVER = re.compile(r"vasta|maks|once paid|pays|payment|sitten|sen jälkeen|luovut", re.ASCII)
+DENIAL = re.compile(r"(?:\bnot|\binte|\bej|\bei)$", re.ASCII)
 # Opening hours as a range: "9-16", "klo 9.00-14.30", "kl 10-14".
-RANGE = re.compile(r"\b(\d{1,2})(?:[.:](\d{2}))?\s*[-–]\s*(\d{1,2})(?:[.:](\d{2}))?\b", re.ASCII)
+RANGE = re.compile(r"(?<![\d.:])(\d{1,2})(?:[.:](\d{2}))?\s*-\s*(\d{1,2})(?:[.:](\d{2}))?(?![\d])", re.ASCII)
+# A clock time: after klo/kl/kello/klockan/at, with a colon or dot, with am/pm, or next to a bound word.
+CLOCK = re.compile(
+    r"(?<![\w.:])(?:(?:klo|kl|kello|klockan|at)\.?\s*(\d{1,2})(?:[.:](\d{2}))?"
+    r"|(\d{1,2})[.:](\d{2})(?!\d)"
+    r"|(\d{1,2})(?=\s*(?:mennessä|mennessa|asti|alkaen|jälkeen|ennen|viimeistään|viim|latest|earliest|before|after|by)\b)"
+    r"|(\d{1,2})(?=\s*(?:am|pm)\b))(?:\s*(am|pm)\b)?",
+    re.ASCII,
+)
+DAY_WORDS = [
+    (re.compile(r"tänään|tanaan|\bidag\b|\btoday\b", re.ASCII), 0),
+    (re.compile(r"ylihuom\w*|i övermorgon|övermorgon|overmorgon|day after tomorrow", re.ASCII), 2),
+    (re.compile(r"\bhuom\w*n\w*|\bi morgon\b|\bimorgon\b|\btomorrow\b|\btomorow\b|\btmrw\b|\btmr\b|\btmw\b", re.ASCII), 1),
+]
+WEEKDAY = re.compile(
+    r"\b(maanantai\w*|måndag\w*|monday|mon|ma(?=\s+(?:klo|kl|\d))|mån(?=\s+(?:klo|kl|\d))"
+    r"|tiistai\w*|tisdag\w*|tuesday|tues?|ti(?=\s+(?:klo|kl|\d))"
+    r"|keskiviikko\w*|onsdag\w*|wednesday|wed|ke(?=\s+(?:klo|kl|\d))|ons(?=\s+(?:klo|kl|\d))"
+    r"|torstai\w*|torsdag\w*|thursday|thu|thurs|thur|to(?=\.?\s+(?:klo|kl|\d))|tors(?=\s+(?:klo|kl|\d))"
+    r"|perjantai\w*|fredag\w*|friday|fri|pe(?=\s+(?:klo|kl|\d))|fre(?=\s+(?:klo|kl|\d))"
+    r"|lauantai\w*|lördag\w*|saturday|sat|la(?=\s+(?:klo|kl|\d))"
+    r"|sunnuntai\w*|söndag\w*|sunday|sun|su(?=\s+(?:klo|kl|\d)))\b",
+    re.ASCII,
+)
+WORD_HOUR = re.compile(
+    r"(?<![a-zäöå])(?:(puoli|half)\s+)?"
+    r"(yhdentoista|kahdentoista|yhdelt[äa]|kahdelt[äa]|kolmelt[äa]|neljält[äa]|neljalt[äa]|viidelt[äa]|kuudelt[äa]|seitsemält[äa]|seitsemalt[äa]|kahdeksalt[äa]|kahdeksält[äa]"
+    r"|yhdeksält[äa]|yhdeksalt[äa]|kymmenelt[äa]|yhdeltätoista|kahdeltatoista"
+    r"|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|ett|två|tre|fyra|fem|sex|sju|åtta|nio|tio|elva|tolv)(?![a-zäöå])"
+)
+WORD_NUMBERS = {
+    "yhdeltä": 1, "yhdelta": 1, "yhdentoista": 11, "kahdentoista": 12, "kahdelta": 2, "kahdeltä": 2, "kolmelta": 3, "kolmeltä": 3, "neljältä": 4, "neljalta": 4,
+    "viideltä": 5, "viidelta": 5, "kuudelta": 6, "kuudeltä": 6, "seitsemältä": 7, "seitsemalta": 7, "kahdeksalta": 8, "kahdeksältä": 8,
+    "yhdeksältä": 9, "yhdeksalta": 9, "kymmeneltä": 10, "kymmenelta": 10, "yhdeltätoista": 11, "kahdeltatoista": 12,
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+    "ett": 1, "två": 2, "tre": 3, "fyra": 4, "fem": 5, "sex": 6, "sju": 7, "åtta": 8, "nio": 9, "tio": 10, "elva": 11, "tolv": 12,
+}
+WEEKDAY_INDEX = [("maa", 0), ("ma", 0), ("mon", 0), ("mån", 0), ("tii", 1), ("tue", 1), ("tis", 1), ("ti", 1), ("kes", 2), ("wed", 2), ("ons", 2), ("ke", 2),
+                 ("tor", 3), ("thu", 3), ("tors", 3), ("to", 3), ("per", 4), ("fri", 4), ("fre", 4), ("pe", 4), ("lau", 5), ("sat", 5), ("lör", 5), ("la", 5),
+                 ("sun", 6), ("sön", 6), ("su", 6)]
 
 
-def window_from_note(note: Optional[Note], window: TimeWindow, stop: str) -> TimeWindow:
-    """Narrows a stop's window by clock times in the note, found by keywords: "nouto ennen 15.30",
-    "klo 12 jälkeen", "deliver by 19:00", "efter kl. 12", "aikaisintaan klo 13.30", "not before
-    16:00", and opening hours as a range, "arkisin 9-16". The time is on the window's own day."""
+def note_flags(request: PriceRequest) -> tuple[bool, bool, bool]:
+    """What the note says about the car: a manual gearbox, no plates, a weak battery."""
+    text = ((request.get("note") or {}).get("text") or "").lower()
+    manual = bool(re.search(r"manuaa|manual|manuell|ei automaatti|stick shift", text))
+    plates = bool(re.search(r"kilpi|kilvet|kilpe|rekkar|rekisterikilv|skylt|plates|siirtokilv|koekilv|unregistered|number plate|registration plate", text))
+    low_battery = bool(re.search(r"akku|batter", text)) and bool(re.search(r"heikko|weak|low|tyhj|vähis|vähän|empty|dead|flat", text))
+    return manual, plates, low_battery
+
+
+def note_clauses(text: str) -> list[str]:
+    """Splits a note at sentences, commas and slashes, so that each clause has one stop."""
+    t = text.lower().replace("–", "-").replace("—", "-")
+    t = re.sub(r"\b(kl|klo|viim|n|ma|ti|ke|to|pe|la|su|mon|tue|wed|thu|fri|sat|sun|tmrw)\.(?=\s)", r"\1", t)
+    return [c.strip() for c in re.split(r"\.(?!\d)|[!;\n/,?]", t) if c.strip()]
+
+
+def clause_stop(clause: str) -> str:
+    """A pickup word wins. A clause with only a delivery word is for the delivery; the rest are for the pickup."""
+    if PICKUP.search(clause):
+        return "pickup"
+    return "delivery" if DELIVERY.search(clause) else "pickup"
+
+
+def weekday_offset(word: str, arrival_wd: int) -> int:
+    """A weekday name is 2 to 6 days after the request arrives, never the arrival day or the next."""
+    index = next((i for prefix, i in WEEKDAY_INDEX if word.startswith(prefix)), 0)
+    offset = (index - arrival_wd) % 7
+    return offset + 7 if offset < 2 else offset
+
+
+def clock_times(clause: str, arrived: int, handover: bool) -> list[tuple[str, int]]:
+    """The (bound, minute) pairs of a clause: 'from' for a time from which, 'to' for a time until which."""
+    arrival_day = arrived // DAY
+    day_marks: list[tuple[int, int]] = []
+    for pattern, offset in DAY_WORDS:
+        day_marks += [(m.start(), offset) for m in pattern.finditer(clause)]
+    day_marks += [(m.start(), weekday_offset(m.group(1), arrival_day % 7)) for m in WEEKDAY.finditer(clause)]
+    times: list[tuple[int, int, int]] = []  # position, minute of the day, end position
+    for m in CLOCK.finditer(clause):
+        hour = int(m.group(1) or m.group(3) or m.group(5) or m.group(6) or 0)
+        minute = int(m.group(2) or m.group(4) or 0)
+        meridiem = m.group(7)
+        if meridiem == "pm" and hour < 12:
+            hour += 12
+        elif meridiem == "am" and hour == 12:
+            hour = 0
+        if hour <= 24 and minute <= 59:
+            times.append((m.start(), hour * HOUR + minute, m.end()))
+    for m in WORD_HOUR.finditer(clause):
+        before = clause[max(0, m.start() - 14) : m.start()]
+        if not (m.group(1) or m.group(2).endswith(("lta", "ltä", "toista")) or re.search(r"klo|kl|kello|klockan|at|by|from|until|till|before|after|efter|före|senast|viim|ennen|jälkeen|alkaen|mennessä|asti|innan|earliest|latest", before)):
+            continue
+        hour = WORD_NUMBERS[m.group(2)]
+        hour = hour if hour >= 9 else hour + 12  # an hour in words is a working hour, from 9 to 17
+        minute = 0
+        if m.group(1):  # "half three" is 14:30
+            hour, minute = hour - 1, 30
+        times.append((m.start(), hour * HOUR + minute, m.end()))
+    out: list[tuple[str, int]] = []
+    for pos, minute_of_day, end in sorted(times):
+        whole = clause if len(times) == 1 else clause[max(0, pos - 30) : end + 30]
+        before = re.sub(r"(?:klo|kl|kello|klockan|at)\.?$", "", clause[:pos].rstrip()).rstrip()
+        if DENIAL.search(before):  # "ei kun klo 18" denies the time it names
+            continue
+        offset = 0
+        if day_marks:
+            near = min(day_marks, key=lambda mark: abs(mark[0] - pos))
+            if abs(near[0] - pos) < 60:
+                offset = near[1]
+        value = (arrival_day + offset) * DAY + minute_of_day
+        if CLOSED.search(whole):
+            out.append(("to", value))
+        elif AFTER.search(whole):
+            out.append(("from", value))
+        elif BEFORE.search(whole):
+            out.append(("to", value))
+        elif CORRECTION.search(clause):
+            out.append(("", value))  # a corrected time takes the bound of the time it corrects
+        elif handover:
+            out.append(("from", value))  # the car is handed over only from then on
+    if not times and day_marks and CORRECTION.search(clause):
+        out.append(("day", (arrival_day + min(day_marks)[1]) * DAY))  # "I mean Wednesday" moves the time before it
+    return out
+
+
+def window_from_note(request: PriceRequest, window: TimeWindow, stop: str) -> TimeWindow:
+    """Narrows a stop's window by the note: a ready time or a payment handover is a start, a deadline or
+    a closing time an end, and opening hours a range, "arkisin 9-16". Days count from the request's
+    arrival: "huomenna" is tomorrow, a weekday name 2 to 6 days on. A correction replaces what came before."""
+    note = request.get("note")
     if not note:
         return window
-    text = note["text"].lower()
-    if bool(DELIVERY.search(text)) != (stop == "delivery"):
-        return window
-
-    def minutes(hour: int, minute: int) -> Optional[int]:
-        return None if hour > 24 or minute > 59 else hour * HOUR + minute
-
     start, end = window["from"], window["to"]
-    # Opening hours hold every day: they move the window's start to the first day's opening and its end to the last day's closing.
-    for match in RANGE.finditer(text):
-        opens, closes = minutes(int(match[1]), int(match[2] or 0)), minutes(int(match[3]), int(match[4] or 0))
-        if opens is None or closes is None or opens >= closes:
+    constraints: list[tuple[str, int]] = []
+    handover = stop == "pickup" and bool(HANDOVER.search(note["text"].lower()))
+    previous = "pickup"
+    for clause in note_clauses(note["text"]):
+        has_word = PICKUP.search(clause) or DELIVERY.search(clause)
+        kind = previous if CORRECTION.search(clause) and not has_word else clause_stop(clause)  # a correction goes with what it corrects
+        previous = kind
+        if kind != stop:
             continue
-        start = max(start, start // DAY * DAY + opens)
-        end = min(end, end // DAY * DAY + closes)
-    text = RANGE.sub(" ", text)
-    for match in CLOCK.finditer(text):
-        m = minutes(int(match[1] or match[3]), int(match[2] or match[4] or 0))
-        if m is None:
+        for match in RANGE.finditer(clause):
+            hours = (int(match[1]), int(match[2] or 0), int(match[3]), int(match[4] or 0))
+            if hours[0] > 24 or hours[2] > 24 or hours[1] > 59 or hours[3] > 59:
+                continue
+            opens, closes = hours[0] * HOUR + hours[1], hours[2] * HOUR + hours[3]
+            if opens >= closes:
+                continue
+            start = max(start, start // DAY * DAY + opens)  # opening hours hold every day
+            end = min(end, end // DAY * DAY + closes)
+        constraints += clock_times(RANGE.sub(" ", clause), request["arrivedAt"], handover)
+    rebased: list[tuple[str, int]] = []
+    for bound, value in constraints:
+        if bound == "day":
+            if rebased:
+                rebased[-1] = (rebased[-1][0], value + rebased[-1][1] % DAY)
             continue
-        time = window["from"] // DAY * DAY + m
-        around = text[max(0, match.start() - 16) : match.end() + 16]
-        if AFTER.search(around):
-            start = max(start, time)
-        elif BEFORE.search(around):
-            end = min(end, time)
-    return {"from": start, "to": end} if start <= end else window
+        rebased.append((bound, value))
+    inherited = "to"
+    constraints = []
+    for bound, value in rebased:
+        inherited = bound or inherited
+        constraints.append((inherited, value))
+    if CORRECTION.search(note["text"].lower()):
+        constraints = list({bound: value for bound, value in constraints}.items())
+    for bound, value in constraints:
+        if bound == "from":
+            start = max(start, value)
+        else:
+            end = min(end, value)
+    if start <= end:
+        return {"from": start, "to": end}
+    # A ready time after the window's end: the pickup still runs to the window's own end.
+    return {"from": start, "to": max(start, window["to"])} if stop == "pickup" else window
 
 
 def play_practice(world: World, level: int) -> None:
