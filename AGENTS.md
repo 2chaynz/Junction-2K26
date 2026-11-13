@@ -60,6 +60,7 @@ node scripts/status.mjs publish ideas/<name>.md context/...
 
 **During**
 - A `[team] main changed` notice → read the changed files from `origin/main`. Decision, contract or rules changed → rebase before continuing.
+- Claude Code gets the notice after every prompt and every tool call (60s throttle, per session). A clean local `main` fast-forwards by itself; feature branches never do, so rebase them yourself.
 - Codex: run `show` before each new step; you get no automatic notices.
 
 **End** (or after any meaningful step)
