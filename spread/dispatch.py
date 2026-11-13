@@ -20,7 +20,7 @@ from spread.types import (
 
 import json, math, os
 HOUR, DAY = 60, 24 * 60
-P = {"qm": 1.0, "opt": "first", "f0": 1.0, "fstep": 0.10, "fn": 6, "fint": 60, "s0": 1.5, "sstep": 0.25, "sn": 5, "sint": 30, "trust": 0.0, "ramp": 0, "f1": 1.4, "rn": 8, "minslack": 0, "lowslack": 600, "lowmult": 1.0, "suplo": 0, "supmult": 1.3, "supdecl": 0, "offer": 0, "ofee": 0.6, "orad": 30, "onear": 30, "omax": 6, "rq": 0, "model": 0, "cc": 1.1, "eta": 0.08, "mmin": 0.9}
+P = {"qm": 1.0, "opt": "first", "f0": 1.0, "fstep": 0.10, "fn": 6, "fint": 60, "s0": 1.5, "sstep": 0.25, "sn": 5, "sint": 30, "trust": 0.0, "ramp": 0, "f1": 1.4, "rn": 8, "minslack": 0, "lowslack": 600, "lowmult": 1.0, "suplo": 0, "supmult": 1.3, "supdecl": 0, "offer": 0, "ofee": 0.6, "orad": 30, "onear": 30, "omax": 6, "rq": 0, "model": 0, "cc": 1.1, "eta": 0.08, "mmin": 0.9, "cm": 0, "ccm": 1.0, "lam": 0.5, "u": 0, "u1": 1.3, "u2": 1.7, "u3": 2.2, "t1": 600, "t2": 420, "t3": 300}
 P.update(json.loads(os.environ.get("SPREAD_PARAMS", "{}")))
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 # The events that need an answer. Views and account lines arrive with the next event that needs an answer.
@@ -90,6 +90,31 @@ def load_model() -> dict:
         import pathlib
         MODEL.update(json.loads((pathlib.Path(__file__).with_name("model.json")).read_text()))
     return MODEL
+
+
+CM: dict = {}
+
+
+def cost_model():
+    if not CM:
+        import pathlib, pickle
+        CM["m"] = pickle.loads(pathlib.Path(__file__).with_name("cost_model.pkl").read_bytes())
+    return CM["m"]
+
+
+def predict_cost(world, request) -> tuple[float, float]:
+    """Expected all-in cost as a multiple of the typical fee, and the chance the order is late."""
+    import collections
+    import featlib
+    cache = getattr(world, "_homes", None)
+    if cache is None:
+        supply(world, request["legs"][0]["pickup"]["placeId"])
+        cache = world._homes = collections.Counter(d["homePlaceId"] for d in world.roster())
+        for r in __import__("spread.client", fromlist=["Client"]).Client().map()["roads"]:
+            ROADS[(r["from"], r["to"])] = r["minutes"]
+    reg, clf = cost_model()
+    x = [featlib.feats(request, cache, PLACES, ROADS)]
+    return float(reg.predict(x)[0]), float(clf.predict_proba(x)[0][1])
 
 
 class Desk:
@@ -231,11 +256,15 @@ class Desk:
             cost = request["referenceFeeCents"] * P["cc"] * max(mults.values())
             if P["suplo"] and supply(self.world, leg0["pickup"]["placeId"]) < P["suplo"]:
                 cost *= P["supmult"]
+            plate = 0.0
+            if P["cm"]:
+                pc, plate = predict_cost(self.world, request)
+                cost = request["referenceFeeCents"] * pc * P["ccm"]
             best, bm = 0.0, None
             for i in range(0, 160):
                 m = P["mmin"] + i * 0.01
                 p = 1 / (1 + math.exp(-(base + mdl["slope"] * math.log(m / tr))))
-                gain = (m * o0["listPriceCents"] - cost) * p
+                gain = (m * o0["listPriceCents"] * (1 - P["lam"] * plate) - cost) * p
                 if gain > best:
                     best, bm = gain, m
             self.pending_q[request["id"]] = (base, math.log(bm / tr) if bm else None)
@@ -308,7 +337,19 @@ class Desk:
             if end - self.now < 30:
                 return [{"at": self.now, "feeCents": max(1, int(fee * P["f1"] + 0.5))}]
             return [{"at": int(self.now + k * (end - self.now) / (n - 1)), "feeCents": max(1, int(fee * (P["f0"] + (P["f1"] - P["f0"]) * k / (n - 1)) + 0.5))} for k in range(n)]
-        return steep(self.now, fee, self.level) if order["id"] in self.urgent else rising(self.now, fee, self.level)
+        if order["id"] in self.urgent:
+            return steep(self.now, fee, self.level)
+        base = rising(self.now, fee, self.level)
+        if P["u"]:
+            last = order["lastPickupAt"]
+            top = base[-1]["feeCents"]
+            for mult, lead in ((P["u1"], P["t1"]), (P["u2"], P["t2"]), (P["u3"], P["t3"])):
+                at = last - lead
+                f = int(fee * mult + 0.5)
+                if at > base[-1]["at"] and f >= top:
+                    base.append({"at": at, "feeCents": f})
+                    top = f
+        return base
 
     def retry(self, order_id: str, leg: int, reason: str) -> None:
         if order_id in self.orders:
