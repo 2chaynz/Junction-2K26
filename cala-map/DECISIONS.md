@@ -9,3 +9,4 @@
 7. **Build order:** (1) Cala import → JSON, (2) Perlin islands + Gemini similarity layout, (3) investors in common, (4) Gemini summary, (5) adapt scaffold features to real data, (6) accounts + login (Firebase/Supabase), (7) messages.
 8. **Name/branding:** Unicorn Isles. zig-zag mood (black, serif + pixel fonts, boat) with our own palette: gold for unicorns/selection, pastel per sector. No zig-zag logo or assets.
 9. **Code home:** branch `2chaynz/cala-map`, worktree `../Junction-cala`. PR to main per AGENTS.md. Dev server: `.claude/launch.json` → "cala-map" (port 5174).
+10. **Messages:** one live discussion thread per startup (Supabase Realtime), signed-in users only. No private DMs.

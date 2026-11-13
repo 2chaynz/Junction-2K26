@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { DeckGL } from '@deck.gl/react'
-import { OrthographicView } from '@deck.gl/core'
-import { PolygonLayer, TextLayer } from '@deck.gl/layers'
+import { LinearInterpolator, OrthographicView } from '@deck.gl/core'
+import { IconLayer, PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
+import { useClock, useVoyage } from './anim'
+import { Logo } from './Logo'
 import { IS_MOCK, POSITIONS, SECTORS, STAGES, STARTUPS } from './data/load'
 import type { Startup } from './data/types'
 import { layoutIslands, type Tile } from './layout'
@@ -12,6 +14,24 @@ import './App.css'
 const { tiles: TILES, islands: ISLANDS } = layoutIslands(STARTUPS, SECTORS, POSITIONS)
 const BY_ID = new Map(TILES.filter((t) => t.startup).map((t) => [t.startup!.id, t]))
 const COUNTRIES = [...new Set(STARTUPS.map((s) => s.country))].sort()
+const FLY = { transitionDuration: 1200, transitionInterpolator: new LinearInterpolator({ transitionProps: ['target', 'zoom'] }), transitionEasing: (k: number) => (k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2) }
+
+// Glints on open water, scattered once around the archipelago.
+const LAND = new Set(TILES.map((t) => `${t.x},${t.y}`))
+const SEA = (() => {
+  const xs = TILES.map((t) => t.x)
+  const ys = TILES.map((t) => t.y)
+  const [x0, x1, y0, y1] = [Math.min(...xs) - 30, Math.max(...xs) + 30, Math.min(...ys) - 30, Math.max(...ys) + 30]
+  const pts: { p: [number, number]; phase: number; speed: number }[] = []
+  for (let i = 0; pts.length < 900 && i < 5000; i++) {
+    const p: [number, number] = [Math.round(x0 + Math.random() * (x1 - x0)), Math.round(y0 + Math.random() * (y1 - y0))]
+    if (!LAND.has(`${p[0]},${p[1]}`)) pts.push({ p, phase: Math.random() * 6.28, speed: 0.4 + Math.random() * 1.2 })
+  }
+  return pts
+})()
+
+const boatSvg = (flip: boolean) => `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 16 16' shape-rendering='crispEdges'><g ${flip ? "transform='translate(16 0) scale(-1 1)'" : ''}><rect x='7' y='1' width='1' height='10' fill='#ddd'/><path d='M8 2h1v1h1v1h1v1h1v1h1v1h1v2H8z' fill='#f4ead2'/><path d='M3 7h4v3H3z' fill='#e8c878'/><path d='M1 11h14v1h-1v1h-1v1H3v-1H2v-1H1z' fill='#8a5a3c'/><path d='M2 14h12v1H2z' fill='#5fa8c8'/></g></svg>`)}`
+const BOAT = { right: { url: boatSvg(false), width: 64, height: 64, id: 'boat-r' }, left: { url: boatSvg(true), width: 64, height: 64, id: 'boat-l' } }
 // Stage comes from funding rounds; hide the filter until Cala details are imported.
 const HAS_STAGES = STARTUPS.some((s) => s.stage !== 'Unknown')
 
@@ -38,7 +58,7 @@ function readHash(): { x: number; y: number; id?: string } | null {
 export default function App() {
   const initial = readHash()
   const start = BY_ID.get(initial?.id ?? STARTUPS[0].id)
-  const [view, setView] = useState({ target: [initial?.x ?? start?.x ?? 0, initial?.y ?? start?.y ?? 0, 0] as [number, number, number], zoom: 2 })
+  const [view, setView] = useState<{ target: [number, number, number]; zoom: number } & Partial<typeof FLY>>({ target: [initial?.x ?? start?.x ?? 0, initial?.y ?? start?.y ?? 0, 0] as [number, number, number], zoom: 2 })
   const [selectedId, setSelectedId] = useState<string | undefined>(initial?.id ?? STARTUPS[0].id)
   const [history, setHistory] = useState<string[]>([])
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
@@ -58,6 +78,9 @@ export default function App() {
   const [explored, setExplored] = useState(false)
 
   const selected = selectedId ? BY_ID.get(selectedId)?.startup : undefined
+  const selectedTile = selectedId ? BY_ID.get(selectedId) : undefined
+  const clock = useClock()
+  const voyage = useVoyage(selectedTile ? [selectedTile.x, selectedTile.y] : undefined, clock)
   const visible = useMemo(() => new Set(STARTUPS.filter((s) => matches(s, filters)).map((s) => s.id)), [filters])
   const discoveredSet = useMemo(() => new Set(discovered), [discovered])
   const filtering = JSON.stringify(filters) !== JSON.stringify(NO_FILTERS)
@@ -68,7 +91,7 @@ export default function App() {
     if (selectedId && selectedId !== id) setHistory((h) => [...h, selectedId])
     setSelectedId(id)
     if (!discoveredSet.has(id)) setDiscovered([...discovered, id])
-    if (fly) setView((v) => ({ ...v, target: [t.x, t.y, 0], zoom: Math.max(v.zoom, 3) }))
+    if (fly) setView((v) => ({ ...v, ...FLY, target: [t.x, t.y, 0], zoom: Math.max(v.zoom, 3) }))
   }
 
   // Next = nearest unvisited startup on the same island that passes the filters.
@@ -93,7 +116,7 @@ export default function App() {
     setHistory((h) => h.slice(0, -1))
     setSelectedId(prev)
     const t = BY_ID.get(prev)!
-    setView((v) => ({ ...v, target: [t.x, t.y, 0] }))
+    setView((v) => ({ ...v, ...FLY, target: [t.x, t.y, 0] }))
   }
 
   useEffect(() => {
@@ -111,7 +134,7 @@ export default function App() {
   // Choosing a sector flies the camera to its island.
   useEffect(() => {
     const island = ISLANDS.find((i) => i.sector === filters.sector)
-    if (island) setView((v) => ({ ...v, target: [island.cx, island.cy, 0], zoom: Math.max(v.zoom, 2.5) }))
+    if (island) setView((v) => ({ ...v, ...FLY, target: [island.cx, island.cy, 0], zoom: Math.max(v.zoom, 2.5) }))
   }, [filters.sector])
 
   useEffect(() => {
@@ -134,6 +157,15 @@ export default function App() {
   })
 
   const layers = [
+    new ScatterplotLayer<(typeof SEA)[number]>({
+      id: 'sea',
+      data: SEA,
+      getPosition: (d) => d.p,
+      getRadius: 0.12,
+      radiusMinPixels: 0.6,
+      getFillColor: (d) => [120, 170, 200, 25 + 70 * Math.sin(clock * d.speed + d.phase) ** 8],
+      updateTriggers: { getFillColor: Math.floor(clock * 10) },
+    }),
     new PolygonLayer<Tile>({
       id: 'tiles',
       data: TILES,
@@ -148,6 +180,9 @@ export default function App() {
       },
       stroked: false,
       pickable: true,
+      autoHighlight: true,
+      highlightColor: [255, 230, 170, 140],
+      transitions: { getFillColor: 400 },
       updateTriggers: { getFillColor: [visible, selectedId, gems, explored, discovered] },
       onClick: ({ object }) => object?.startup && select(object.startup.id, false),
     }),
@@ -169,13 +204,25 @@ export default function App() {
       pickable: true,
       onClick: ({ object }) => object && setFilters((f) => ({ ...f, sector: f.sector === object.sector ? '' : object.sector })),
     }),
-    new TextLayer({
+    new ScatterplotLayer<[number, number]>({
+      id: 'wake',
+      data: voyage.wake,
+      getPosition: (p) => p,
+      getRadius: (_, { index }) => 0.15 + (index / Math.max(1, voyage.wake.length)) * 0.35,
+      getFillColor: (_, { index }) => [180, 220, 240, 30 + (index / Math.max(1, voyage.wake.length)) * 150],
+      updateTriggers: { getRadius: clock, getFillColor: clock },
+    }),
+    new IconLayer({
       id: 'boat',
-      data: selected ? [BY_ID.get(selected.id)!] : [],
-      getPosition: (t) => [t.x, t.y - 1.2],
-      getText: () => '⛵',
-      characterSet: ['⛵'],
-      getSize: 22,
+      data: selectedTile ? [0] : [],
+      // Bobs at anchor, steadier while under sail.
+      getPosition: () => [voyage.pos[0], voyage.pos[1] - 1.1 + Math.sin(clock * 2.2) * (voyage.sailing ? 0.05 : 0.15)],
+      getIcon: () => (voyage.heading < 0 ? BOAT.left : BOAT.right),
+      getSize: 3.2,
+      sizeUnits: 'common',
+      sizeMinPixels: 18,
+      sizeMaxPixels: 56,
+      updateTriggers: { getPosition: clock, getIcon: voyage.heading },
     }),
   ]
 
@@ -240,7 +287,10 @@ export default function App() {
           controller
           onViewStateChange={({ viewState }) => setView(viewState as typeof view)}
           layers={layers}
-          getTooltip={({ object }) => (object as Tile)?.startup ? `${(object as Tile).startup!.name} · ${(object as Tile).startup!.stage}` : null}
+          getTooltip={({ object }) => {
+            const s = (object as Tile)?.startup
+            return s ? { html: `<b>${s.name}</b><div>${s.sector} · ${s.country}${s.founded ? ` · ${s.founded}` : ''}</div>`, className: 'map-tip', style: {} } : null
+          }}
           style={{ background: '#000' }}
         />
         <div className="map-top">
@@ -300,9 +350,9 @@ export default function App() {
 
       <aside className="right">
         {selected ? (
-          <>
+          <div className="card" key={selected.id}>
             <div className="hero">
-              <div className="hero-logo">{selected.name.slice(0, 2)}</div>
+              <Logo name={selected.name} website={selected.website} color={selectedTile?.color ?? [90, 90, 90]} />
               <div>
                 <h2>{selected.name}</h2>
                 <div className="muted">{selected.sector} · {selected.country} · est. {selected.founded}</div>
@@ -349,7 +399,7 @@ export default function App() {
               {IS_MOCK ? 'Mock data' : 'Data from Cala'}
               {selected.sources.slice(0, 3).map((s) => <div key={s}><a href={s} target="_blank" rel="noreferrer">{s.replace(/^https?:\/\//, '').slice(0, 45)}</a></div>)}
             </div>
-          </>
+          </div>
         ) : <p className="muted">select a startup</p>}
       </aside>
     </div>
