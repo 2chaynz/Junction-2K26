@@ -1,1 +1,4 @@
 @AGENTS.md
+@DECISION.md
+@TASKS.md
+@CONTRACT.md
