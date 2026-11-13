@@ -67,7 +67,7 @@ Draft. Building over the weekend.
 - **Demo:** Photo of a structure → matched drawing with confidence + reasoning → question answered with highlighted region and Eurocode/ASTM reference → scope-of-work flags.
 - **Medium:** software.
 - **Partner tech:** Stoa dataset, Gemma, Gemini, Nemotron, Verda, Modal, Aiven, ElevenLabs, Codex.
-- **Hardware needed:** phone camera only.
+- **Hardware needed:** phone camera; 3D printer for the demo model (check venue availability).
 - **Riskiest part:** photo → drawing matching; Stoa data may have no site photos to test with.
 - **Buildable in 36h?** maybe. Q&A with citations is the core; photogrammetry and scope check are add-ons.
 
@@ -77,6 +77,16 @@ Draft. Building over the weekend.
 - Low inference cost favors Gemma as default; show cost per answer in the UI.
 - Photogrammetry and scope-of-work are the creativity angle, but outside the brief's core ask. Keep them thin if time runs short.
 - Eurocode and ASTM full texts are paywalled; cite clause numbers and public summaries only.
+
+## Demo model (3D printed)
+- Print a scale model of a structure from the project set, plus its matching drawings (printed sheets).
+- Live demo: judges photograph the model → photogrammetry → SiteLens finds and highlights the matching drawings with confidence and reasoning → ask questions about them.
+- Fixes the riskiest part: we control the "site", so we know the ground-truth drawing for every photo.
+- Can also show a design change: print revision A and B (or a swappable part) and estimate the quantity difference.
+- To decide:
+  - Which structure: small and recognisable (e.g. a footing, column + beam, or bridge pier) from the Stoa dataset or our own.
+  - Source geometry: Stoa 3D model if available, else model it from the 2D drawings ourselves.
+  - Printer, print time and scale. Start the print early Saturday; prints take hours.
 
 ## Partner feedback (Stoa, on the scope-of-work part)
 - Stoa's product already detects design changes, so the scope-of-work feature overlaps with what they have.
