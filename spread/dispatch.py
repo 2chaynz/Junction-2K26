@@ -35,6 +35,15 @@ class Params:
     winprob: bool = True
     win_scale: float = 0.08
     win_lr: float = 0.03
+    ramp: bool = True
+    ramp_open: float = 1.0
+    ramp_close: float = 1.6
+    ramp_lead: int = 8 * HOUR
+    on_time_target: float = 0.95
+    caution_gain: float = 10.0
+    town_risk: float = 0.0
+    min_slack: int = 3 * HOUR
+    urgent_lead: int = 6 * HOUR
     max_backlog: int = 15
     backlog_free: int = 5
     backlog_cost: float = 0.05
@@ -90,6 +99,8 @@ class SmartDesk(Desk):
         self.p, self.roads = params, roads
         self.dealer_markup: dict[str, float] = {}
         self.model = WinModel(params.markup[level] + 0.05, params.win_scale, params.win_lr)
+        self.on_time, self.late = 0, 0
+        self.stress: dict[str, int] = {}  # pickup place -> times its cars struggled to find a driver
         self.fee_ratio = params.fee_base[level]  # booked fee / typical fee, learned
         self.quoted: dict[str, float] = {}  # request id -> lowest quoted price/list ratio
         self.held: dict[str, int] = {}  # order id -> minute won, waiting for a partner
@@ -121,13 +132,21 @@ class SmartDesk(Desk):
             prices = {o["kind"]: o["listPriceCents"] * 10 for o in request["options"]}
             self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
             return
-        crowd = 1 + self.p.backlog_cost * max(0, backlog - self.p.backlog_free)
+        crowd = (1 + self.p.backlog_cost * max(0, backlog - self.p.backlog_free)) * self.caution()
+        place = request["legs"][0]["pickup"]["placeId"]
+        crowd *= 1 + self.p.town_risk * self.stress.get(place, 0)
         cost = request["referenceFeeCents"] * self.fee_ratio * crowd / self.p.max_cost_share
         keys = self.model.keys(request)
         prices = {}
+        leg = request["legs"][0]
+        drive = sum(self.roads(l["pickup"]["placeId"], l["delivery"]["placeId"]) for l in request["legs"])
+        ready = leg["pickup"]["window"]["from"]
         for option in request["options"]:
             listed = option["listPriceCents"]
             best, best_x = 0.0, None
+            if option["deadline"] - max(ready, self.now) - drive < self.p.min_slack:
+                prices[option["kind"]] = listed * 10
+                continue
             for i in range(56):
                 x = 0.9 + i * 0.02
                 gain = self.model.p_win(keys, x) * (x * listed - cost)
@@ -136,6 +155,26 @@ class SmartDesk(Desk):
             prices[option["kind"]] = int(listed * best_x) if best_x else listed * 10
         self.quoted[request["id"]] = min(prices[o["kind"]] / o["listPriceCents"] for o in request["options"])
         self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
+
+    def order_of(self, gig_id) -> str:
+        action = self.posts.get(gig_id or "")
+        return action["stops"][0]["orderId"] if action else ""
+
+    def caution(self) -> float:
+        """Above 1 when our own on-time share drifts under target: costs look higher, so we win fewer, safer cars."""
+        done = self.on_time + self.late
+        if done < 15:
+            return 1.0
+        return 1 + self.p.caution_gain * max(0.0, self.p.on_time_target - self.on_time / done)
+
+    def record_delivery(self, order_id: str, at: int) -> None:
+        order = self.orders.get(order_id)
+        if order is None or any(d is None for d in order["deliveredAt"]):
+            return
+        if at <= order["deadline"]:
+            self.on_time += 1
+        else:
+            self.late += 1
 
     def backlog(self) -> int:
         """Won orders still waiting for a driver: more of them means late cars."""
@@ -172,6 +211,14 @@ class SmartDesk(Desk):
             self.learn(event["requestId"], False)
         elif event["kind"] == "order_won":
             self.learn(event["order"]["id"], True)
+        elif event["kind"] == "delivered":
+            super().handle(event)
+            return self.record_delivery(event["orderId"], event["at"])
+        elif event["kind"] in ("deadline_close", "gig_expired", "no_show"):
+            order = self.orders.get(event.get("orderId") or self.order_of(event.get("gigId")))
+            if order is not None:
+                place = order["legs"][0]["pickup"]["placeId"]
+                self.stress[place] = self.stress.get(place, 0) + 1
         elif event["kind"] == "gig_booked":
             self.learn_fee(event["gigId"], event["feeCents"])
         elif event["kind"] == "order_cancelled":
@@ -187,7 +234,19 @@ class SmartDesk(Desk):
         fee = self.requests[order["id"]]["referenceFeeCents"] * cars / len(order["legs"]) * self.p.fee_base[self.level]
         if order["id"] in self.urgent:
             return starter.steep(self.now, fee, self.level)
+        if self.p.ramp and self.level >= 2:
+            return self.ramp(fee / self.p.fee_base[self.level], order["lastPickupAt"])
         return starter.rising(self.now, fee, self.level)
+
+    def ramp(self, ref: float, last_pickup: int) -> list[FeeStep]:
+        """Opens low and climbs to a high fee 4h before the last pickup, in 30-min steps.
+        Cheap nearby drivers book early; a slow climb keeps drivers from learning big raises."""
+        end = max(self.now + HOUR, last_pickup - self.p.ramp_lead)
+        steps = max(1, min(48, (end - self.now) // 30))
+        c = self.caution()
+        lo, hi = self.p.ramp_open * ref * c, self.p.ramp_close * ref * c
+        return [{"at": self.now + k * (end - self.now) // steps, "feeCents": max(1, int(lo + (hi - lo) * k / steps))}
+                for k in range(steps + 1)][:48]
 
     # --- batching -------------------------------------------------------------
 
@@ -229,6 +288,15 @@ class SmartDesk(Desk):
         if pick_b + drive_b > b["deadline"] - HOUR:
             return None
         return link
+
+    def escalate(self) -> None:
+        """Steep fees from `urgent_lead` before the last pickup, earlier than the world's 3h warning."""
+        for oid, order in list(self.orders.items()):
+            if oid in self.urgent or oid in self.held or order["status"] != "waiting":
+                continue
+            gigs = self.gigs_of(oid)
+            if gigs and not any(g in self.booked for g in gigs) and self.now >= order["lastPickupAt"] - self.p.urgent_lead:
+                self.raise_fees(oid)
 
     def flush(self, force: bool = False) -> None:
         """Pairs held orders with CP-SAT (max fee saved), posts pairs and orders held too long."""
@@ -315,7 +383,8 @@ def play_practice(world: World, level: int, params: Params, roads: Roads, quiet:
     while desk.now < ends_at:
         day, midnight = desk.now // DAY, (desk.now // DAY + 1) * DAY
         desk.flush()
-        limit = min(ends_at, midnight)
+        desk.escalate()
+        limit = min(ends_at, midnight, desk.now + 30)
         if desk.held:
             limit = min(limit, desk.now + 10)
         actions, desk.outbox = desk.outbox, []
