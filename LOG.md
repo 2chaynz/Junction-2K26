@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 00:33 · ccolver · ccolver: Stoa feedback: they already detect design changes; gap = quantities of quick 2D-only changes. Open Q: 3D quantities from 2D drawings without manual takeoff (ideas/ccolver.md)
 - 2026-11-13 23:38 · ccolver · ccolver: draft submission idea SiteLens (Stoa main; Gemini, Gemma, Verda, Nemotron, ElevenLabs) in ideas/ccolver.md
 - 2026-11-13 23:15 · Asif · decision: main challenge = Stoa Make Blueprints Talk (brief in context/challenges/stoa.md). Next: fill DECISION.md, CONTRACT.md, plan tickets
 - 2026-11-13 22:31 · 2chaynz · 2chaynz triage done (ideas/2chaynz.md): main = Aalto humanoid; liked Stoa, Arduino Green, Cala map, Beyond the Clinic; stack Verda, Gemini/Gemma or Nemotron, ElevenLabs
