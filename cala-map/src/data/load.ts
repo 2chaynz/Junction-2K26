@@ -17,8 +17,14 @@ export const stageOf = (rounds: number): Stage => STAGES[Math.min(rounds, 4) + 1
 const files = import.meta.glob<Raw[]>('./startups.json', { eager: true, import: 'default' })
 const raw = files['./startups.json']
 
+// The same company can come back from two sector queries; keep its first sighting.
+const unique = (list: Raw[]) => {
+  const seen = new Set<string>()
+  return list.filter((s) => !seen.has(s.id) && !!seen.add(s.id))
+}
+
 export const STARTUPS: Startup[] = raw
-  ? raw.map((s) => ({ ...s, sector: SECTOR_LABEL[s.sector] ?? s.sector, stage: s.rounds.length || s.sources.length ? stageOf(s.rounds.length) : 'Unknown' }))
+  ? unique(raw).map((s) => ({ ...s, sector: SECTOR_LABEL[s.sector] ?? s.sector, stage: s.rounds.length || s.sources.length ? stageOf(s.rounds.length) : 'Unknown' }))
   : mockStartups()
 export const IS_MOCK = !raw
 
