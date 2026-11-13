@@ -7,7 +7,9 @@ Copy to `ideas/<name>.md`. 3–5 ideas. Keep each under 10 lines.
 - **Problem:** <one sentence>
 - **User:** <who has it>
 - **Demo:** <what judges see, one sentence>
+- **Medium:** software / hardware / both
 - **Partner tech:** <APIs / hardware / data used>
+- **Hardware needed:** <parts; available at venue or brought by us?>
 - **Riskiest part:** <what might not work>
 - **Buildable in 36h?** yes / maybe / no — <why>
 

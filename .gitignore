@@ -6,5 +6,8 @@ __pycache__/
 .venv/
 dist/
 build/
+.pio/
+*.o
+*.elf
 .DS_Store
 .claude/settings.local.json
