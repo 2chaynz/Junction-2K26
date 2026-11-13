@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Only coordination files may be pushed straight to main. Everything else goes through a PR.
+set -euo pipefail
+allowed='^(TASKS\.md|LOG\.md|tickets/.+|ideas/.+|context/.+)$'
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$remote_ref" = "refs/heads/main" ] || continue
+  [ "${ALLOW_MAIN_PUSH:-}" = "1" ] && continue   # humans only, for repo setup
+  if [[ "$local_sha" =~ ^0+$ ]]; then
+    echo "pre-push: deleting main is blocked." >&2; exit 1
+  fi
+  if [[ "$remote_sha" =~ ^0+$ ]] || ! git cat-file -e "${remote_sha}^{commit}" 2>/dev/null; then
+    echo "pre-push: main has commits you don't have. Run: git fetch origin" >&2; exit 1
+  fi
+  bad=$(git diff --name-only "$remote_sha" "$local_sha" | grep -Ev "$allowed" || true)
+  if [ -n "$bad" ]; then
+    echo "pre-push: blocked. Only TASKS.md, LOG.md, tickets/, ideas/ and context/ go straight to main." >&2
+    echo "Open a PR for:" >&2
+    echo "$bad" | sed 's/^/  /' >&2
+    exit 1
+  fi
+done
+exit 0
