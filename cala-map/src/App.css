@@ -74,6 +74,7 @@ dd a { color: var(--accent); }
 h4 { font-family: var(--serif); font-weight: 400; color: var(--muted); margin: 16px 0 6px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .tag { background: var(--panel-2); border: 1px solid var(--line); padding: 4px 8px; cursor: pointer; }
+.tag.on { border-color: var(--gold); color: var(--gold); }
 .rounds { list-style: none; padding: 0; margin: 0; }
 .rounds li { padding: 6px 0; border-bottom: 1px solid var(--line); }
 .source { margin-top: 16px; color: var(--muted); font-size: 11px; }

@@ -48,9 +48,10 @@ export function layoutIslands(startups: Startup[], sectors: string[]) {
         if (r() < 0.85) frontier.push([x + dx, y + dy])
       }
     }
-    // Funded startups sit near the island centre.
+    // Well-funded startups sit near the island centre.
     cells.sort((a, b) => Math.hypot(a[0] - cx, a[1] - cy) - Math.hypot(b[0] - cx, b[1] - cy))
-    const ranked = [...members].sort((a, b) => b.totalRaisedM - a.totalRaisedM)
+    const weight = (s: Startup) => s.rounds.length * 3 + s.investors.length
+    const ranked = [...members].sort((a, b) => weight(b) - weight(a))
     cells.forEach(([x, y], k) => {
       const jitter = (r() - 0.5) * 40
       const shade = color.map((c) => Math.max(0, Math.min(255, c + jitter))) as [number, number, number]

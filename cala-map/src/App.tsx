@@ -2,20 +2,18 @@ import { useEffect, useMemo, useState } from 'react'
 import { DeckGL } from '@deck.gl/react'
 import { OrthographicView } from '@deck.gl/core'
 import { PolygonLayer, TextLayer } from '@deck.gl/layers'
-import { SECTORS, mockStartups } from './data/mock'
+import { IS_MOCK, SECTORS, STAGES, STARTUPS } from './data/load'
 import type { Startup } from './data/types'
 import { layoutIslands, type Tile } from './layout'
 import { useStored } from './useStored'
 import './App.css'
 
-const STARTUPS = mockStartups()
 const { tiles: TILES, islands: ISLANDS } = layoutIslands(STARTUPS, SECTORS)
 const BY_ID = new Map(TILES.filter((t) => t.startup).map((t) => [t.startup!.id, t]))
-const STAGES = ['Pre-seed', 'Seed', 'Series A', 'Series B', 'Series C+']
 const COUNTRIES = [...new Set(STARTUPS.map((s) => s.country))].sort()
 
-interface Filters { sector: string; stage: string; country: string; model: string; yearMin: string; yearMax: string; raisedMin: string; q: string }
-const NO_FILTERS: Filters = { sector: '', stage: '', country: '', model: '', yearMin: '', yearMax: '', raisedMin: '', q: '' }
+interface Filters { sector: string; stage: string; country: string; investor: string; yearMin: string; yearMax: string; q: string }
+const NO_FILTERS: Filters = { sector: '', stage: '', country: '', investor: '', yearMin: '', yearMax: '', q: '' }
 
 type Panel = 'map' | 'search' | 'gems' | 'lists'
 
@@ -23,10 +21,9 @@ function matches(s: Startup, f: Filters) {
   return (!f.sector || s.sector === f.sector)
     && (!f.stage || s.stage === f.stage)
     && (!f.country || s.country === f.country)
-    && (!f.model || s.model === f.model)
-    && (!f.yearMin || s.founded >= +f.yearMin)
-    && (!f.yearMax || s.founded <= +f.yearMax)
-    && (!f.raisedMin || s.totalRaisedM >= +f.raisedMin)
+    && (!f.investor || s.investors.some((i) => i.id === f.investor))
+    && (!f.yearMin || (s.founded ?? 0) >= +f.yearMin)
+    && (!f.yearMax || (s.founded ?? 9999) <= +f.yearMax)
     && (!f.q || s.name.toLowerCase().includes(f.q.toLowerCase()))
 }
 
@@ -147,7 +144,7 @@ export default function App() {
 
   const set = (k: keyof Filters) => (e: { target: { value: string } }) => setFilters((f) => ({ ...f, [k]: e.target.value }))
   const isGem = !!selected && gems.includes(selected.id)
-  const backers = selected ? [...new Set(selected.rounds.flatMap((r) => r.investors))] : []
+  const backers = selected?.investors ?? []
   const inLists = selected ? Object.entries(lists).filter(([, ids]) => ids.includes(selected.id)).map(([n]) => n) : []
 
   return (
@@ -235,10 +232,8 @@ export default function App() {
             <>
               <select className="chip" value={filters.sector} onChange={set('sector')}><option value="">sector</option>{SECTORS.map((s) => <option key={s}>{s}</option>)}</select>
               <select className="chip" value={filters.stage} onChange={set('stage')}><option value="">stage</option>{STAGES.map((s) => <option key={s}>{s}</option>)}</select>
-              <select className="chip" value={filters.model} onChange={set('model')}><option value="">model</option>{['B2B', 'B2C', 'B2B2C'].map((s) => <option key={s}>{s}</option>)}</select>
               <select className="chip" value={filters.country} onChange={set('country')}><option value="">places</option>{COUNTRIES.map((s) => <option key={s}>{s}</option>)}</select>
               <span className="chip range">founded <input placeholder="from" value={filters.yearMin} onChange={set('yearMin')} /> <input placeholder="to" value={filters.yearMax} onChange={set('yearMax')} /></span>
-              <span className="chip range">raised ≥ <input placeholder="€M" value={filters.raisedMin} onChange={set('raisedMin')} /></span>
             </>
           )}
         </div>
@@ -271,23 +266,36 @@ export default function App() {
               </select>
               <button title="shuffle" onClick={shuffle}>⇄ shuffle</button>
             </div>
-            <p className="pitch">{selected.pitch}</p>
+            <p className="pitch">{selected.description}</p>
             <dl>
-              <dt>stage</dt><dd>{selected.stage}</dd>
-              <dt>raised</dt><dd>€{selected.totalRaisedM}M</dd>
-              <dt>model</dt><dd>{selected.model}</dd>
-              <dt>web</dt><dd><a href={selected.website} target="_blank" rel="noreferrer">{selected.website.replace('https://', '')}</a></dd>
+              <dt>stage</dt><dd>{selected.stage} <span className="muted">({selected.rounds.length} rounds)</span></dd>
+              {selected.funding && <><dt>raised</dt><dd>{selected.funding}</dd></>}
+              {selected.hq && <><dt>hq</dt><dd>{selected.hq}</dd></>}
+              {selected.website && <><dt>web</dt><dd><a href={`https://${selected.website.replace(/^https?:\/\//, '')}`} target="_blank" rel="noreferrer">{selected.website}</a></dd></>}
+              {selected.founders.length > 0 && <><dt>founders</dt><dd>{selected.founders.map((f) => f.name).join(', ')}</dd></>}
             </dl>
             <h4>Backed by</h4>
-            <div className="chips">{backers.map((b) => <span key={b} className="tag">{b}</span>)}</div>
+            <div className="chips">
+              {backers.length === 0 && <span className="muted">no investors on record</span>}
+              {backers.map((b) => (
+                <span key={b.id} className={`tag ${filters.investor === b.id ? 'on' : ''}`} title="Show this investor's portfolio"
+                  onClick={() => setFilters((f) => ({ ...f, investor: f.investor === b.id ? '' : b.id }))}>{b.name}</span>
+              ))}
+            </div>
             <h4>In islands</h4>
             <div className="chips">
               <span className="tag" onClick={() => setFilters({ ...NO_FILTERS, sector: selected.sector })}>{selected.sector}</span>
               {inLists.map((n) => <span key={n} className="tag">{n}</span>)}
             </div>
             <h4>Rounds</h4>
-            <ul className="rounds">{selected.rounds.map((r, i) => <li key={i}><b>{r.stage}</b> €{r.amountM}M · {r.year}<div className="muted">{r.investors.join(', ')}</div></li>)}</ul>
-            <div className="source">Data from Cala</div>
+            <ul className="rounds">
+              {selected.rounds.length === 0 && <li className="muted">none on record</li>}
+              {selected.rounds.map((r) => <li key={r.id}>funding round · {r.date ?? 'date unknown'}</li>)}
+            </ul>
+            <div className="source">
+              {IS_MOCK ? 'Mock data' : 'Data from Cala'}
+              {selected.sources.slice(0, 3).map((s) => <div key={s}><a href={s} target="_blank" rel="noreferrer">{s.replace(/^https?:\/\//, '').slice(0, 45)}</a></div>)}
+            </div>
           </>
         ) : <p className="muted">select a startup</p>}
       </aside>
