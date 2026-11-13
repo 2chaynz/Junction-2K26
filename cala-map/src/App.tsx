@@ -11,6 +11,8 @@ import './App.css'
 const { tiles: TILES, islands: ISLANDS } = layoutIslands(STARTUPS, SECTORS, POSITIONS)
 const BY_ID = new Map(TILES.filter((t) => t.startup).map((t) => [t.startup!.id, t]))
 const COUNTRIES = [...new Set(STARTUPS.map((s) => s.country))].sort()
+// Stage comes from funding rounds; hide the filter until Cala details are imported.
+const HAS_STAGES = STARTUPS.some((s) => s.stage !== 'Unknown')
 
 interface Filters { sector: string; stage: string; country: string; investor: string; yearMin: string; yearMax: string; q: string }
 const NO_FILTERS: Filters = { sector: '', stage: '', country: '', investor: '', yearMin: '', yearMax: '', q: '' }
@@ -98,6 +100,31 @@ export default function App() {
     if (!sofa) return
     const id = setInterval(next, 6000)
     return () => clearInterval(id)
+  })
+
+  // Choosing a sector flies the camera to its island.
+  useEffect(() => {
+    const island = ISLANDS.find((i) => i.sector === filters.sector)
+    if (island) setView((v) => ({ ...v, target: [island.cx, island.cy, 0], zoom: Math.max(v.zoom, 2.5) }))
+  }, [filters.sector])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.metaKey || e.ctrlKey) return
+      const actions: Record<string, () => void> = {
+        n: next, ArrowRight: next, p: previous, ArrowLeft: previous, s: shuffle,
+        g: () => selected && setGems(gems.includes(selected.id) ? gems.filter((x) => x !== selected.id) : [...gems, selected.id]),
+        '/': () => setPanel('search'),
+        Escape: () => setPanel('map'),
+      }
+      const action = actions[e.key]
+      if (action) {
+        e.preventDefault()
+        action()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   })
 
   const layers = [
@@ -229,13 +256,14 @@ export default function App() {
 
         <div className="filters">
           <button className="chip" onClick={() => setMoreFilters(!moreFilters)}>{moreFilters ? '▾ less filters' : '▸ filters'}</button>
+          {filtering && <span className="chip count">{visible.size} startups</span>}
           {filtering && <button className="chip" onClick={() => setFilters(NO_FILTERS)}>clear</button>}
           {filtering && <button className="chip" title="Saved filters" onClick={() => setSavedFilters([...savedFilters, filters])}>save</button>}
           {savedFilters.map((f, i) => <button key={i} className="chip" onClick={() => setFilters(f)}>saved {i + 1}</button>)}
           {moreFilters && (
             <>
               <select className="chip" value={filters.sector} onChange={set('sector')}><option value="">sector</option>{SECTORS.map((s) => <option key={s}>{s}</option>)}</select>
-              <select className="chip" value={filters.stage} onChange={set('stage')}><option value="">stage</option>{STAGES.map((s) => <option key={s}>{s}</option>)}</select>
+              {HAS_STAGES && <select className="chip" value={filters.stage} onChange={set('stage')}><option value="">stage</option>{STAGES.map((s) => <option key={s}>{s}</option>)}</select>}
               <select className="chip" value={filters.country} onChange={set('country')}><option value="">places</option>{COUNTRIES.map((s) => <option key={s}>{s}</option>)}</select>
               <span className="chip range">founded <input placeholder="from" value={filters.yearMin} onChange={set('yearMin')} /> <input placeholder="to" value={filters.yearMax} onChange={set('yearMax')} /></span>
             </>
@@ -243,9 +271,9 @@ export default function App() {
         </div>
 
         <footer className="transport">
-          <button title="Previous" onClick={previous} disabled={!history.length}>«</button>
+          <button title="Previous (p)" onClick={previous} disabled={!history.length}>«</button>
           <button className={`big ${sofa ? 'on' : ''}`} title="sofa mode" onClick={() => setSofa(!sofa)}>⛵ {sofa ? 'sailing…' : 'sofa mode'}</button>
-          <button className="wide" title="Next: navigate" onClick={next}>» navigate</button>
+          <button className="wide" title="Next: navigate (n)" onClick={next}>» navigate</button>
         </footer>
       </main>
 
