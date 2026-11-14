@@ -135,7 +135,11 @@ def _llm(path: str, question: str) -> dict | None:
 def check(path: str, question: str) -> dict | None:
     """{"why", "ask", "options", "cost_eur"} when the question is too vague to answer exactly;
     {"general": True, "cost_eur"} when it isn't about the drawing at all; else None."""
-    c = _rules(path, question) or _llm(path, question)
+    try:
+        c = _rules(path, question)
+    except Exception:
+        c = None  # a parser failing here must not block answering
+    c = c or _llm(path, question)
     if c:
         c.setdefault("cost_eur", 0.0)
     return c
