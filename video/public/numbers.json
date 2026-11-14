@@ -1,0 +1,49 @@
+{
+ "sources": [
+  {
+   "label": "Swiss vector plans",
+   "n": 626,
+   "acc": 0.9744408945686901
+  },
+  {
+   "label": "Scanned plans (detector)",
+   "n": 816,
+   "acc": 0.8357843137254902
+  },
+  {
+   "label": "BIM models (IFC)",
+   "n": 394,
+   "acc": 1
+  },
+  {
+   "label": "Schedule sheets",
+   "n": 17,
+   "acc": 0.9411764705882353
+  }
+ ],
+ "overall": {
+  "n": 1853,
+  "acc": 0.9185105234754453,
+  "eurPerAnswer": 0.00005425915948275853
+ },
+ "hook": {
+  "truth": 12,
+  "ours": 12,
+  "vlm": 9,
+  "model": "Gemini 3.8 Flash"
+ },
+ "versus": {
+  "ours": {
+   "correct": 11,
+   "n": 11,
+   "eur": 0.00311
+  },
+  "vlm": {
+   "correct": 9,
+   "n": 11,
+   "eur": 0.07369
+  },
+  "model": "Gemini 3.8 Flash"
+ },
+ "note": "Sources: eval/results/video-dev.jsonl (dev split of Stoa's preview set; the detector never trained on these plans) and web/public/versus.json."
+}
