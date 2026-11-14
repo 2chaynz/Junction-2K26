@@ -147,6 +147,11 @@ input { font: inherit; color: inherit; }
 .think-body li.found { color: var(--ink); }
 .think-body li.trace { color: var(--ink); font-family: var(--mono); font-size: 12px; padding-left: 10px; }
 .think-body li.check { color: var(--ok); }
+.think-body li.understand { color: var(--ink); }
+.think-body li.clarify { color: var(--ink); font-style: italic; }
+.options { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 4px; }
+.option { text-align: left; font-size: 13px; padding: 5px 9px; border: 1px solid var(--line); border-radius: var(--r); }
+.option:hover:not(:disabled) { border-color: var(--red); color: var(--red); }
 .think.live .think-body li:last-child::after { content: ""; display: inline-block; width: 6px; height: 12px; margin-left: 3px; vertical-align: -1px; background: var(--dim); animation: pulse 1s steps(1) infinite; }
 .steps-toggle { font-size: 13px; color: var(--dim); margin-top: 4px; }
 .steps-toggle:hover { color: var(--ink); }
