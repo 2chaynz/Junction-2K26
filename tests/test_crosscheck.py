@@ -49,4 +49,6 @@ with tempfile.TemporaryDirectory() as d:
 
     assert cc.answer("data/opening_design/P/ok/A101 - FLOOR PLAN.pdf", "How many doors are there?") is None
     assert cc.answer("data/ifc_models/x.ifc", Q) is None
+    assert cc.answer("data/opening_design/P/ok/A101 - FLOOR PLAN.pdf", "Do the room areas match the plan?") is None
+    assert cc.answer("data/opening_design/P/ok/A101 - FLOOR PLAN.pdf", "Do the doors match the schedule?")
 print("crosscheck ok")

@@ -112,7 +112,8 @@ def check(idx: SetIndex) -> dict:
 def answer(path: str, question: str) -> Answer | None:
     if "/opening_design/" not in path or not path.lower().endswith(".pdf"):
         return None
-    if not (ASK.search(question) and TOPIC.search(question)):
+    # weak words (match, agree) only with doors named: "do the room areas match the plan?" isn't ours
+    if not ((STRONG.search(question) and TOPIC.search(question)) or (ASK.search(question) and DOORS.search(question))):
         return None
     folder = path.rsplit("/", 1)[0]
     idx = index(folder)
