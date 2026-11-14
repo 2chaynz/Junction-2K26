@@ -59,4 +59,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T52 Resizable panels: drag the explorer and chat edges | app |  | 2chaynz | review | 2chaynz/T52-resize |  |  |
 | T53 Multi-sheet questions: ask a whole building | ai |  | johanseneuson | blocked | johanseneuson/T53-multi |  | dropped: no Swiss building has 2+ floors in the dataset (1040 PDFs = 1040 buildings), no gold |
 | T54 Multi-sheet benchmark with free gold answers | eval |  |  | blocked |  |  | dropped with T53: no multi-sheet gold exists in the Stoa data |
-| T55 xreview: fall back both ways, login hint | setup |  |  | todo |  |  |  |
+| T55 xreview: fall back both ways, login hint | setup |  | Asif | doing | asif/T55-xreview-fallback |  |  |
