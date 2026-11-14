@@ -156,19 +156,22 @@ export function useRevisionDemo(enabled: boolean, entered: boolean, onOpen: () =
 
   function ask(question: string) {
     if (!changes) return;
-    const q = question.toLowerCase();
-    const wantsTakeoff = /take\s*off/.test(q);
-    const floor = /\b(second|2nd|floor\s*2|level\s*2|p2)\b/.test(q);
+    const q = question.toLowerCase().trim().replace(/[?.!]+$/, "").replace(/\s+/g, " ");
+    const floorName = "(?:p2|(?:the )?(?:second|2nd) floor|floor 2|level 2)";
+    const comparison = /^(?:what (?:are the changes|changed)|show (?:me )?(?:what changed|the changes)|compare (?:the )?revisions)$/;
+    const scopedComparison = new RegExp(`^(?:(?:what changed|what are the changes|show (?:me )?the changes) (?:on|for|in) )?${floorName}$`);
+    const takeoff = /^(?:create|make|generate|save) (?:a )?take\s*off(?: of (these|all) changes)?$/;
+    const scopedTakeoff = new RegExp(`^(?:create|make|generate|save) (?:a )?take\\s*off (?:on|for) ${floorName}$`);
+    const takeoffRequest = takeoff.exec(q);
+    const floorTakeoff = scopedTakeoff.test(q);
+    const wantsTakeoff = !!takeoffRequest || floorTakeoff;
     const previous = active === null ? undefined : messages[active];
-    const priorFloor = previous?.kind === "answer" && previous.answer.view === demoPath
-      && String(previous.answer.value).startsWith("P2");
-    const wholeBuilding = /\b(all changes|whole building|entire building|all floors|every floor)\b/.test(q);
-    const focused = floor || (wantsTakeoff && priorFloor && !wholeBuilding);
+    const priorFloor = previous?.kind === "answer" && String(previous.answer.value).startsWith("P2:");
+    const focused = floorTakeoff || scopedComparison.test(q) || (!!takeoffRequest && takeoffRequest[1] !== "all" && priorFloor);
+    const recognized = wantsTakeoff || focused || comparison.test(q);
     const rows = focused ? changes.filter((row) => row.level === demoFloor) : changes;
     const scope = focused ? "P2" : "Whole building";
     const answer = revisionAnswer(rows, scope);
-    const namesAnotherFloor = /\b(?:p[013-9]\d*|p2\d+|(?:floor|level|storey)\s+(?:[013-9]\d*|2\d+)|(?:ground|first|third|fourth|fifth|sixth|seventh|(?:[013-9]|\d{2,})(?:st|nd|rd|th))\s+(?:floor|level|storey))\b/.test(q);
-    const recognized = !namesAnotherFloor && (floor || wantsTakeoff || /chang|revision|compar/.test(q));
     setDraft("");
     if (wantsTakeoff && recognized) {
       const image = takeoffImage(rows, scope);
