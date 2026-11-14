@@ -117,8 +117,12 @@ network_access = true
 ```
 
 ## Run
-Python 3.11+. Dataset stays outside the repo.
+Python 3.11+, Node 18+. Dataset stays outside the repo.
 ```
+# demo on http://localhost:8000: sets up venv, dataset, web build, then serves (any OS)
+node scripts/dev.mjs            # --check: list what's missing; STOA_DATA overrides the data path
+
+# manual steps
 # once
 python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # (Linux/mac: .venv/bin/pip)
 curl -LO https://fwjydgxpttajiqpfmqtj.supabase.co/storage/v1/object/public/stoa-junction-2026/junction-dataset-preview.zip
