@@ -24,3 +24,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T17 Detector on AECV-Bench: outside benchmark vs VLMs | eval | T6 | ccolver | review | ccolver/T17-aecv-bench |  |  |
 | T18 Auto-close tickets when their PR merges | setup |  | Asif | done | asif/T18-close-merged |  |  |
 | T19 Room-label OCR: bedrooms, baths, WCs, room counts | ai | T6 | ccolver | doing | ccolver/T19-room-ocr |  |  |
+| T20 Hot-swappable VLM backends: Gemini, Gemma, Nemotron | ai | T7 |  | todo |  |  |  |
