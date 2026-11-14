@@ -53,7 +53,7 @@ export type Turn = { question: string; answer: string };
 
 export type KeyQuestion = { question: string; answer: unknown; unit: string | null; type: string };
 
-export type Drawing = { path: string; source: string; view: string; questions: KeyQuestion[] };
+export type Drawing = { path: string; source: string; view: string; title?: string | null; questions: KeyQuestion[] };
 
 // One reasoning step streamed by /api/ask/stream (CONTRACT.md → Step).
 export type Step = { kind: "understand" | "try" | "skip" | "fail" | "found" | "trace" | "general" | "check" | "clarify" | "tier" | "followup"; path: string; text: string; t: number };

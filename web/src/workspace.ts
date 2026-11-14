@@ -135,7 +135,7 @@ export function buildProjects(drawings: Drawing[]): Proj[] {
     const planSets = folders.filter((f) => f.code === "FP" && p.kind === "BIM");
     if (planSets.length > 1)
       for (const f of planSets) f.label = `Floor plans · ${f.key.split("#plans-")[1] || "model"}`;
-    folders.sort((a, b) => FOLDER_ORDER.indexOf(a.code) - FOLDER_ORDER.indexOf(b.code) || a.label.localeCompare(b.label, undefined, { numeric: true }));
+    folders.sort((a, b) => FOLDER_ORDER.indexOf(a.code) - FOLDER_ORDER.indexOf(b.code) || a.label.localeCompare(b.label, "en", { numeric: true }));
     const demo = p.items.find((d) => DEMO.includes(d.path));
     p.cover = demo ?? p.items.find((d) => !isModel(d)) ?? p.items[0] ?? null;
     out.push({ ...p, folders });
@@ -209,7 +209,7 @@ export function ago(t: number): string {
   if (s < 3600) return `${Math.floor(s / 60)} min ago`;
   if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
   if (s < 2 * 86400) return "yesterday";
-  return new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  return new Date(ms).toLocaleDateString("en", { day: "numeric", month: "short" });
 }
 
 /** Today / Yesterday / Last 7 days / Older, like chat histories. */
@@ -226,6 +226,7 @@ export function bucket(t: number): string {
 /** Short sheet name inside its project: the project prefix is already on screen. */
 export function sheetName(d: Drawing): string {
   const name = shortName(d.path);
+  if (d.title) return d.title; // server: storey name in English
   if (d.source === "ifc_models") {
     const plan = name.match(/_plan-(\d+)-(.+)$/);
     if (plan) return `${plan[1]} · ${plan[2].replace(/-/g, " ")}`;

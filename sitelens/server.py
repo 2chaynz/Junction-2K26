@@ -10,6 +10,7 @@ import io
 import os
 import json
 import random
+import re
 import time
 from functools import lru_cache
 from pathlib import Path
@@ -21,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import data_root
+from .translate import english_many, english_obj, sheet_title
 
 
 WEB = Path(__file__).resolve().parent.parent / "web" / "dist"
@@ -33,7 +35,7 @@ app = FastAPI(title="SiteLens")
 _RATE = int(os.environ.get("SITELENS_RATE", "30"))
 _hits: dict[str, collections.deque] = collections.defaultdict(collections.deque)
 _TRUST_PROXY = os.environ.get("SITELENS_TRUST_PROXY") == "1"
-_PAID = ("/api/ask", "/api/export", "/api/takeoff", "/api/clarify")
+_PAID = ("/api/ask", "/api/export", "/api/takeoff", "/api/clarify", "/api/translate")
 
 
 @app.middleware("http")
@@ -98,7 +100,9 @@ def _model_of(path: str) -> str | None:
 def drawings():
     out = []
     for path, qs in sorted(_questions().items()):
+        plan = re.search(r"_plan-(\d+)-(.+)\.\w+$", path)   # IFC plan sheets: storey name in the file name
         out.append({"path": path, "source": path.split("/")[1], "view": _view_of(path), "model": _model_of(path),
+                    "title": f"{plan[1]} · {sheet_title(plan[2])}" if plan else None,
                     "questions": [{"question": q["question"], "answer": q["answer"], "unit": q["unit"],
                                    "type": q["type"]} for q in qs]})
     return out
@@ -239,7 +243,7 @@ def demo_revisions():
             except RuntimeError:
                 pass
             changes.append({**data, "change": change, "dimensions": dimensions})
-    return sorted(changes, key=lambda row: (row["kind"], row["name"], row["guid"]))
+    return english_obj(sorted(changes, key=lambda row: (row["kind"], row["name"], row["guid"])))
 
 
 
@@ -248,7 +252,7 @@ def takeoff_list(path: str, format: str = "json"):
     """Every door, window, wall, column, beam, slab, stair grouped by type and size. format=csv downloads it."""
     from .takeoff import takeoff, to_csv
     _safe(path)
-    t = takeoff(path)
+    t = english_obj(takeoff(path))
     if format == "csv":
         name = (Path(path).stem + "-takeoff.csv").encode("ascii", "ignore").decode().replace('"', "")
         # BOM so Excel opens UTF-8 (×, umlauts) correctly
@@ -326,7 +330,9 @@ def _ask_region(path: str, question: str, region: dict, on_step, t: float) -> di
 @app.post("/api/ask")
 def ask(req: Ask):
     _safe(req.path)
-    return _ask(req.path, req.question, region=req.region, history=req.history, related=req.related)
+    # dictionary only: an answer must not wait on, or pay for, a translation call
+    return english_obj(_ask(req.path, req.question, region=req.region, history=req.history, related=req.related),
+                       model=False)
 
 
 @app.post("/api/ask/stream")
@@ -340,7 +346,9 @@ def ask_stream(req: Ask):
 
     def work():
         try:
-            q.put({"answer": _ask(req.path, req.question, lambda s: q.put({"step": s}), req.region, req.history, req.related)})
+            a = _ask(req.path, req.question, lambda s: q.put({"step": english_obj(s, model=False)}), req.region,
+                     req.history, req.related)
+            q.put({"answer": english_obj(a, model=False)})
         except Exception as e:
             q.put({"error": repr(e)})
         q.put(END)
@@ -401,7 +409,7 @@ def measure_get(path: str, page: int = 0):
     _safe(path)
     r = _m("resolve", path, page)
     r["auto"] = _m("auto", path, page)
-    return r
+    return english_obj(r, model=False)
 
 
 @app.post("/api/measure")
@@ -435,6 +443,18 @@ def measure_scale(req: Shape):
 class VlmModel(BaseModel):
     model: str | None = None
     backend: str | None = None  # "" = VLM off
+
+
+class Texts(BaseModel):
+    texts: list[str]
+
+
+@app.post("/api/translate")
+def translate(req: Texts):
+    """English for strings the browser reads itself (IFC storeys, properties, element names). Same order."""
+    if len(req.texts) > 2000:
+        raise HTTPException(400, "at most 2000 strings")
+    return {"texts": english_many([t[:200] for t in req.texts])}
 
 
 @app.get("/api/vlm")
