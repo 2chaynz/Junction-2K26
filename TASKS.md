@@ -69,3 +69,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T62 Drawing takeoff with verifiable dimensions | app |  | ccolver | doing | ccolver/T62-drawing-takeoff |  |  |
 | T63 Keep built-in questions in English | app |  | ccolver | done | ccolver/T63-english-questions |  |  |
 | T64 Localize BIM floors and accept unquoted questions | app |  | ccolver | done | ccolver/T64-bim-language |  |  |
+| T65 Benchmark geometry-based raster room counts | eval | T19 |  | todo |  |  |  |
