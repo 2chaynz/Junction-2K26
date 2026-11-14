@@ -65,7 +65,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T58 Deploy the demo to a public URL | setup |  | johanseneuson | done | johanseneuson/T58-deploy |  |  |
 | T59 Zoom the Building view with the mouse wheel | app |  | ccolver | done | ccolver/T59-stack-zoom |  |  |
 | T60 Link drawings and BIM and group tools | app |  | ccolver | done | ccolver/T60-sheet-tools |  |  |
-| T61 Projects workspace: picker, scoped sheets, saved sessions | app | T50 | Asif | doing | asif/T61-projects |  |  |
+| T61 Projects workspace: picker, scoped sheets, saved sessions | app | T50 | Asif | review | asif/T61-projects |  |  |
 | T62 Drawing takeoff with verifiable dimensions | app |  | ccolver | blocked | ccolver/T62-drawing-takeoff |  | @ccolver PR #82: second cross-review found mixed plan/schedule PDFs skip plan counts. Need reliable plan vs schedule page identification before merge. |
 | T63 Keep built-in questions in English | app |  | ccolver | done | ccolver/T63-english-questions |  |  |
 | T64 Localize BIM floors and accept unquoted questions | app |  | ccolver | done | ccolver/T64-bim-language |  |  |
