@@ -82,5 +82,11 @@
   "branch": "johanseneuson/T24-facts",
   "text": "claimed",
   "at": "2026-11-14T13:17:39.740Z"
+ },
+ "T26": {
+  "who": "Asif",
+  "branch": "asif/T20-vlm-backends",
+  "text": "claimed",
+  "at": "2026-11-14T13:20:46.731Z"
  }
 }
