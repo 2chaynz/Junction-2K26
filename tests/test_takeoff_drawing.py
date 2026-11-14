@@ -266,6 +266,28 @@ class DrawingTakeoff(unittest.TestCase):
         _, excluded, _ = takeoff_2d._scan_metadata([legend], lambda: image)
         self.assertTrue(excluded)
 
+    def test_selectable_sheet_number_does_not_bypass_scan_ocr(self):
+        import io
+
+        from PIL import Image
+
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"STOA_DATA": d, "SITELENS_STORE": d}):
+            path = "Hybrid.pdf"
+            image = io.BytesIO()
+            Image.new("L", (200, 200), 255).save(image, "PNG")
+            with pymupdf.open() as doc:
+                page = doc.new_page()
+                page.insert_image(pymupdf.Rect(20, 20, 500, 500), stream=image.getvalue())
+                page.insert_text((30, 530), "A-201")
+                doc.save(Path(d) / path)
+            with patch("sitelens.ocr._engine") as engine, patch.object(takeoff_2d, "_detected") as detect:
+                engine.return_value.return_value = (
+                    [([[0, 0], [100, 0], [100, 12], [0, 12]], "NORTH ELEVATION", .99)], None
+                )
+                result = takeoff.takeoff(path)
+            detect.assert_not_called()
+            self.assertEqual(result["rows"], [])
+
     def test_disagreeing_scale_bars_do_not_produce_dimensions(self):
         from sitelens.measure import Scale
 

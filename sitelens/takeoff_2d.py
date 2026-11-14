@@ -413,7 +413,7 @@ def _scan_metadata(labels, load_image):
     return regions, excluded, issue
 
 
-def _pdf_scan_words(page):
+def _pdf_scan_words(page, native_text):
     import numpy as np
     import pymupdf
 
@@ -428,6 +428,8 @@ def _pdf_scan_words(page):
                       max(p[0] for p in quad), max(p[1] for p in quad)])
               for quad, text, confidence in result or [] if confidence >= .8]
     regions, excluded, issue = _scan_metadata(labels, lambda: gray)
+    if NOT_TO_SCALE.search(native_text):
+        issue = UNKNOWN_VIEW_SCALE
     words = [(label, [v / zoom for v in box]) for label, box in labels]
     return words, [[v / zoom for v in box] for box in regions], excluded, issue
 
@@ -459,14 +461,21 @@ def _sheet(path, root, mtime, weights_mtime):
         for page, tables in zip(doc.pages(0, reviewed), tables_by_page):
             words = _words(page)
             page_tables.extend((page.number, t) for t in tables)
-            if not words and page.get_images():
-                words, regions, skip, scale_issue = _pdf_scan_words(page)
+            regions = [measure._union(t.boxes) for t in tables if t.boxes]
+            image_info = page.get_image_info()
+            raster_view = any(pymupdf.Rect(image["bbox"]).get_area() >= .2 * page.rect.get_area()
+                              for image in image_info)
+            if image_info and (not words or raster_view):
+                labels, scan_regions, skip, scale_issue = _pdf_scan_words(page, page.get_text())
+                regions.extend(scan_regions)
+                words = [(token, box) for token, box in (words or labels)
+                         if _outside_schedule(box, regions)]
                 objects = [] if skip else [obj for obj in _detected(path, page)
                                            if _outside_schedule(obj[1].bbox, regions)]
                 excluded += int(skip)
-                pages.append((page.number, objects, words, [], scale_issue))
+                pages.append((page.number, objects, words, [], scale_issue or
+                              "The scale could not be verified for the scanned view."))
                 continue
-            regions = [measure._union(t.boxes) for t in tables if t.boxes]
             words = [(token, box) for token, box in words if _outside_schedule(box, regions)]
             text = page.get_text()
             excluded_views = _non_plan_regions(page) if NON_PLAN_VIEW.search(text) else []
