@@ -102,10 +102,11 @@ def _ifc(path: str) -> dict:
     return {"source": "ifc", "rows": rows, "notes": notes}
 
 
-def _schedule(path: str) -> dict | None:
-    from .paths.schedule import extract
+def _schedule(path: str, page_tables) -> dict | None:
+    from .takeoff_2d import printed_specifications
+
     rows: list[dict] = []
-    for t in extract(path):
+    for page, t in page_tables:
         cat = "Doors" if "door" in t.title.lower() else "Windows" if "window" in t.title.lower() else None
         if cat is None:
             continue
@@ -117,65 +118,58 @@ def _schedule(path: str) -> dict | None:
             h = r[kh] if kh is not None and kh < len(r) else ""
             if not (typ or w or h):
                 continue   # notes / sub-rows the table reader picked up: no type and no size
-            g = groups[(typ, f"{w} × {h}" if w and h else w or h)]
+            g = groups[(typ, f"{w} × {h}" if w and h else w or h, printed_specifications(t, r))]
             g["count"] += 1
-            g["evidence"].append(Evidence(file=path, bbox=box, label=f"{t.title}: {r[0]}", kind="text"))
-        for (typ, size), g in groups.items():
+            g["evidence"].append(Evidence(file=path, bbox=box, page=page, label=f"{t.title}: {r[0]}", kind="text"))
+        for (typ, size, specs), g in groups.items():
+            reason = ["Count of schedule entries. Dimensions and specifications are as printed."]
+            if not size:
+                reason.append("No dimensions were identified.")
+            if not specs:
+                reason.append("No material or performance specifications were identified.")
             rows.append({"category": cat, "type": typ or "(no type)", "size": size, "count": g["count"], "levels": set(),
-                         "length_m": 0.0, "area_m2": 0.0, "volume_m3": 0.0, "evidence": g["evidence"]})
+                         "length_m": 0.0, "area_m2": 0.0, "volume_m3": 0.0, "evidence": g["evidence"],
+                         "dimension_evidence": g["evidence"], "specifications": list(specs), "reason": reason})
     if not rows:
         return None
     rows.sort(key=lambda r: (r["category"], r["type"], r["size"]))
     return {"source": "schedule", "rows": rows,
-            "notes": ["read from the sheet's door/window schedule; walls, columns and beams need an IFC model"]}
-
-
-def _detector(path: str) -> dict | None:
-    """Scanned plans: counts from the trained detector (no dimensions on a raster)."""
-    from .paths import detector
-    rows = []
-    for cat, q in (("Doors", "How many doors are there?"), ("Windows", "How many windows are there?")):
-        a = detector.answer(path, q)
-        if a is None or not isinstance(a.value, (int, float)):
-            continue
-        rows.append({"category": cat, "type": "(detected)", "size": "", "count": int(a.value), "levels": set(),
-                     "length_m": 0.0, "area_m2": 0.0, "volume_m3": 0.0, "evidence": a.evidence})
-    if not rows:
-        return None
-    return {"source": "detector", "rows": rows,
-            "notes": ["counted by the symbol detector on the scan; a raster carries no dimensions"]}
+            "notes": ["Counts are schedule entries, not verified placements on a plan."]}
 
 
 @lru_cache(maxsize=16)
 def _cached(path: str) -> dict | None:
     from .paths.ifc import model_path
-    if model_path(path) is not None:
-        return _ifc(path)
-    if path.lower().endswith(".pdf") and (data_root() / path).exists():
-        return _schedule(path)
-    if path.lower().endswith((".png", ".jpg", ".jpeg")) and (data_root() / path).exists():
-        return _detector(path)
-    return None
+    return _ifc(path) if model_path(path) is not None else None
 
 
 def takeoff(path: str) -> dict:
-    """{"path", "source": ifc|schedule|detector|none, "rows": [...], "notes": [...]}; rows JSON-ready."""
+    from .takeoff_2d import takeoff as drawing_takeoff
+
     t = _cached(path)
+    if t is None and (data_root() / path).is_file():
+        if path.lower().endswith(".pdf"):
+            t = drawing_takeoff(path)
+        elif path.lower().endswith((".png", ".jpg", ".jpeg")):
+            t = drawing_takeoff(path)
     if t is None:
         return {"path": path, "source": "none", "rows": [],
-                "notes": ["no takeoff for this drawing: needs an IFC model, a sheet with a door/window schedule, or a scan"]}
-    rows = [{**r, "levels": sorted(r["levels"]), "length_m": round(r["length_m"], 2), "area_m2": round(r["area_m2"], 2),
-             "volume_m3": round(r["volume_m3"], 3), "by_level": dict(r.get("by_level", {})), "evidence": [e.__dict__ for e in r["evidence"]]} for r in t["rows"]]
+                "notes": ["Takeoff requires an IFC, PDF or supported image."]}
+    rows = [{**r, "levels": sorted(r["levels"]), "length_m": round(r["length_m"], 2),
+             "area_m2": round(r["area_m2"], 2), "volume_m3": round(r["volume_m3"], 3),
+             "by_level": dict(r.get("by_level", {})), "evidence": [e.__dict__ for e in r["evidence"]],
+             "dimension_evidence": [e.__dict__ for e in r.get("dimension_evidence", [])]} for r in t["rows"]]
     return {"path": path, "source": t["source"], "rows": rows, "notes": t["notes"]}
 
 
 def to_csv(t: dict) -> str:
     out = io.StringIO()
     w = csv.writer(out)
-    w.writerow(["Category", "Type", "Size", "Count", "Levels", "Length (m)", "Area (m2)", "Volume (m3)"])
+    w.writerow(["Category", "Type", "Size", "Count", "Levels", "Length (m)", "Area (m2)", "Volume (m3)", "Specifications", "Basis"])
     for r in t["rows"]:
         w.writerow([r["category"], r["type"], r["size"], r["count"], "; ".join(r["levels"]),
-                    r["length_m"] or "", r["area_m2"] or "", r["volume_m3"] or ""])
+                    r["length_m"] or "", r["area_m2"] or "", r["volume_m3"] or "", "; ".join(r.get("specifications", [])),
+                    " ".join(r.get("reason", []))])
     return out.getvalue()
 
 
