@@ -56,7 +56,7 @@ def current(backend: str | None = None) -> tuple[str | None, str | None]:
 
 # backend -> env vars it needs (any one of them); checked so the UI only offers backends that can run
 NEEDS = {"gemini": ["GEMINI_API_KEY"], "gemma-api": ["GEMINI_API_KEY"], "gemma": ["SITELENS_GEMMA"],
-         "nemotron": ["NVIDIA_API_KEY", "SITELENS_VLM_KEY"], "nemotron-verda": ["VERDA_INFERENCE_KEY"],
+         "nemotron": ["NVIDIA_API_KEY", "SITELENS_VLM_KEY"], "nemotron-verda": ["VERDA_INFERENCE_KEY", "SITELENS_VLM_KEY"],
          "vllm": ["SITELENS_VLM_URL"]}
 # switchable models per provider listing, any family
 PICKABLE = {"gemini": re.compile(r"gemini-[\d.]+-(flash|pro|flash-lite)"), "gemma-api": re.compile(r"gemma-\d+-[\w-]+-it")}

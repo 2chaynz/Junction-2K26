@@ -453,10 +453,16 @@ def vlm_status():
 def vlm_use(req: VlmModel):
     """Switch the VLM backend and/or model for this server process only; .env is untouched (CLI: --upgrade saves it)."""
     from .vlm_backends import latest
+    prev = os.environ.get("SITELENS_VLM")
     try:
         out = latest.use_backend(req.backend) if req.backend is not None else latest.status()
         return latest.use(req.model) if req.model else out
     except ValueError as e:
+        # a bad model must not leave the backend half-switched
+        if prev is None:
+            os.environ.pop("SITELENS_VLM", None)
+        else:
+            os.environ["SITELENS_VLM"] = prev
         raise HTTPException(400, str(e))
 
 
