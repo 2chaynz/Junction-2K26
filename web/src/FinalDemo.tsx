@@ -167,16 +167,17 @@ export function useRevisionDemo(enabled: boolean, entered: boolean, onOpen: () =
     const rows = focused ? changes.filter((row) => row.level === demoFloor) : changes;
     const scope = focused ? "P2" : "Whole building";
     const answer = revisionAnswer(rows, scope);
-    const recognized = wantsTakeoff || /chang|revision|compar/.test(q);
+    const namesAnotherFloor = /\b(?:p[013-9]\d*|p2\d+|(?:floor|level|storey)\s+(?:[013-9]\d*|2\d+)|(?:ground|first|third|fourth|fifth|sixth|seventh|(?:[013-9]|\d{2,})(?:st|nd|rd|th))\s+(?:floor|level|storey))\b/.test(q);
+    const recognized = !namesAnotherFloor && (floor || wantsTakeoff || /chang|revision|compar/.test(q));
     setDraft("");
-    if (wantsTakeoff) {
+    if (wantsTakeoff && recognized) {
       const image = takeoffImage(rows, scope);
       setImages((previous) => ({ ...previous, [messages.length + 1]: image }));
     }
     if (recognized) setActive(messages.length + 1);
     setMessages([...messages, { kind: "user", path: demoPath, text: question }, recognized
       ? { kind: "answer", path: demoPath, question, answer, steps: [] }
-      : { kind: "error", path: demoPath, text: "Ask about revision changes, P2, or a takeoff of the changes." }]);
+      : { kind: "error", path: demoPath, text: "Choose P2 or the whole building for this revision walkthrough." }]);
   }
 
   const submit = useRef(ask);

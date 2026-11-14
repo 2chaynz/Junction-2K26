@@ -223,8 +223,8 @@ def demo_revisions():
                 "guid": element.GlobalId, "kind": kind, "name": element.Name or kind,
                 "level": level.Name if level else None,
             })
-        revisions.append(elements)
-    before, after = revisions
+        revisions.append((model, elements))
+    (_, before), (_, after) = revisions
     settings = ifcopenshell.geom.settings()
     changes = []
     for change, current, other in (("added", after, before), ("removed", before, after)):
