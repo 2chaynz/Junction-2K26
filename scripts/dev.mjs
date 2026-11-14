@@ -5,6 +5,7 @@
 //   node scripts/dev.mjs --no-build skip the web build
 import { spawnSync, spawn } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync, mkdirSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -100,6 +101,20 @@ if (needData) {
      ${where}
 `);
   console.error("     then run this script again. Data is large: it stays outside the repo and is never committed.");
+  process.exit(1);
+}
+
+// fail here, not after minutes of install, when another copy of the server holds the port
+const PORT = 8000;
+const portFree = await new Promise((done) => {
+  const t = createServer();
+  t.once("error", () => done(false));
+  t.listen(PORT, "127.0.0.1", () => t.close(() => done(true)));
+});
+if (!portFree) {
+  console.error(`FIX  port ${PORT} is already in use, probably another copy of this server.`);
+  console.error(`     Open http://localhost:${PORT}: it may already be serving. Otherwise find and stop it:`);
+  console.error(win ? `       netstat -ano | findstr :${PORT}      then      taskkill /PID <pid> /F` : `       lsof -i :${PORT}      then      kill <pid>`);
   process.exit(1);
 }
 
