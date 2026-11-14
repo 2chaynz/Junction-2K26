@@ -77,14 +77,6 @@ const SCENES = {
     await p.mouse.up();
     await pause(p, 3500);
   },
-  async benchmark(p) {
-    await p.goto(DEMO);
-    await pause(p, 1800);
-    await click(p, p.getByRole("button", { name: "Benchmark" }).first());
-    await pause(p, 3500);
-    for (let i = 0; i < 6; i++) { await p.mouse.wheel(0, 260); await pause(p, 700); }
-    await pause(p, 2500);
-  },
 };
 
 const only = process.argv[2];
