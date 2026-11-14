@@ -33,7 +33,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T26 Hooks run status.mjs from origin/main | setup | T22 | Asif | done | asif/T26-hooks-from-main |  |  |
 | T27 Spread bot: top 10 at level 8 (Bahn side challenge) | spread |  | Asif | done | asif/spread-bot |  |  |
 | T28 UI v3: explorer sidebar, sheet info, How it works + Benchmark | app | T21 | 2chaynz | done | 2chaynz/T28-ui-explorer |  |  |
-| T29 New VLM available: update button | app | T20 | 2chaynz | doing | 2chaynz/T29-vlm-update |  |  |
+| T29 New VLM available: update button | app | T20 | 2chaynz | review | 2chaynz/T29-vlm-update |  |  |
 | T30 Scorer: live progress + resume for long paid runs | eval |  |  | todo |  |  |  |
 | T31 What changed view: revision diff in the UI | app | T28 | ccolver | done | ccolver/T31-changes-view |  |  |
 | T32 Takeoff list: doors, windows, columns, beams, walls + dims | ai | T31 | ccolver | doing | ccolver/T32-takeoff |  |  |
