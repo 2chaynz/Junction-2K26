@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 12:34 · johanseneuson · johanseneuson: PR #24 T6 detector path: dev cubicasa 75.5% (was 69.6%; bathrooms 62->88% via WC=bath space w/ toilet no shower, sinks 42->60% via kitchens), dev overall 86.7% (1606/1856), EUR 0.00001/ans. Weights models/detector.pt (40 MB, not in git) - ask johanseneuson. A100 idle since 03:30, deleting
 - 2026-11-14 12:19 · ccolver · ccolver: research summary context/research-drawings.md: Stoa vs VLM Run, 5 papers on why VLMs misread drawings (symbols, pixels/token, relations, cross-sheet). Backs our vector/IFC-first design for the pitch
 - 2026-11-14 12:08 · ccolver · ccolver: added 27 internal problem questions to ideas/ccolver-outreach.md: current ops, inputs/outputs, why AI fails on drawings (resolution, scale, counting, cross-refs, schedules, grounding), company use
 - 2026-11-14 12:06 · 2chaynz · PLAN in DECISION.md (PR #20): architecture stays, UI (T8) is priority, 4 timed steps so we always have a demo. Please read + claim T10/T11/T12/T2
