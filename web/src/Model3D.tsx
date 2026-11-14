@@ -40,6 +40,25 @@ type Storey = { id: number; name: string; base: number; cut: number; count: numb
 type Model = { id: number; elems: Map<string, Elem>; storeys: Storey[]; box: THREE.Box3 };
 type Info = { title: string; rows: [string, string][] };
 
+const FLOOR_LABELS = {
+  en: { floors: "Floors", all: "All", level: "Floor", roof: "Roof", foundation: "Foundation" },
+  et: { floors: "Korrused", all: "K?ik", level: "Korrus", roof: "Katus", foundation: "Vundament" },
+  fi: { floors: "Kerrokset", all: "Kaikki", level: "Kerros", roof: "Katto", foundation: "Perustus" },
+  da: { floors: "Etager", all: "Alle", level: "Etage", roof: "Tag", foundation: "Fundament" },
+  de: { floors: "Geschosse", all: "Alle", level: "Geschoss", roof: "Dach", foundation: "Fundament" },
+  fr: { floors: "?tages", all: "Tous", level: "?tage", roof: "Toit", foundation: "Fondation" },
+  uk: { floors: "???????", all: "???", level: "??????", roof: "???", foundation: "?????????" },
+};
+
+function floorName(name: string, labels: typeof FLOOR_LABELS.en): string {
+  const original = name.trim().toLowerCase();
+  const level = /^(\d+)\.\s*korrus$/i.exec(original);
+  if (level) return `${labels.level} ${level[1]}`;
+  if (original === "katus" || original === "roof") return labels.roof;
+  if (original === "vundament" || original === "foundation") return labels.foundation;
+  return name;
+}
+
 let api: Promise<IfcAPI> | null = null;
 function ifcApi() {
   api ??= (async () => {
@@ -224,6 +243,8 @@ async function info(a: IfcAPI, m: Model, e: Elem): Promise<Info | null> {
 const fmt = (v: unknown) => (typeof v === "number" ? String(Math.round(v * 1000) / 1000) : String(v));
 
 export default function Model3D({ path, answer, hover, focus, onHover, onFocus, busy }: Props) {
+  const locale = navigator.language.split("-")[0] as keyof typeof FLOOR_LABELS;
+  const floorLabels = FLOOR_LABELS[locale] ?? FLOOR_LABELS.en;
   const host = useRef<HTMLDivElement>(null);
   const tags = useRef<HTMLDivElement>(null);
   const three = useRef<{
@@ -604,16 +625,16 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
       </div>
 
       {model && model.storeys.length > 0 && (
-        <nav className="m3-floors" aria-label="Floors">
-          <span className="m3-label">Floors</span>
+        <nav className="m3-floors" aria-label={floorLabels.floors}>
+          <span className="m3-label">{floorLabels.floors}</span>
           {!flat && (
             <button className={floor === null ? "on" : ""} onClick={() => setFloor(null)}>
-              All{cited.size > 0 && <i>{cited.size}</i>}
+              {floorLabels.all}{cited.size > 0 && <i>{cited.size}</i>}
             </button>
           )}
           {model.storeys.map((s) => (
             <button key={s.id} className={floor === s.id ? "on" : ""} onClick={() => setFloor(s.id)} title={s.name}>
-              <span className="ellipsis">{s.name}</span>
+              <span className="ellipsis">{floorName(s.name, floorLabels)}</span>
               {marksOn.get(s.id) ? <i>{marksOn.get(s.id)}</i> : null}
             </button>
           ))}
