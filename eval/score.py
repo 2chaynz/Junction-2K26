@@ -1,6 +1,7 @@
 """Score any solver against the dataset's answer key. See CONTRACT.md → Scorer.
 
   python -m eval.score                         # router on the dev split
+  python -m eval.score --split test            # CubiCasa5K official test plans
   python -m eval.score --split all --source swiss_dwellings --limit 200
   python -m eval.score --solver mymodule:answer --name gemini-baseline
 
@@ -18,7 +19,7 @@ import time
 import traceback
 from pathlib import Path
 
-from .split import split_of
+from .split import in_split
 
 TOL = 0.02
 
@@ -51,7 +52,7 @@ def main(argv=None) -> int:
     from sitelens import data_root
     ap = argparse.ArgumentParser()
     ap.add_argument("--solver", default="sitelens.router:answer", help="module:function(path, question) -> Answer")
-    ap.add_argument("--split", default="dev", choices=["dev", "all"])
+    ap.add_argument("--split", default="dev", choices=["dev", "test", "all"])
     ap.add_argument("--source", help="only this source, e.g. ifc_models")
     ap.add_argument("--type", help="only this question type, e.g. count")
     ap.add_argument("--limit", type=int, default=0)
@@ -61,7 +62,7 @@ def main(argv=None) -> int:
     mod, fn = a.solver.split(":")
     solve = getattr(importlib.import_module(mod), fn)
     Q = [q for q in load_questions(data_root())
-         if (a.split == "all" or split_of(q["path"]) == "dev")
+         if in_split(q["path"], a.split)
          and (not a.source or source(q) == a.source) and (not a.type or q["type"] == a.type)]
     if a.limit:
         Q = Q[: a.limit]
