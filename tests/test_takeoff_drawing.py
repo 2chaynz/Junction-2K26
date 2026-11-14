@@ -68,7 +68,7 @@ class DrawingTakeoff(unittest.TestCase):
                 with pymupdf.open() as doc:
                     page = doc.new_page()
                     if layout == "later schedule":
-                        page.insert_text((100, 380), "GROUND FLOOR PLAN")
+                        page.insert_text((100, 380), "LEVEL 01")
                         page.insert_text((110, 405), "101.A")
                         page = doc.new_page()
                     page.insert_text((100, 80), "DOOR SCHEDULE")
@@ -83,7 +83,7 @@ class DrawingTakeoff(unittest.TestCase):
                     if layout == "later page":
                         page = doc.new_page()
                     if layout in ("same page", "numeric label", "unrelated placement"):
-                        page.insert_text((100, 380), "GROUND FLOOR PLAN")
+                        page.insert_text((100, 380), "LEVEL 01")
                     if layout in ("same page", "later page", "numeric label"):
                         page.insert_text((110, 405), "900" if layout == "numeric label" else "101.A")
                     if layout in ("schedule only", "rotated"):

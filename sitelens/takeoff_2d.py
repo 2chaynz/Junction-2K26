@@ -123,7 +123,7 @@ NON_PLAN_VIEW = re.compile(
 )
 PLAN_TITLE = re.compile(
     r"(?im)^[ \t]*(?:[\w-]+[ \t]+){0,5}"
-    r"(?:floor plans?|level plans?|ground plans?|grundriss|pohjapiirustus)"
+    r"(?:floor plans?|level plans?|ground plans?|grundriss|pohjapiirustus|(?:level|floor)[ \t]+-?\d+[A-Z]?)"
     r"(?:[ \t]+[\w-]+){0,3}[ \t]*$"
 )
 NOT_TO_SCALE = re.compile(r"\b(?:not[ \t]+to[ \t]+scale|N\.?[ \t]*T\.?[ \t]*S\.?)\b", re.I)
