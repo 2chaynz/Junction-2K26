@@ -416,8 +416,8 @@
  "T77": {
   "who": "Asif",
   "branch": "asif/T77-ifc-fixes",
-  "text": "claimed",
-  "at": "2026-11-14T21:38:26.970Z"
+  "text": "IFC fixes: dev 91.6->99.8%; scoring all IFC Qs before/after for regressions",
+  "at": "2026-11-14T21:41:44.746Z"
  },
  "T81": {
   "who": "ccolver",
