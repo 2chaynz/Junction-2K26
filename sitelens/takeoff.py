@@ -204,7 +204,8 @@ ROOM_PHRASE = re.compile(r"(?i)\b(?:in|of|for|inside|from)\s+(?:the\s+)?(?:room|
                          r"([A-Za-z0-9ÄÖÜäöüß][\w ÄÖÜäöüß./()-]{0,40}?)\s*(?:\?|,|\band\b|\bwith\b|\bincluding\b|$)")
 LEVEL_PHRASE = re.compile(r"(?i)\b(?:on|at)\s+(?:the\s+)?((?:level|floor|storey|story|etage|geschoss)\s*[\w-]+|[\w-]+\s+(?:level|floor))\b")
 STOP = {"model", "drawing", "sheet", "plan", "building", "project", "file", "it", "this", "total", "all", "them",
-        "their dimensions", "dimensions", "sizes", "doors", "windows"}
+        "their dimensions", "dimensions", "sizes", "doors", "windows", "columns", "beams", "walls", "slabs",
+        "the building", "the model", "whole building", "whole model"}
 
 
 def _norm(s: str) -> str:
