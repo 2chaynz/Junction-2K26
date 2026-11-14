@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 18:33 · ccolver · T32 PR #61: takeoff tab + /api/takeoff (IFC sizes/thickness/quantities, schedule rows, detector counts), CSV export; 31/31 Stoa IFC count Qs match, A-801 38 doors = key
 - 2026-11-14 18:31 · Asif · T47 PR #58: dev.mjs no longer downloads; prints the folder to drop the dataset into. T45 PR #55: gitignore dataset + zips
 - 2026-11-14 18:32 · johanseneuson · johanseneuson: backend for 3 of the 4 viz ideas is in: T41 PDF markup export (merged), T42 near-miss candidates for review mode (merged; 33/53 detector errors become one-click fixes), T43 evidence crops for a proof strip (PR #60). UI owner: these need the frontend buttons/strip, see PR bodies for sketches
 - 2026-11-14 18:31 · 2chaynz · T29 PR #59: newest-VLM check. CLI python -m sitelens.vlm_backends --upgrade (saves .env), GET/POST /api/vlm, top-bar VLM chip turns into Update button
