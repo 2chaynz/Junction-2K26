@@ -32,6 +32,8 @@ async function open(p, project, sheetText) {
   await pause(p, 1800);
   await click(p, p.getByText(project, { exact: false }).first());
   await pause(p, 1500);
+  const tab = p.getByText("Drawings", { exact: true }).first();     // projects open on an Overview page now
+  if (await tab.isVisible().catch(() => false)) { await click(p, tab); await pause(p, 1200); }
   const search = p.getByPlaceholder(/Search /);
   await click(p, search);
   await p.keyboard.type(sheetText, { delay: 90 });
@@ -42,25 +44,56 @@ async function open(p, project, sheetText) {
 async function ask(p, q, wait = 7000) {
   const box = p.getByPlaceholder(/Ask about this drawing/);
   await click(p, box);
-  await p.keyboard.type(q, { delay: 38 });
+  await p.keyboard.type(q, { delay: 22 });
   await pause(p, 500);
   await p.keyboard.press("Enter");
   await pause(p, wait);
 }
 
 const SCENES = {
+  // Hook: the building in 3D, then Stoa's door question lights up every door of the ground floor, numbered.
+  async hook3d(p) {
+    await p.goto(DEMO);
+    await pause(p, 1500);
+    await click(p, p.getByText("Molio", { exact: false }).first());
+    await pause(p, 1800);
+    await click(p, p.getByRole("button", { name: /molio-with-uris/ }).first());
+    await pause(p, 1500);
+    await click(p, p.getByRole("button", { name: "3D", exact: true }).first());
+    await pause(p, 9000);                                   // model loads, building shown whole
+    await p.mouse.move(900, 560, { steps: 8 });
+    await p.mouse.down();
+    await p.mouse.move(1010, 540, { steps: 30 });           // a little orbit while it is still just a building
+    await p.mouse.up();
+    await pause(p, 700);
+    await ask(p, "How many doors are shown on the floor plan of 'Grundplan'?", 7500);
+    await p.mouse.move(900, 560, { steps: 8 });
+    await p.mouse.down();
+    await p.mouse.move(760, 520, { steps: 45 });            // orbit around the lit doors
+    await p.mouse.up();
+    await pause(p, 2500);
+  },
   async swiss(p) {
     await open(p, "Swiss Dwellings", "2292");
     await ask(p, "How many doors (interior doors and entrance doors together) are drawn on this floor plan?", 9000);
   },
   async scan(p) {
     await open(p, "CubiCasa", "1506");
-    await ask(p, "Montako vessanpönttöä on?", 8000);
-    await ask(p, "Does this flat have a balcony?", 8000);
+    await ask(p, "Kuinka monta WC-istuinta pohjapiirustukseen on piirretty?", 6000);   // Finnish, instant detector answer
+    await ask(p, "How many windows are shown on this floor plan?", 6500);
   },
   async schedule(p) {
     await open(p, "Sports Complex", "A-801");
     await ask(p, "On sheet A-801 of the Xcel Sports Complex drawings, how many doors in the door schedule carry note C (card reader)?", 10000);
+  },
+  // The project Overview: sheet register, the "one place for the whole set" shot.
+  async overview(p) {
+    await p.goto(DEMO);
+    await pause(p, 1500);
+    await click(p, p.getByText("Sports Complex", { exact: false }).first());
+    await pause(p, 3000);
+    for (let i = 0; i < 4; i++) { await p.mouse.wheel(0, 240); await pause(p, 600); }
+    await pause(p, 1500);
   },
   async bim(p) {
     await p.goto(DEMO);
