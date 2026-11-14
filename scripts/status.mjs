@@ -11,10 +11,12 @@
 //   node scripts/status.mjs publish <paths...>           push ideas/, context/, tickets/ files to main
 //   node scripts/status.mjs watch [--force]              hook: notice when shared files change on main
 //   node scripts/status.mjs beat [T3] "<doing now>"      heartbeat: what this agent is doing (ticket from branch)
+//   node scripts/status.mjs close-merged                 set review tickets whose PR merged to done (Action + show)
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, rmSync, existsSync, cpSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const env = { ...process.env, GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "never" };
 const sh = (cmd, args, opts = {}) =>
@@ -146,10 +148,38 @@ function pushBeat(id, text, { tries = 4, timeout = 20000 } = {}) {
   return false;
 }
 
+const mergedPr = (branch) => {
+  try { return sh("gh", ["pr", "list", "--head", branch, "--state", "merged", "--json", "number", "--jq", ".[0].number"], { cwd: root, timeout: 15000 }); }
+  catch { return ""; }
+};
+
 // --- Commands -----------------------------------------------------------------
 const commands = {
+  "close-merged"() {
+    if (!fetchMain()) fail("Can't reach origin. Check network and `gh auth status`.");
+    const hits = parseTable(showFile("TASKS.md")).rows
+      .filter((r) => r.status === "review" && r.branch)
+      .map((r) => ({ id: idOf(r), branch: r.branch, pr: mergedPr(r.branch) }))
+      .filter((h) => h.pr);
+    if (!hits.length) return console.log("No merged review tickets.");
+    onMain(`chore: set ${hits.map((h) => h.id).join(", ")} to done (merged)`, (dir) => editTasks(dir, (t) => {
+      for (const h of hits) {
+        const r = findRow(t, h.id);
+        // Re-check on the fresh table: someone may have reopened or moved the ticket meanwhile.
+        if (r.status === "review" && r.branch === h.branch) { r.status = "done"; r.question = ""; }
+      }
+    }));
+    console.log(hits.map((h) => `${h.id} done (PR #${h.pr} merged)`).join("\n"));
+  },
+
   show() {
     const online = fetchMain();
+    // Fallback for the close-merged Action. Child process: onMain exits on failure and must not kill show.
+    if (online) try {
+      const out = sh(process.execPath, [fileURLToPath(import.meta.url), "close-merged"], { cwd: root, timeout: 40000 });
+      const closed = out.split("\n").filter((l) => / done \(PR #/.test(l));
+      if (closed.length) { console.log(closed.map((l) => `auto-closed ${l}`).join("\n")); fetchMain(); }
+    } catch {}
     const hash = mainHash();
     writeState({ ...readState(), seen: hash, last: Date.now() });
     const md = showFile("TASKS.md");
@@ -171,10 +201,8 @@ const commands = {
         }
       }
       if (r.status === "review" && r.branch && online) {
-        try {
-          const merged = sh("gh", ["pr", "list", "--head", r.branch, "--state", "merged", "--json", "number", "--jq", ".[0].number"], { cwd: root, timeout: 15000 });
-          if (merged) console.log(`     PR #${merged} merged → node scripts/status.mjs set ${idOf(r)} done`);
-        } catch {}
+        const merged = mergedPr(r.branch);
+        if (merged) console.log(`     PR #${merged} merged → node scripts/status.mjs set ${idOf(r)} done`);
       }
     }
     const log = showFile("LOG.md").split("\n").filter((l) => l.startsWith("- ")).slice(0, 8);
@@ -327,5 +355,5 @@ const commands = {
   },
 };
 
-if (!commands[cmd]) fail(readFileSync(new URL(import.meta.url), "utf8").split("\n").slice(1, 13).map((l) => l.replace(/^\/\/ ?/, "")).join("\n"));
+if (!commands[cmd]) fail(readFileSync(new URL(import.meta.url), "utf8").split("\n").slice(1, 14).map((l) => l.replace(/^\/\/ ?/, "")).join("\n"));
 commands[cmd]();

@@ -1,0 +1,28 @@
+name: Close merged tickets
+# Sets a review ticket to done when its branch's PR merges. `status.mjs show` does the same as a fallback.
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+permissions:
+  contents: write
+  pull-requests: read
+concurrency:
+  group: tasks-on-main
+  cancel-in-progress: false
+jobs:
+  close:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Set merged tickets to done
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          node scripts/status.mjs close-merged
