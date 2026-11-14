@@ -9,7 +9,7 @@ from sitelens.region import DEICTIC, Mark  # noqa: E402
 # a stroke covers points within its radius
 line = Mark.parse({"points": [[0, 0], [10, 0]], "r": 2})
 assert line.bbox == [-2, -2, 12, 2]
-assert line.covers(10, 1) and not line.covers(5, 5)
+assert line.covers(5, 0) and line.covers(10, 1) and not line.covers(5, 5)
 
 # a closed loop also covers what it encircles; an open arc does not
 ring = [[50 + 40 * c, 50 + 40 * s] for c, s in
