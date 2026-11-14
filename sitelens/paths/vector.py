@@ -20,7 +20,9 @@ NUM = re.compile(r"^\d+\.\d\d$")
 AREA = re.compile(r"^(\d+(?:\.\d+)?)\s*m")
 UNIT = re.compile(r"^(?:Whg\.|Wohnung|App\.|Appartement|Appartamento|Apt\.?|Logement)\s*([A-Z])$")
 OUTDOOR = re.compile(r"(?i)balk|logg|terr|balcon|sitzplatz|veranda|gartensitz")
-QUOTED = re.compile(r"[\"'‘«“„]([^\"'’»”“]+)[\"'’»”“]")
+QUOTED = re.compile(r"(?<!\w)[\"'‘«“„]([^\"'’»”“]+)[\"'’»”“](?!\w)")
+COUNT_CUE = re.compile(r"(?i)how many|number of|wie viele|anzahl|combien|quant[ie]|kuinka monta|mitu|hvor mange")
+LABEL_CUE = re.compile(r"(?i)label|bezeichn|beschrift|désign|denomin|etichett|named|nommée|mit dem namen")
 
 KINDS = {  # question keyword → fixture kind
     "door": r"(?i)\bdoors?\b|türen|\btür\b|portes?\b|port[ae]\b",
@@ -215,8 +217,10 @@ def answer(path: str, question: str) -> Answer | None:
                       trace=[f"{how}: {len(rs)} room(s)", " + ".join(f"{r.area}" for r in rs) + f" = {total} m²"])
 
     # counts
+    if not COUNT_CUE.search(q):
+        return None  # not a count question (e.g. "width of door …"): leave it to other paths
     kind = next((k for k, rx in KINDS.items() if re.search(rx, q)), None)
-    if quoted and kind not in ("apartment",):
+    if quoted and (kind is None or LABEL_CUE.search(q)):
         rs = [r for r in plan.rooms if r.name == quoted[0]]
         return Answer(value=len(rs), unit="count", method="vector", confidence=0.9,
                       evidence=[_room_ev(plan, stem, r) for r in rs],
