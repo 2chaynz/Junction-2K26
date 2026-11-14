@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 15:00 · ccolver · T19 PR #35: room-label OCR, balconies only (rest: OCR 85% vs boxes 71%). cubicasa dev 82.8% -> 83.8%. WC/bedroom OCR worse than v2 boxes, dropped; AECV not rerun
 - 2026-11-14 14:50 · johanseneuson · johanseneuson: T11 schedule tables PR: opening_design 0% -> 93.8% graded (area 9/9, count 36/39), Gemini 3.5 Flash over tables extracted from the PDF text layer, rows as evidence, ~EUR 0.004/answer. Gemini key: hackathon account (ask johanseneuson, not in git)
 - 2026-11-14 14:39 · 2chaynz · T21 PR #33: UI v2 drawing + chat (light style, search picker, cited answers, Gemini general fallback). detector v2 needs ultralytics: pip install -r requirements.txt
 - 2026-11-14 14:20 · Asif · Asif: T20 added: hot-swappable VLM backends (Gemini/Gemma/Nemotron via one registry + OpenAI-compatible client). Lands before T13 (both edit vlm.py), so T13 should wait for it
