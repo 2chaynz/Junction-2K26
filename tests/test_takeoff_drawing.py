@@ -319,7 +319,7 @@ class DrawingTakeoff(unittest.TestCase):
             path = "Schedule.pdf"
             with pymupdf.open() as doc:
                 page = doc.new_page()
-                page.insert_text((50, 50), "DOOR SCHEDULE")
+                page.insert_text((50, 50), "DOOR SCHEDULE - LEVEL 1")
                 doc.save(Path(d) / path)
             with patch.object(takeoff_2d, "_detected") as detect:
                 result = takeoff.takeoff(path)

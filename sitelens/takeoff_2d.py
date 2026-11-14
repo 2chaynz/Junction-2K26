@@ -402,7 +402,10 @@ def _scan_views(image, labels):
     return regions, len(regions) != len(titles)
 
 
-SCHEDULE_TITLE = re.compile(r"(?im)^[ \t]*(?:doors?|windows?)[ \t]+schedules?[ \t]*$")
+SCHEDULE_TITLE = re.compile(
+    r"(?im)^[ \t]*(?!(?:see|refer|consult|verify|check|note)\b)"
+    r"[^\r\n]*\b(?:doors?|windows?)\b[^\r\n]*\bschedules?\b[^\r\n]*$"
+)
 
 
 def _unbounded_schedule(text, tables, has_plan, bounded=False):
