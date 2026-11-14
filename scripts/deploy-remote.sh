@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy the demo to a fresh Ubuntu VM (backend + built web in one process, systemd, port 8000).
+# Deploy the demo to a fresh Ubuntu 24.04 VM (backend + built web in one process, systemd, port 8000).
 #
 #   bash scripts/deploy-remote.sh root@1.2.3.4 [--ssh-key ~/.ssh/key] [--port 8000]
 #
@@ -32,8 +32,13 @@ if ! $SSH "$HOST" 'test -f /opt/sitelens-data/questions.jsonl'; then
 fi
 
 echo "==> secrets (stdin)"
-printf 'GEMINI_API_KEY=%s\nSTOA_DATA=/opt/sitelens-data\nSITELENS_MODELS=/opt/sitelens/models\nSITELENS_RATE=30\n' "${GEMINI_API_KEY:-}" \
-  | $SSH "$HOST" 'umask 077; cat > /etc/sitelens.env'
+BASE_ENV='STOA_DATA=/opt/sitelens-data\nSITELENS_MODELS=/opt/sitelens/models\nSITELENS_RATE=30\n'
+if [ -n "${GEMINI_API_KEY:-}" ]; then
+  printf "GEMINI_API_KEY=%s\n${BASE_ENV}" "$GEMINI_API_KEY" | $SSH "$HOST" 'umask 077; cat > /etc/sitelens.env'
+else
+  echo "note: no GEMINI_API_KEY here; keeping the key already on the VM (typed free-form questions need one)"
+  printf "${BASE_ENV}" | $SSH "$HOST" 'umask 077; k=$(grep "^GEMINI_API_KEY=" /etc/sitelens.env 2>/dev/null || true); { [ -n "$k" ] && echo "$k"; cat; } > /etc/sitelens.env.new && mv /etc/sitelens.env.new /etc/sitelens.env'
+fi
 
 echo "==> installing on the VM (first run takes a few minutes)"
 $SSH "$HOST" PORT="$PORT" bash -s <<'REMOTE'

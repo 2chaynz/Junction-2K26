@@ -14,7 +14,7 @@ Our entry for Junction 2026 (Espoo, 13–15 Nov). Agents do the building; humans
 ## Deploy the demo (public URL)
 Vercel and Lovable cannot host it (Python, torch, ifcopenshell and the dataset preview in one process), so it runs on a small VM:
 ```
-bash scripts/deploy-remote.sh root@<ip> --ssh-key ~/.ssh/<key>      # fresh Ubuntu 22/24, ~5 min, re-runnable
+bash scripts/deploy-remote.sh root@<ip> --ssh-key ~/.ssh/<key>      # fresh Ubuntu 24.04 (Python 3.12), ~5 min, re-runnable
 ```
 It builds the web, uploads code + weights + dataset preview, sets up a venv (CPU torch) and a systemd service on port 8000,
 and takes `GEMINI_API_KEY` from your environment or `../junction-data/.env` over ssh stdin. Visitors are rate limited
