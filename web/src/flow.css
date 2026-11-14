@@ -1,0 +1,41 @@
+/* How it works: interactive diagram + explanation panel */
+.page.how { max-width: 1340px; }
+.flow { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; margin-top: 24px; align-items: start; }
+.fl-canvas { border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px 12px; min-width: 0; }
+.fl-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.fl-bar .dim { flex: 1; }
+.fl-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.fl-toggle input { margin: 0; accent-color: var(--red); }
+.fl-svg { width: 100%; display: block; }
+
+.fl-lane { transition: opacity 0.15s; }
+.fl-lane.dim { opacity: 0.28; }
+.fl-hit { cursor: pointer; outline: none; }
+.fl-hit:hover rect:first-of-type:not(.fl-ghost), .fl-hit:focus-visible rect:first-of-type:not(.fl-ghost) { stroke: var(--red); }
+.fl-hit.on rect:first-of-type:not(.fl-ghost) { stroke: var(--red); }
+
+.fl-panel {
+  position: sticky; top: 16px; border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px;
+  font-size: 14px; max-height: calc(100vh - 100px); overflow-y: auto;
+}
+.fl-panel h3 { font-size: 17px; margin: 0 0 10px; }
+.fl-kicker { color: var(--red); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.fl-facts { margin: 0; display: grid; grid-template-columns: 82px 1fr; gap: 6px 10px; }
+.fl-facts dt { color: var(--dim); font-size: 13px; }
+.fl-facts dd { margin: 0; }
+.fl-body p { margin: 0 0 8px; }
+.fl-example { margin: 14px 0 10px; }
+.fl-example img { width: 100%; display: block; border: 1px solid var(--line); border-radius: var(--r); background: var(--canvas); }
+.fl-example figcaption { color: var(--dim); margin-top: 6px; }
+.fl-try {
+  display: block; text-align: center; padding: 8px 12px; border: 1px solid var(--red); border-radius: var(--r);
+  color: var(--red); text-decoration: none; font-size: 14px;
+}
+.fl-try:hover { background: var(--red-soft); }
+.fl-steps { margin: 0 0 10px; padding-left: 18px; }
+.fl-steps li { margin-bottom: 8px; }
+
+@media (max-width: 1100px) {
+  .flow { grid-template-columns: 1fr; }
+  .fl-panel { position: static; max-height: none; }
+}
