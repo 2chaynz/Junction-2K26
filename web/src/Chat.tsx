@@ -1,5 +1,7 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { METHOD_NAME, fmtAnswer, fmtEur, fmtTime, fmtValue, shortName } from "./format";
+import { CountUpText } from "./motion";
+import VlmPicker from "./VlmPicker";
 import type { Answer, Mark, Msg, Reason, Source, Step, Table } from "./types";
 
 type Props = {
@@ -319,7 +321,7 @@ function AnswerMsg(props: {
         <div className="tag">found on a related sheet · {shortName(a.source_path)}</div>
       )}
       <div className="value-line">
-        <span className="value">{fmtAnswer(a)}</span>
+        <span className="value"><CountUpText text={fmtAnswer(a)} /></span>
         <Cites {...props} />
         {a.confidence < 0.6 && <span className="warn">please check</span>}
       </div>
@@ -358,6 +360,8 @@ export default function Chat(p: Props) {
     if (!box) return;
     const resize = () => {
       box.style.height = "auto";
+      // hidden panel measures 0: keep the CSS height until it's shown
+      if (!box.scrollHeight) return;
       box.style.height = `${box.scrollHeight + box.offsetHeight - box.clientHeight}px`;
     };
     resize();
@@ -451,6 +455,9 @@ export default function Chat(p: Props) {
             Ask
           </button>
         </form>
+        <div className="composer-foot">
+          <VlmPicker />
+        </div>
       </div>
     </aside>
   );

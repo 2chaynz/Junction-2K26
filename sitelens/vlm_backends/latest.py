@@ -54,10 +54,49 @@ def current(backend: str | None = None) -> tuple[str | None, str | None]:
     return backend, get(backend).model()
 
 
+# backend -> env vars it needs (any one of them); checked so the UI only offers backends that can run
+NEEDS = {"gemini": ["GEMINI_API_KEY"], "gemma-api": ["GEMINI_API_KEY"], "gemma": ["SITELENS_GEMMA"],
+         "nemotron": ["NVIDIA_API_KEY", "SITELENS_VLM_KEY"], "nemotron-verda": ["VERDA_INFERENCE_KEY", "SITELENS_VLM_KEY"],
+         "vllm": ["SITELENS_VLM_URL"]}
+# switchable models; gemini stays on flash because gemini.py prices every model at flash rates
+PICKABLE = {"gemini": re.compile(r"gemini-[\d.]+-flash"), "gemma-api": re.compile(r"gemma-\d+-[\w-]+-it")}
+
+
+def backends() -> list[dict]:
+    """[{name, ready, needs, model}] for every backend; model only when it's known without a network call."""
+    from . import BACKENDS
+    out = []
+    for name in BACKENDS:
+        needs = NEEDS.get(name, [])
+        ready = not needs or any(os.environ.get(e) for e in needs)
+        model = None
+        if ready and name != "vllm":  # vllm asks its server for the model id
+            try:
+                model = BACKENDS[name].model()
+            except Exception:
+                pass
+        out.append({"name": name, "ready": ready, "needs": needs, "model": model or (os.environ.get("SITELENS_VLM_MODEL") if name == "vllm" else None)})
+    return out
+
+
+def models(backend: str | None) -> list[str]:
+    """Every model the backend can switch to, newest first. [] if it can't switch."""
+    pat = PICKABLE.get(backend or "")
+    if not pat:
+        return []
+    try:
+        names = [n for n in list_models() if pat.fullmatch(n)]
+    except Exception:
+        return []
+    num = lambda n: tuple(int(x) for x in re.findall(r"\d+", n))
+    return sorted(names, key=lambda n: (num(n), n), reverse=True)
+
+
 def status(backend: str | None = None, refresh: bool = False) -> dict:
-    """{backend, current, latest, available, env}. latest is set only when it beats current."""
+    """{backend, current, latest, available, models, backends, env}. latest is set only when it beats current."""
     backend, model = current(backend)
-    out = {"backend": backend, "current": model, "latest": None, "available": [], "env": MODEL_ENV.get(backend)}
+    out = {"backend": backend, "current": model, "latest": None, "available": [], "env": MODEL_ENV.get(backend),
+           "models": models(backend), "backends": backends()}
     fam = _family(model) if model and backend in MODEL_ENV else None
     if not fam:
         return out
@@ -68,6 +107,20 @@ def status(backend: str | None = None, refresh: bool = False) -> dict:
     if hits and hits[-1][0] > key(pattern.fullmatch(model).groups()):
         out["latest"] = hits[-1][1]
     return out
+
+
+def use_backend(name: str | None) -> dict:
+    """Switch the VLM backend for this process; None or "" turns the VLM path off."""
+    from . import get
+    if not name:
+        os.environ.pop("SITELENS_VLM", None)
+        return status()
+    get(name)  # ValueError for an unknown name
+    b = next(b for b in backends() if b["name"] == name)
+    if not b["ready"]:
+        raise ValueError(f"{name} needs {' or '.join(b['needs'])} set in .env")
+    os.environ["SITELENS_VLM"] = name
+    return status(name)
 
 
 def use(model: str, backend: str | None = None) -> dict:

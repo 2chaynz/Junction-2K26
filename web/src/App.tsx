@@ -18,11 +18,11 @@ import {
   newSessionId, projectKeyOf, saveSession, sessionsOverview, sheetName, touchRecent,
 } from "./workspace";
 import "./shell.css";
-import Takeoff, { levelLabel, projectLanguage, type Row } from "./Takeoff";
+import Takeoff, { type Row } from "./Takeoff";
 import Stack from "./Stack";
 import type { Answer, Drawing, Mark, Msg, Shape, Step, Tool, Turn } from "./types";
 import Viewer from "./Viewer";
-import VlmBadge from "./VlmBadge";
+import { TabInk } from "./motion";
 
 // three.js + web-ifc are ~4 MB: only fetch them when a model is opened in 3D.
 const Model3D = lazy(() => import("./Model3D"));
@@ -413,7 +413,7 @@ export default function App({ revisionDemo = false, sheetDemo = false }: { revis
     const label = `${r.category}: ${r.type}${r.size ? ` · ${r.size}` : ""}`;
     const a: Answer = {
       value: instance === undefined ? r.count : 1, unit: "count", method: "takeoff", confidence: 1, cost_eur: 0, evidence,
-      trace: [`takeoff row: ${label}`, `${r.count} element(s)${r.levels.length ? ` on ${r.levels.map((level) => levelLabel(level, projectLanguage(target))).join(", ")}` : ""}`],
+      trace: [`takeoff row: ${label}`, `${r.count} element(s)${r.levels.length ? ` on ${r.levels.join(", ")}` : ""}`],
       time_s: 0, view: d?.view ?? target,
     };
     setTab("Drawings");
@@ -497,15 +497,16 @@ export default function App({ revisionDemo = false, sheetDemo = false }: { revis
               Back to <span className="ellipsis">{project.name}</span> ›
             </button>
           )}
-          {revisionDemo ? <><a className="btn" href="?demo">Replay</a><a className="btn" href={location.pathname}>All projects</a></> :
-            <><a className="btn" href="?demo">Final demo</a><a className="btn" href="?demo=sheets">Sheet revisions demo</a><VlmBadge /></>}
+          {/* demo is launched by URL (?demo, ?demo=sheets), not from the app chrome */}
+          {revisionDemo && <><a className="btn" href="?demo">Replay</a><a className="btn" href={location.pathname}>All projects</a></>}
         </div>
-        <nav className="tabs subnav">
+        <nav className="tabs subnav inked">
           {(revisionDemo ? [demoEntered ? "Drawings" : "Projects"] as const : inProject ? PROJECT_TABS : HOME_TABS).map((t) => (
             <button key={t} className={t === tab ? "on" : ""} onClick={() => setTab(t)}>
               {t}
             </button>
           ))}
+          <TabInk dep={`${tab}|${inProject}|${revisionDemo}`} />
         </nav>
       </header>
 
@@ -526,7 +527,7 @@ export default function App({ revisionDemo = false, sheetDemo = false }: { revis
       )}
       {tab === "Takeoff" && (
         <main className="pagewrap">
-          <Takeoff path={tkPath ?? modelPath ?? path} name={(tkPath ?? modelPath ?? path).split("/").pop() ?? ""} onShow={showRow} language={projectLanguage(tkPath ?? modelPath ?? path)} />
+          <Takeoff path={tkPath ?? modelPath ?? path} name={(tkPath ?? modelPath ?? path).split("/").pop() ?? ""} onShow={showRow} />
         </main>
       )}
       {tab === "How it works" && <main className="pagewrap"><HowItWorks /></main>}
@@ -596,7 +597,6 @@ export default function App({ revisionDemo = false, sheetDemo = false }: { revis
               <Model3D
                 path={modelPath}
                 answer={demoEntered ? demoAnswer : answer}
-                language={demoEntered ? "en" : projectLanguage(modelPath)}
                 demo={demoEntered ? { url: ifcUrl(demoPath), baseline: ifcUrl(baselinePath), overview: !String(demoAnswer?.value).startsWith("P2"), removedIds, onReady: demo.onReady } : undefined}
                 hover={hover}
                 focus={focus}

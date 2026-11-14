@@ -63,8 +63,9 @@ DELETE /api/measure?path=…&id=…                       → {"deleted"}
 POST /api/measure/calibrate {"path","points","length":"12'-6\"" | "3.5 m" | "15.9 m2","known_id"?} → stored scale
 POST /api/measure/scale {"path","scale_id"}           → pick a candidate (answer to `ask`); no scale_id = reset
 GET  /api/takeoff?path=data/…[&format=csv]           → {"path", "source": ifc|schedule|drawing|none, "rows": [{category, type, size, count, levels, by_level, length_m, area_m2, volume_m3, evidence, dimension_evidence, reason?, specifications?}], "notes"}; csv = download
-GET  /api/vlm                                         → {"backend", "current", "latest", "available": [...]}: latest = newer model of the same family, else null
-POST /api/vlm   {"model": "…"}                        → same shape; switches the VLM model for this server process (no .env write); 400 if unknown
+POST /api/translate {"texts": [...]}                  → {"texts": [...]}: English, same order (strings the browser reads from IFC itself)
+GET  /api/vlm                                         → {"backend", "current", "latest", "available", "models", "backends": [{name, ready, needs, model}]}: latest = newer model of the same family, else null; models = every switchable model of the backend
+POST /api/vlm   {"backend"?: "…" | "", "model"?: "…"} → same shape; switches backend ("" = off) and/or model for this server process (no .env write); 400 if unknown or not configured
 GET  /api/sessions                                    → {project: {"sessions", "updated"}} for the project list
 GET  /api/sessions?project=…                          → [{id, title, created, updated, questions, paths, last: {question, value, unit}}], newest first
 GET  /api/session?project=…&id=…                      → {id, project, title?, created, updated, msgs: [Msg]}
@@ -83,7 +84,8 @@ DELETE /api/session?project=…&id=…                    → {"deleted"}
 - T75 answer fields: `tier` (drawing | project | vlm | web | none), `followup: {question, standalone}`, `sources: [{n, tier, label, ev?, file?, page?, bbox?, ifc_guid?, url?, title?}]` (drawing sources first, `[n]` = `evidence[n-1]`), `reasoning: [{tier, text, src: [n]}]`. Step kinds add `tier` and `followup`.
 - Vague question (not one of Stoa's) → `method: "clarify"`, `value: null`, `clarify: {"ask": "Which floor?", "options": [full reformulated questions]}`, no evidence. UI shows the options; picking one asks it. Rules first, then Gemini (`sitelens/clarify.py`).
 - Step: `{"kind": understand|try|skip|fail|found|trace|general|check|clarify, "path": "ifc"|"", "text": "plain words", "t": seconds}`. `trace` steps are the winning path's trace lines. Python: `router.answer(path, q, on_step)`.
-- `/api/drawings` includes `model`, the related IFC path or null.
+- `/api/drawings` includes `model`, the related IFC path or null, and `title` (IFC plan sheets: storey in English, e.g. `04 · Floor 4`) or null.
+- English only (T83, `sitelens/translate.py`): display strings in ask, stream steps, takeoff, measure and revisions are translated after the Stoa `check`. Ids, paths, GUIDs, `method`, `unit` stay as they are. Quoted names keep the original: `'Zimmer' (room)`; text `value` becomes `orig · English`. Dictionary first; Gemini (cached in `.sitelens/translate.json`) only for takeoff type/storey names and `/api/translate`. `SITELENS_TRANSLATE=dict` turns the model off.
 - Projects (T61): the UI groups drawings into projects (`web/src/workspace.ts`: `bim/<building>`, `set/<sheet set>`, `portfolio/swiss`, `archive/cubicasa`) with typed subfolders. Sessions are stored per project key in `.sitelens/sessions/` (next to `SITELENS_STORE`); `Msg` is `web/src/types.ts`.
 - `/api/file` takes optional `scale` (default 1 = bbox coords).
 - Takeoff: evidence marks counted objects or schedule entries. dimension_evidence cites plan tags, dimensions and scale references. Drawing rows explain their basis and unknowns in reason; specifications contains cited schedule fields. CSV includes Specifications and Basis columns.

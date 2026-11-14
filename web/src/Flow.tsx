@@ -44,7 +44,7 @@ const LANES: Lane[] = [
     sure: "96% of Stoa's Swiss apartment plan questions right.",
     price: "€0 per answer, under 1 s",
     img: "/how/cad.jpg",
-    caption: "Room 0.08 Küche: 7.54 m², circled on the plan with its label (Stoa's key: 7.54).",
+    caption: "Room 0.08 Küche (kitchen): 7.54 m², circled on the plan with its label (Stoa's key: 7.54).",
     path: "data/swiss_dwellings/site418_bldg1080_floor4724.pdf",
     q: "What is the net floor area of room 0.08 ('Küche') in m²?",
   },
