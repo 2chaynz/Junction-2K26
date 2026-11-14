@@ -1,7 +1,28 @@
-.vlm { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dim); padding: 5px 10px; border: 1px solid var(--line); border-radius: var(--r); white-space: nowrap; }
+.composer-foot { display: flex; align-items: center; gap: 8px; margin-top: -4px; }
+.vlm { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); padding: 3px 8px; border: 1px solid transparent; border-radius: var(--r); white-space: nowrap; max-width: 280px; }
 .vlm .k { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
-.vlm .mono { color: var(--ink); }
+.vlm .mono { color: var(--ink); min-width: 0; }
+.vlm .caret { font-size: 10px; }
 .vlm.new { border-color: var(--red); background: var(--red-soft); color: var(--ink); }
-.vlm.new:hover:not(:disabled) { background: rgba(217, 45, 32, 0.14); }
-.vlm.new .go { color: var(--red); font-weight: 600; }
-.vlm .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
+.vlm.off .mono { color: var(--dim); }
+.vlm .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); flex: none; }
+
+.vlm-pick { position: relative; z-index: 6; }
+.vlm-pick summary { list-style: none; cursor: pointer; }
+.vlm-pick summary::-webkit-details-marker { display: none; }
+.vlm-pick summary:hover, .vlm-pick[open] summary { border-color: var(--line-strong); background: var(--canvas); }
+.vlm-pick summary.new:hover, .vlm-pick[open] summary.new { background: rgba(217, 45, 32, 0.14); }
+.vlm-list { position: absolute; bottom: calc(100% + 6px); left: 0; max-height: 70vh; overflow-y: auto; width: 290px; padding: 4px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); box-shadow: 0 3px 12px #0002; }
+.vlm-list button { display: flex; flex-direction: column; width: 100%; padding: 6px 8px; text-align: left; border-radius: 2px; min-width: 0; border-left: 2px solid transparent; }
+.vlm-list button:hover:not(:disabled), .vlm-list button:focus-visible { background: var(--canvas); }
+.vlm-list button:disabled { cursor: default; }
+.vlm-list button:disabled:not(.on) > .vrow { color: var(--dim); }
+.vlm-list button.on { border-left-color: var(--red); }
+.vlm-list .vrow { display: flex; align-items: center; gap: 6px; }
+.vlm-list .tick { color: var(--red); font-weight: 600; }
+.vlm-list .sgroup { padding: 8px 8px 2px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
+.vlm-list select { width: calc(100% - 16px); margin: 4px 8px 6px; padding: 5px 6px; font-size: 13px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); color: var(--ink); }
+.vlm-list .upd { border: 1px solid var(--red); background: var(--red-soft); margin-bottom: 4px; }
+.vlm-list .upd .mono { color: var(--red); font-weight: 600; font-size: 12px; }
+.vlm-list .err { color: var(--red); padding: 6px 8px; }
+.vlm-list .foot { border-top: 1px solid var(--line); margin-top: 4px; padding: 8px 8px 4px; }

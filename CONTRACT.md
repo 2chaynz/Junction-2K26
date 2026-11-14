@@ -64,8 +64,8 @@ POST /api/measure/calibrate {"path","points","length":"12'-6\"" | "3.5 m" | "15.
 POST /api/measure/scale {"path","scale_id"}           → pick a candidate (answer to `ask`); no scale_id = reset
 GET  /api/takeoff?path=data/…[&format=csv]           → {"path", "source": ifc|schedule|drawing|none, "rows": [{category, type, size, count, levels, by_level, length_m, area_m2, volume_m3, evidence, dimension_evidence, reason?, specifications?}], "notes"}; csv = download
 POST /api/translate {"texts": [...]}                  → {"texts": [...]}: English, same order (strings the browser reads from IFC itself)
-GET  /api/vlm                                         → {"backend", "current", "latest", "available": [...]}: latest = newer model of the same family, else null
-POST /api/vlm   {"model": "…"}                        → same shape; switches the VLM model for this server process (no .env write); 400 if unknown
+GET  /api/vlm                                         → {"backend", "current", "latest", "available", "models", "backends": [{name, ready, needs, model}]}: latest = newer model of the same family, else null; models = every switchable model of the backend
+POST /api/vlm   {"backend"?: "…" | "", "model"?: "…"} → same shape; switches backend ("" = off) and/or model for this server process (no .env write); 400 if unknown or not configured
 GET  /api/sessions                                    → {project: {"sessions", "updated"}} for the project list
 GET  /api/sessions?project=…                          → [{id, title, created, updated, questions, paths, last: {question, value, unit}}], newest first
 GET  /api/session?project=…&id=…                      → {id, project, title?, created, updated, msgs: [Msg]}

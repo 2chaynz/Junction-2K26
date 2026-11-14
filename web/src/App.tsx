@@ -22,7 +22,6 @@ import Stack from "./Stack";
 import type { Answer, Drawing, Mark, Msg, Shape, Step, Tool, Turn } from "./types";
 import Viewer from "./Viewer";
 import { TabInk } from "./motion";
-import VlmBadge from "./VlmBadge";
 
 // three.js + web-ifc are ~4 MB: only fetch them when a model is opened in 3D.
 const Model3D = lazy(() => import("./Model3D"));
@@ -490,8 +489,8 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
               Back to <span className="ellipsis">{project.name}</span> ›
             </button>
           )}
-          {revisionDemo ? <><a className="btn" href="?demo">Replay</a><a className="btn" href={location.pathname}>All projects</a></> :
-            <><a className="btn" href="?demo">Final demo</a><VlmBadge /></>}
+          {/* demo is launched by URL (?demo), not from the app chrome */}
+          {revisionDemo && <><a className="btn" href="?demo">Replay</a><a className="btn" href={location.pathname}>All projects</a></>}
         </div>
         <nav className="tabs subnav inked">
           {(revisionDemo ? [demoEntered ? "Drawings" : "Projects"] as const : inProject ? PROJECT_TABS : HOME_TABS).map((t) => (
