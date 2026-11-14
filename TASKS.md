@@ -89,7 +89,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T82 Judge-facing README | pitch |  | Asif | done | asif/T82-readme |  |  |
 | T83 English-only UI: translate loaded data | app |  | ccolver | done | ccolver/T83-english-ui |  |  |
 | T84 Motion: press feedback, sliding tabs, growing bars, 3D loader, count-ups | app |  | 2chaynz | done | 2chaynz/T84-motion |  |  |
-| T85 Sheet revision demo: scripted PDF diff walkthrough | app | T15 | ccolver | review | ccolver/T85-sheet-demo |  |  |
+| T85 Sheet revision demo: scripted PDF diff walkthrough | app | T15 | ccolver | done | ccolver/T85-sheet-demo |  |  |
 | T86 VLM picker in the Ask composer | app |  | Asif | done | asif/T86-vlm-picker |  |  |
 | T87 Health: scale bar beside a metres bar, tests run standalone | app |  | 2chaynz | done | 2chaynz/T87-health |  |  |
 | T88 README team credits | pitch |  | Asif | done | asif/T88-team-credits |  |  |
