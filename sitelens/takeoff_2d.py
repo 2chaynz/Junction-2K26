@@ -278,7 +278,7 @@ def _vector(path):
     return objects
 
 
-def _rows(objects, words, specs, scale, scanned=False, repeated_marks=()):
+def _rows(objects, words, specs, scale, scanned=False, repeated_marks=(), search_incomplete=False):
     matches = _associate(objects, words, specs, repeated_marks)
     rows = {}
     mpu, scale_text, refs = scale
@@ -291,7 +291,9 @@ def _rows(objects, words, specs, scale, scanned=False, repeated_marks=()):
             token, records, tag = matches[id(ev)]
             support.extend([tag, *(r[3] for r in records)])
             unique = {(t, s, fields) for t, s, fields, _ in records}
-            if len(unique) == 1:
+            if search_incomplete:
+                why.append("The schedule search was incomplete; this tag's specification could not be verified.")
+            elif len(unique) == 1:
                 typ, size, attrs = next(iter(unique))
                 type_name = typ or token
                 why.append("The cited plan tags match the schedule exactly. Dimensions are as printed.")
@@ -618,7 +620,7 @@ def takeoff(path):
     repeated_marks = {token for token, count in mark_counts.items() if count > 1}
     for page, objects, words, bars, ambiguous_view, scanned_pdf in pages:
         page_rows = _rows(objects, words, specs, _scale(path, page, bars, ambiguous_view, scanned_pdf),
-                          measure.is_image(path), repeated_marks)
+                          measure.is_image(path), repeated_marks, search_incomplete=bool(truncated or limited or failed))
         if len(pages) > 1:
             for row in page_rows:
                 row["levels"].add(f"Page {page + 1}")

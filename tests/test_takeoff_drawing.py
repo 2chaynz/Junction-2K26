@@ -382,6 +382,18 @@ class DrawingTakeoff(unittest.TestCase):
             detect.assert_not_called()
             self.assertEqual(result["rows"], [])
 
+    def test_incomplete_schedule_search_keeps_size_unknown(self):
+        door = Evidence("plan.pdf", [0, 0, 20, 10])
+        citation = Evidence("schedule.pdf", [0, 0, 40, 10])
+        specs = {("Doors", "D1", True): [("A", "900 mm", ("MATL: WOOD",), citation)]}
+        row, = takeoff_2d._rows([("Doors", door, "Detected symbol", None)],
+                                [("D1", [0, 2, 4, 6])], specs, (None, "No scale", []),
+                                search_incomplete=True)
+        self.assertEqual(row["count"], 1)
+        self.assertEqual(row["size"], "")
+        self.assertEqual(row["specifications"], [])
+        self.assertTrue(any("incomplete" in line for line in row["reason"]))
+
     def test_disagreeing_scale_bars_do_not_produce_dimensions(self):
         from sitelens.measure import Scale
 
