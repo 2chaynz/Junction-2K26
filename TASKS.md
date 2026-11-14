@@ -15,7 +15,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T8 Demo server + UI | app | T1 | 2chaynz | review | 2chaynz/T8-polish |  |  |
 | T9 Architecture diagram for README and pitch | pitch |  | 2chaynz | done | 2chaynz/T9-diagram-clarify |  |  |
 | T10 Comparable scores: full preview + official split | eval |  |  | todo |  |  |  |
-| T11 opening_design: read schedule tables | ai |  |  | todo |  |  |  |
+| T11 opening_design: read schedule tables | ai |  | johanseneuson | doing | johanseneuson/T11-schedule |  |  |
 | T12 Two methods agree: confidence + please check | ai | T6 |  | todo |  |  |  |
 | T13 Crop renderer for the VLM path | ai | T7 |  | todo |  |  |  |
 | T14 Cache per-drawing extraction (Index) | ai |  |  | todo |  |  |  |
