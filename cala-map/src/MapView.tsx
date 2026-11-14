@@ -31,11 +31,12 @@ const emblem = (t: Tile) => ({ url: sigilUrl(t.startup!.name, t.color), width: 7
 type View = { target: [number, number, number]; zoom: number } & Partial<typeof FLY>
 export interface FlyRequest { x: number; y: number; zoom?: number; seq: number }
 
-// Keeps the camera on the archipelago: no zooming out past "everything fits", no drifting off into empty sea.
+// Keeps the camera inside the sea: no zooming out or panning past its edges.
 function clamp(v: View, w: number, h: number): View {
   const worldW = BOUNDS.x1 - BOUNDS.x0
   const worldH = BOUNDS.y1 - BOUNDS.y0
-  const minZoom = Math.log2(Math.min(w / worldW, h / worldH))
+  // Cover, not contain: the sea always fills the screen, never the void beyond it.
+  const minZoom = Math.log2(Math.max(w / worldW, h / worldH))
   const zoom = Math.min(MAX_ZOOM, Math.max(minZoom, v.zoom))
   const scale = 2 ** zoom
   const axis = (c: number, lo: number, hi: number, half: number) => (hi - lo <= half * 2 ? (lo + hi) / 2 : Math.min(hi - half, Math.max(lo + half, c)))
