@@ -210,7 +210,7 @@ def _llm(path: str, question: str, tables: list[Table]) -> Answer | None:
     if isinstance(v, str) and re.fullmatch(r"[\d,]+(\.\d+)?\s*(SF|sq\.? ?ft|m2|m²)?", v.strip(), re.I):
         v = float(re.sub(r"[^\d.]", "", v))
     if isinstance(v, str):
-        v = re.sub(r"(\d)' - (\d)", r"'-", v)   # 5' - 10 3/8" -> 5'-10 3/8" (as printed)
+        v = re.sub(r"(\d)' - (\d)", r"\1'-\2", v)   # 5' - 10 3/8" -> 5'-10 3/8" (as printed)
     if isinstance(v, float) and v.is_integer():
         v = int(v)
     return Answer(value=v, unit=None, method="vector+llm", confidence=0.7, cost_eur=round(cost, 6),
