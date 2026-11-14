@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fileUrl, viewScale } from "./api";
 import { BOARDS, HELD_OUT, MODELS, type Entry } from "./benchData";
 import "./bench.css";
 import ModelLogo from "./ModelLogo";
+import { CountUp, useInView, useReveal } from "./motion";
 
 type Side = { value: unknown; cost_eur: number; seconds: number; evidence: number[][]; correct: boolean; trace: string[] };
 type VRow = { path: string; source: string; question: string; truth: unknown; unit: string; ours: Side; vlm: Side };
@@ -23,9 +24,21 @@ function Leaderboard() {
   const picked = entries.find((e) => e.model === pick) ?? entries[0];
   const m = MODELS[picked.model];
   const us = entries.find((e) => e.model === "sitelens")!;
+  const box = useRef<HTMLDivElement>(null);
+  const seen = useInView(box);
+  // bars restart from 0 on every board/metric switch: the new rows mount at 0, grow two frames later
+  const key = `${boardId}-${metric?.id ?? ""}`;
+  const [grown, setGrown] = useState("");
+  const grow = seen && grown === key;
+  useEffect(() => {
+    if (!seen) return;
+    let r2 = 0;
+    const r1 = requestAnimationFrame(() => (r2 = requestAnimationFrame(() => setGrown(key))));
+    return () => (cancelAnimationFrame(r1), cancelAnimationFrame(r2));
+  }, [seen, key]);
 
   return (
-    <div className="lb">
+    <div className="lb" ref={box}>
       <div className="lb-main">
         <div className="bseg" role="tablist">
           {BOARDS.map((b) => (
@@ -47,7 +60,7 @@ function Leaderboard() {
             ))}
           </div>
         )}
-        <div className="rows">
+        <div className="rows" key={key}>
           {entries.map((e, i) => {
             const mo = MODELS[e.model];
             return (
@@ -55,6 +68,7 @@ function Leaderboard() {
                 key={e.model}
                 className={`row ${e.model === "sitelens" ? "us" : ""} ${e.model === picked.model ? "on" : ""}`}
                 onClick={() => setPick(e.model)}
+                style={{ animationDelay: `${i * 45}ms` }}
               >
                 <span className="rank mono">{e.acc === null ? "" : i + 1}</span>
                 <ModelLogo maker={mo.maker} />
@@ -63,9 +77,9 @@ function Leaderboard() {
                   <span className="maker dim">{mo.makerName}</span>
                 </span>
                 <span className="track">
-                  {e.acc !== null && <span className="fill" style={{ width: `${e.acc}%` }} />}
+                  {e.acc !== null && <span className="fill" style={{ width: grow ? `${e.acc}%` : 0, transitionDelay: `${i * 45}ms` }} />}
                 </span>
-                <span className="acc mono">{e.acc === null ? "—" : `${e.acc}%`}</span>
+                <span className="acc mono">{e.acc === null ? "—" : <><CountUp to={e.acc} run={grow} />%</>}</span>
                 <span className="cost mono dim">{e.cost}</span>
               </button>
             );
@@ -208,9 +222,51 @@ function SideBySide() {
   );
 }
 
-export default function Benchmark() {
+function HeldOut() {
+  const box = useRef<HTMLDivElement>(null);
+  const seen = useInView(box);
   return (
-    <div className="page bench-page">
+    <div className="held" ref={box}>
+      {HELD_OUT.map((r, i) => (
+        <div key={r.label} className="hrow">
+          <span>{r.label}</span>
+          <span className="track">
+            <span className="fill" style={{ width: seen ? `${r.acc}%` : 0, transitionDelay: `${i * 60}ms` }} />
+          </span>
+          <span className="mono"><CountUp to={Math.round(r.acc * 10) / 10} run={seen} />%</span>
+          <span className="mono dim small">{r.n.toLocaleString("en")} Qs</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Headline() {
+  const box = useRef<HTMLDivElement>(null);
+  const seen = useInView(box, "0px");
+  return (
+    <div className="headline" ref={box}>
+      <div>
+        <span className="big mono"><CountUp to={Math.round(HELD_ACC * 10) / 10} decimals={1} run={seen} />%</span>
+        <span className="small">SiteLens on {HELD_N.toLocaleString("en")} held-out questions</span>
+      </div>
+      <div>
+        <span className="big mono"><CountUp to={100} run={seen} />% <span className="dim">vs</span> <CountUp to={60} run={seen} />%</span>
+        <span className="small">vector plans, same 40 questions, SiteLens vs Gemini 3.8 Flash</span>
+      </div>
+      <div>
+        <span className="big mono"><CountUp to={24} run={seen} />×</span>
+        <span className="small">cheaper than Gemini on the head-to-head below, with more right answers</span>
+      </div>
+    </div>
+  );
+}
+
+export default function Benchmark() {
+  const root = useRef<HTMLDivElement>(null);
+  useReveal(root);
+  return (
+    <div className="page bench-page" ref={root}>
       <header className="page-head">
         <h1>Benchmark</h1>
         <p className="lede">
@@ -219,20 +275,7 @@ export default function Benchmark() {
         </p>
       </header>
 
-      <div className="headline">
-        <div>
-          <span className="big mono">{HELD_ACC.toFixed(1)}%</span>
-          <span className="small">SiteLens on {HELD_N.toLocaleString("en")} held-out questions</span>
-        </div>
-        <div>
-          <span className="big mono">100% <span className="dim">vs</span> 60%</span>
-          <span className="small">vector plans, same 40 questions, SiteLens vs Gemini 3.8 Flash</span>
-        </div>
-        <div>
-          <span className="big mono">24×</span>
-          <span className="small">cheaper than Gemini on the head-to-head below, with more right answers</span>
-        </div>
-      </div>
+      <Headline />
 
       <h2>Leaderboard</h2>
       <p className="small dim">Click a model to see how it reads a drawing.</p>
@@ -246,16 +289,7 @@ export default function Benchmark() {
       <SideBySide />
 
       <h2>SiteLens by drawing type</h2>
-      <div className="held">
-        {HELD_OUT.map((r) => (
-          <div key={r.label} className="hrow">
-            <span>{r.label}</span>
-            <span className="track"><span className="fill" style={{ width: `${r.acc}%` }} /></span>
-            <span className="mono">{r.acc.toFixed(1).replace(/\.0$/, "")}%</span>
-            <span className="mono dim small">{r.n.toLocaleString("en")} Qs</span>
-          </div>
-        ))}
-      </div>
+      <HeldOut />
       <p className="dim tiny">
         Held-out = Stoa preview dev split: drawings never used to train the detector or tune rules. Reproduce:{" "}
         <span className="mono">python -m eval.score --split dev</span>.

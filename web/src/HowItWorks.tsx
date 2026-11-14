@@ -1,4 +1,6 @@
+import { useRef } from "react";
 import Flow from "./Flow";
+import { useReveal } from "./motion";
 
 const CRITERIA = [
   { n: "01", t: "Accurate", d: "91.9% on held-out drawings: 97.4% Swiss vector plans, 100% BIM, 94.1% schedules, 83.6% scanned plans the detector never saw." },
@@ -8,8 +10,10 @@ const CRITERIA = [
 ];
 
 export default function HowItWorks() {
+  const root = useRef<HTMLDivElement>(null);
+  useReveal(root);
   return (
-    <div className="page how">
+    <div className="page how" ref={root}>
       <header className="page-head">
         <h1>How it works</h1>
         <p className="lede">
