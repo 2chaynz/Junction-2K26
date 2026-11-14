@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fileUrl, isImage } from "./api";
 import { projectOf, shortName } from "./format";
 import type { Drawing } from "./types";
@@ -16,8 +16,25 @@ export default function Stack({ floors, selected, onPick }: Props) {
   const [tilt, setTilt] = useState(58);
   const [hover, setHover] = useState<string | null>(null);
   const [aspect, setAspect] = useState(1.4);
+  const [zoom, setZoom] = useState(1);
+  const stage = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; turn: number; tilt: number; moved: boolean } | null>(null);
   const label = projectOf(floors[0])?.label ?? "";
+
+  useEffect(() => {
+    const element = stage.current;
+    if (!element) return;
+
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? element.clientHeight : 1;
+      const factor = Math.exp(-event.deltaY * unit * 0.002);
+      setZoom((current) => Math.max(0.25, Math.min(3, current * factor)));
+    };
+
+    element.addEventListener("wheel", onWheel, { passive: false });
+    return () => element.removeEventListener("wheel", onWheel);
+  }, [layout]);
 
   const onDown = (e: React.PointerEvent) => {
     if (layout !== "stack") return;
@@ -61,13 +78,13 @@ export default function Stack({ floors, selected, onPick }: Props) {
       </div>
 
       {layout === "stack" ? (
-        <div className="stage3d" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+        <div ref={stage} className="stage3d" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
           <div
             className="stack3d"
             style={{
               width: plateW,
               height: plateW / aspect,
-              transform: `translateY(${(floors.length * spread) / 2.5}px) rotateX(${tilt}deg) rotateZ(${turn}deg)`,
+              transform: `scale(${zoom}) translateY(${(floors.length * spread) / 2.5}px) rotateX(${tilt}deg) rotateZ(${turn}deg)`,
             }}
           >
             {floors.map((d, i) => {
@@ -93,7 +110,7 @@ export default function Stack({ floors, selected, onPick }: Props) {
               );
             })}
           </div>
-          <p className="stackhint dim">drag to orbit · click a floor to open it</p>
+          <p className="stackhint dim">scroll to zoom ? drag to orbit · click a floor to open it</p>
         </div>
       ) : (
         <div className="strip">
