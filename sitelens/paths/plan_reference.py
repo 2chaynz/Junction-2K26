@@ -37,7 +37,7 @@ def _axis_hits(page: Page, anchors, grid: re.Match):
     orientation, label = grid.groups()
     label_boxes = [pymupdf.Rect(w[:4]) for w in page.pdf.get_text("words") if w[4].upper() == label.upper()]
     rotation = page.pdf.rotation_matrix
-    matched = []
+    matched = {}
     for drawing in page.pdf.get_drawings():
         for item in drawing["items"]:
             if item[0] != "l":
@@ -56,8 +56,8 @@ def _axis_hits(page: Page, anchors, grid: re.Match):
                                          max(a.x, b.x) + 12, max(a.y, b.y) + 12)
                 for anchor in anchors:
                     if corridor.contains(((anchor.tl + anchor.br) / 2) * rotation):
-                        matched.append((tuple(anchor), tuple(box)))
-    return list(dict.fromkeys(matched))
+                        matched.setdefault(tuple(anchor), set()).add(tuple(box))
+    return matched.items()
 
 
 def _schedule_rows(page: Page, category: str, tag: str):
@@ -79,8 +79,12 @@ def _schedule_rows(page: Page, category: str, tag: str):
 
 def _detail_hits(page: Page, detail: str, sheet: str):
     lines = list(page.lines())
-    sheet_label = re.compile(rf"(?:sheet(?:\s+(?:no\.?|number))?\s*[:#]?\s+){re.escape(sheet)}", re.I)
-    if Path(page.path).stem.upper() != sheet and not any(sheet_label.fullmatch(line.strip()) for line, _ in lines):
+    sheet_label = re.compile(rf"sheet(?:\s+(?:no\.?|number))?\s*[:#]?\s+({TOKEN})", re.I)
+    labels = {match[1].upper() for line, _ in lines if (match := sheet_label.fullmatch(line.strip()))}
+    if labels:
+        if labels != {sheet}:
+            return
+    elif page.pdf.parent.page_count != 1 or Path(page.path).stem.upper() != sheet:
         return
     for line, rect in lines:
         if re.fullmatch(rf"detail\s+{re.escape(detail)}(?:\s*[:–-]\s+.+)?", line.strip(), re.I):
@@ -131,8 +135,10 @@ def answer(path: str, question: str) -> Answer | None:
                 marks = [pymupdf.Rect(w[:4]) for w in pdf.get_text("words") if w[4].upper() == tag]
                 marks = [mark for mark in marks if not any(pymupdf.Rect(row.bbox).intersects(mark * pdf.rotation_matrix) for row in rows)]
                 if grid:
-                    anchors.extend([page.cite(mark, f"Plan tag · {tag}"), page.cite(bubble, f"Grid label · {grid[2]}")]
-                                   for mark, bubble in _axis_hits(page, marks, grid))
+                    for mark, boxes in _axis_hits(page, marks, grid):
+                        evidence = [page.cite(mark, f"Plan tag ? {tag}")]
+                        evidence.extend(page.cite(box, f"Grid label ? {grid[2]}") for box in sorted(boxes))
+                        anchors.append(evidence)
                 else:
                     anchors.extend([page.cite(mark, f"Plan tag · {tag}")] for mark in marks)
 

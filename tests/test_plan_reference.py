@@ -1,4 +1,4 @@
-﻿import unittest
+import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -20,6 +20,7 @@ class PlanReferenceTest(unittest.TestCase):
         with pymupdf.open() as doc:
             page = doc.new_page()
             page.insert_text((47, 104), "24")
+            page.insert_text((303, 104), "24")
             page.insert_text((47, 204), "25")
             for y in (100, 200):
                 page.draw_line((72, y), (300, y))
@@ -47,7 +48,7 @@ class PlanReferenceTest(unittest.TestCase):
         result = answer("plan.pdf", "Which schedule row matches footing F7 along horizontal grid line 24?")
         self.assertIn("600 mm", result.value)
         self.assertNotIn("900 mm", result.value)
-        self.assertEqual([e.file for e in result.evidence], ["plan.pdf", "plan.pdf", "schedule.pdf"])
+        self.assertEqual([e.file for e in result.evidence], ["plan.pdf", "plan.pdf", "plan.pdf", "schedule.pdf"])
         self.assertLess(result.evidence[0].bbox[1], 110)
 
     def test_duplicate_targets_are_not_confirmed(self):
@@ -69,6 +70,18 @@ class PlanReferenceTest(unittest.TestCase):
         result = answer("plan.pdf", "Where is detail 5 on sheet S2.09?")
         self.assertEqual(result.value, "Detail 5 on sheet S2.09")
         self.assertEqual([e.file for e in result.evidence], ["plan.pdf", "S2.09.pdf"])
+
+
+    def test_bundle_requires_page_sheet_id(self):
+        self.plan()
+        with pymupdf.open() as doc:
+            doc.new_page().insert_text((90, 100), "Sheet S2.09")
+            page = doc.new_page()
+            page.insert_text((90, 100), "Sheet S2.08")
+            page.insert_text((90, 140), "Detail 5: Footing section")
+            doc.save(self.root / "S2.09.pdf")
+        result = answer("plan.pdf", "Where is detail 5 on sheet S2.09?")
+        self.assertIn("0 matching targets", result.value)
 
 
 if __name__ == "__main__":
