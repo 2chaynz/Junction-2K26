@@ -121,6 +121,15 @@ export function floorsOf(drawings: Drawing[], path: string): Drawing[] {
   const p = d && projectOf(d);
   if (!p || p.floor === null) return [];
   // File names carry no level number; floor id order is the best guess at bottom-up.
-  const same = drawings.filter((x) => projectOf(x)?.key === p.key);
-  return same.length > 1 ? same.sort((a, b) => projectOf(a)!.floor! - projectOf(b)!.floor!) : [];
+  // One plate per floor even when a floor has questions in several formats; the open file wins, then its format.
+  const ext = (x: Drawing) => x.path.split(".").pop()!.toLowerCase();
+  const rank = (x: Drawing) => (x.path === path ? 0 : ext(x) === ext(d) ? 1 : ext(x) === "pdf" ? 2 : ext(x) === "png" ? 3 : 4);
+  const best = new Map<number, Drawing>();
+  for (const x of drawings) {
+    const f = projectOf(x);
+    if (f?.key !== p.key || f.floor === null) continue;
+    const cur = best.get(f.floor);
+    if (!cur || rank(x) < rank(cur)) best.set(f.floor, x);
+  }
+  return best.size > 1 ? [...best.entries()].sort((a, b) => a[0] - b[0]).map(([, x]) => x) : [];
 }
