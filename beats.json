@@ -301,8 +301,8 @@
  },
  "T60": {
   "who": "ccolver",
-  "branch": "main",
-  "text": "claimed",
-  "at": "2026-11-14T18:06:13.366Z"
+  "branch": "ccolver/T60-sheet-tools",
+  "text": "Add original file and BIM navigation, and group drawing tools.",
+  "at": "2026-11-14T18:06:24.148Z"
  }
 }
