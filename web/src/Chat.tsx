@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { METHOD_NAME, fmtAnswer, fmtEur, fmtTime, fmtValue, shortName } from "./format";
-import type { Answer, Msg, Step } from "./types";
+import type { Answer, Msg, Step, Table } from "./types";
 
 type Props = {
   msgs: Msg[];
@@ -90,8 +90,65 @@ function Cites({ a, on, hover, focus, onHover, onFocus }: {
   );
 }
 
+function csvOf(t: Table): string {
+  const cell = (v: unknown) => {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return [t.columns, ...t.rows].map((r) => r.map(cell).join(",")).join("\r\n");
+}
+
+function download(t: Table, question: string) {
+  // BOM so Excel reads UTF-8 (×, ↔, umlauts)
+  const blob = new Blob(["﻿" + csvOf(t)], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (question || t.title).replace(/[^\w -]+/g, "").trim().slice(0, 60).replace(/\s+/g, "-") + ".csv";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// Row i is cited by evidence i: hover/click a row to light it on the drawing or the 3D model.
+function AnswerTable({ t, question, on, hover, focus, onHover, onFocus }: {
+  t: Table; question: string; on: boolean; hover: number | null; focus: number | null;
+  onHover: (i: number | null) => void; onFocus: (i: number | null) => void;
+}) {
+  return (
+    <div className="atable" onClick={(e) => e.stopPropagation()}>
+      <div className="atable-head">
+        <span className="atable-title">{t.title}</span>
+        <span className="dim mono">{t.rows.length} rows</span>
+        <span className="spacer" />
+        <button className="btn small" onClick={() => download(t, question)}>Download CSV</button>
+      </div>
+      {t.rows.length > 0 && (
+        <div className="atable-scroll">
+          <table>
+            <thead>
+              <tr>{t.columns.map((c, k) => <th key={k}>{c}</th>)}</tr>
+            </thead>
+            <tbody>
+              {t.rows.map((r, i) => (
+                <tr
+                  key={i}
+                  className={`${on && hover === i ? "hot" : ""} ${on && focus === i ? "focus" : ""}`}
+                  onMouseEnter={() => on && onHover(i)}
+                  onMouseLeave={() => on && onHover(null)}
+                  onClick={() => on && onFocus(focus === i ? null : i)}
+                >
+                  {r.map((v, k) => <td key={k} title={String(v)}>{String(v)}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AnswerMsg(props: {
-  a: Answer; steps: Step[]; on: boolean; busy: boolean; onAsk: (q: string) => void; hover: number | null; focus: number | null;
+  a: Answer; question: string; steps: Step[]; on: boolean; busy: boolean; onAsk: (q: string) => void; hover: number | null; focus: number | null;
   onHover: (i: number | null) => void; onFocus: (i: number | null) => void;
 }) {
   const { a } = props;
@@ -152,6 +209,10 @@ function AnswerMsg(props: {
         {c && c.match === true && <span className="stoa ok"> · ✓ Stoa</span>}
         {c && c.match === false && <span className="stoa ko">✗ Stoa: {fmtValue(c.expected, c.unit)}</span>}
       </div>
+      {a.table && (
+        <AnswerTable t={a.table} question={props.question} on={props.on} hover={props.hover} focus={props.focus}
+          onHover={props.onHover} onFocus={props.onFocus} />
+      )}
       {props.steps.length === 0 && notes.length > 0 && (
         <>
           <button className="steps-toggle" onClick={(e) => (e.stopPropagation(), setSteps(!steps))}>
@@ -198,7 +259,7 @@ export default function Chat(p: Props) {
               title={marks && !on ? "Show on the plan" : undefined}
             >
               {m.steps.length > 0 && <Thinking steps={m.steps} live={false} time={m.answer.time_s} />}
-              <AnswerMsg a={m.answer} steps={m.steps} on={on} busy={p.busy} onAsk={p.onAsk} hover={p.hover} focus={p.focus} onHover={p.onHover} onFocus={p.onFocus} />
+              <AnswerMsg a={m.answer} question={m.question} steps={m.steps} on={on} busy={p.busy} onAsk={p.onAsk} hover={p.hover} focus={p.focus} onHover={p.onHover} onFocus={p.onFocus} />
             </div>
           );
         })}
