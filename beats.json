@@ -334,5 +334,11 @@
   "branch": "ccolver/T63-english-questions",
   "text": "Build raster geometry and paired room-count benchmark",
   "at": "2026-11-14T18:23:27.524Z"
+ },
+ "T66": {
+  "who": "ccolver",
+  "branch": "ccolver/T63-english-questions",
+  "text": "claimed",
+  "at": "2026-11-14T18:32:46.328Z"
  }
 }
