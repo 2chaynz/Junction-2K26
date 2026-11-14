@@ -21,3 +21,12 @@ Accept: ≥ +3% mean margin, min on-time ≥ 94%, no run under 92%.
 - Booked fees: median 0.85–1.0× typical, mostly at schedule steps 0–2. Median wait 60–90 min.
 - Direct offers (both kinds) barely book: drivers read them and decline, or they expire.
 - Late orders cluster on one day (flu): a backlog of unbooked orders is the early signal.
+
+## Round 2 (vs best1 = sd_bl)
+| Tag | Change | Mean margin | vs best1 | Better | Min on-time | Orders | Verdict |
+|---|---|---|---|---|---|---|---|
+| b1_sup20 | same_day supply ≥ 20 | €12,264 | +1.6% | 5/12 | 93.5% | 316 | reject |
+| b1_sl360 | same_day slack ≥ 6 h | €12,355 | +2.4% | 9/12 | 93.3% | 317 | reject |
+| b1_m105 | same_day at 1.05× | €12,711 | +5.3% | 10/12 | 91.8% | 330 | on-time too low |
+| b1_m105bl20 | 1.05× + gate at 20 | €12,347 | +2.3% | 9/12 | 92.7% | 320 | reject |
+| **b1_m110** | same_day at 1.10× | **€12,442** | **+3.1%** | 8/12 | **94.9%** | 320 | **accept → best2** (+16.6% vs base) |
