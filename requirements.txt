@@ -2,3 +2,6 @@ ezdxf
 shapely
 ifcopenshell
 pymupdf
+fastapi
+uvicorn[standard]
+pillow

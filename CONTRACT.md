@@ -47,8 +47,13 @@ Core = drawing Q&A with evidence, measured by `eval/score.py` on Stoa's answer k
 ```
 POST /api/ask   {"path": "data/…", "question": "…"}  → Answer
 GET  /api/file?path=data/…&page=0                     → PNG render of the drawing page (same coords as bbox, 72 dpi for PDFs)
-GET  /api/drawings                                    → [{"path", "source", "questions": [...]}]
+GET  /api/drawings                                    → [{"path", "source", "view", "questions": [...]}]
+GET  /api/ifc?path=data/…ifc                          → raw IFC bytes (3D viewer)
+GET  /api/random                                      → {"path", "question"} from questions.jsonl
 ```
+- `/api/ask` adds `time_s`, `view` (file the UI shows; IFC → its rendered plan) and, when the question is Stoa's, `check: {expected, unit, match}`.
+- `/api/file` takes optional `scale` (default 1 = bbox coords).
+- Run: `STOA_DATA=… python -m sitelens.server` (serves `web/dist` after `cd web && npm ci && npm run build`). Dev: `npm run dev` in `web/` proxies `/api` to :8000.
 
 ## Hardware
 | Device | Pins / ports | Power | Notes |
