@@ -11,7 +11,7 @@ import Viewer from "./Viewer";
 const TABS = ["Ask", "How it works", "Benchmark"] as const;
 type Tab = (typeof TABS)[number];
 
-function SheetInfo({ d, all, size }: { d: Drawing; all: string[]; size: [number, number] | null }) {
+function SheetInfo({ d, all, view, size }: { d: Drawing; all: string[]; view: string; size: [number, number] | null }) {
   const folder = d.path.split("/").slice(1, -1).join("/");
   const plan = d.view !== d.path ? shortName(d.view) : null;
   return (
@@ -40,7 +40,7 @@ function SheetInfo({ d, all, size }: { d: Drawing; all: string[]; size: [number,
       )}
       <div className="cell">
         <span className="k">Size</span>
-        <span className="v mono">{size ? fmtSize(d.view, size[0], size[1]) : TYPE[d.source]}</span>
+        <span className="v mono">{size ? fmtSize(view, size[0], size[1]) : TYPE[d.source]}</span>
       </div>
       <div className="cell">
         <span className="k">Stoa Qs</span>
@@ -187,7 +187,7 @@ export default function App() {
               <div className="empty">{error || "Loading drawings…"}</div>
             )}
           </div>
-          {drawing && <SheetInfo d={drawing} all={allPaths} size={size} />}
+          {drawing && <SheetInfo d={drawing} all={allPaths} view={view} size={size} />}
         </main>
         <Chat
           msgs={msgs}
@@ -202,7 +202,7 @@ export default function App() {
           onAsk={(q) => run(path, q)}
           onActivate={(i) => {
             const m = msgs[i];
-            if (m.path !== path) setPath(m.path);
+            if (m.path !== path) (setPath(m.path), setSize(null));
             activate(i);
           }}
           onHover={setHover}
