@@ -337,8 +337,8 @@
  },
  "T66": {
   "who": "ccolver",
-  "branch": "ccolver/T63-english-questions",
-  "text": "claimed",
-  "at": "2026-11-14T18:32:46.328Z"
+  "branch": "ccolver/T66-plan-reference",
+  "text": "Implement exact tag, grid qualifier, and detail matching with evidence.",
+  "at": "2026-11-14T18:33:23.761Z"
  }
 }
