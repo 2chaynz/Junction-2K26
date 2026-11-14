@@ -18,7 +18,7 @@ Already in flight (not repeated here): UI v3, IFC 3D (T34), live reasoning (T36/
    bboxes; crops = `/api/file` with a clip box.
 
 3. **Us vs a frontier model, same drawing, side by side.** Benchmark tab today is a table. Make it a split view on one
-   held-out drawing: left Gemini (whole sheet) with the boxes *it* claims, right SiteLens. Typical result: Gemini says
+   held-out drawing: left Gemini (whole sheet) with the boxes *it* claims, right Sindri. Typical result: Gemini says
    "4 toilets", boxes point at sinks; we say 2 with exact marks. Shows verifiability *and* accuracy *and* cost
    (€0.004 vs €0.00001) in one picture. Precompute for ~10 demo drawings (T20 gives the VLM backend).
 

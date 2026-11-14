@@ -1,11 +1,11 @@
 # Outreach: problem-space Q&A (Stoa + site users)
 
-Goal: pin down exactly which problem SiteLens solves, which features people would use, and what matters most in a tool that reads and summarizes technical documents.
+Goal: pin down exactly which problem Sindri solves, which features people would use, and what matters most in a tool that reads and summarizes technical documents.
 Ask the Stoa mentors first; ask any site/design engineers we can reach second.
 Answers go in the "Answers" section below, then into `DECISION.md` via PR if they change scope.
 
 ## Message (copy-paste)
-> Hi! We're team SiteLens on Make Blueprints Talk. We're building drawing/BIM Q&A that highlights where each answer comes from and shows the cost per answer. Before we lock features, could we get 10 minutes (or written answers) on the questions below? Short answers are perfect.
+> Hi! We're team Sindri on Make Blueprints Talk. We're building drawing/BIM Q&A that highlights where each answer comes from and shows the cost per answer. Before we lock features, could we get 10 minutes (or written answers) on the questions below? Short answers are perfect.
 
 ## Questions
 

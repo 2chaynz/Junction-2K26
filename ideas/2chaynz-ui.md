@@ -1,4 +1,4 @@
-# SiteLens UI v2: decisions (2chaynz, grill, Sat 14 Nov)
+# Sindri UI v2: decisions (2chaynz, grill, Sat 14 Nov)
 
 Replaces the blueprint/3-column v1 (PR #22/#25). Simple, clean, practical. No AI slop.
 
@@ -6,7 +6,7 @@ Replaces the blueprint/3-column v1 (PR #22/#25). Simple, clean, practical. No AI
 - Gradients, sparkle icons, glassmorphism, emojis, big rounded cards, "AI-powered" badges, shadows.
 
 ## Layout (laptop first: 1440x900, 1920x1080)
-- Top bar: `SiteLens` · drawing search · `Random` · right: `How it works` `Benchmark` links.
+- Top bar: `Sindri` · drawing search · `Random` · right: `How it works` `Benchmark` links.
 - Drawing zone ~70%: drawing full size, pan/zoom.
 - Chat zone ~30%: messages, 3 Stoa question chips above input, input.
 - Phone layout: later, only if time.
@@ -29,7 +29,7 @@ Replaces the blueprint/3-column v1 (PR #22/#25). Simple, clean, practical. No AI
 
 ## Chat
 - Every message → `/api/ask` with the open drawing.
-- No path answers → Gemini text with a short SiteLens prompt. Tagged "general · not from the drawing", no citations, no Stoa stamp, cost/time shown.
+- No path answers → Gemini text with a short Sindri prompt. Tagged "general · not from the drawing", no citations, no Stoa stamp, cost/time shown.
 
 ## Answer message
 ```

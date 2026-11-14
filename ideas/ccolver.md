@@ -19,7 +19,7 @@ Main challenge: Stoa, Make Blueprints Talk (`context/challenges/stoa.md`). This 
 
 ## Draft submission (paste into Junction Platform → Project)
 
-**Project Name** (max 30): `SiteLens`
+**Project Name** (max 30): `Sindri`
 
 **Punchline** (max 200):
 > Snap a photo of a construction site, get the matching drawings, ask questions with cited answers and Eurocode/ASTM references, and catch scope-of-work gaps before they cost you.
@@ -34,10 +34,10 @@ Main challenge: Stoa, Make Blueprints Talk (`context/challenges/stoa.md`). This 
 ## Problem
 Construction drawings are hard to search, and general AI models often misread them. Suppliers, clients and design engineers who aren't on site every day can't easily tell which drawing matches what they see, what standard applies, or whether a piece of work is in the bid.
 
-## What SiteLens does
+## What Sindri does
 1. **Photo → drawings.** Take photos of the site. We build a photogrammetry model and match it to the most relevant drawings in the project set. Each match comes with a confidence score and the reasoning behind it (which features, dimensions and labels matched).
 2. **Ask the drawings.** Ask questions in plain language. Answers cite where in the drawing they came from, so a human can check them in seconds, and reference the relevant Eurocode and ASTM standards with a short summary of the key points.
-3. **Scope-of-work check.** SiteLens reads the project's scope-of-work document, flags inconsistencies, and separates work covered by the bid from likely time-and-materials (T&M) work, with the reasoning for each flag. Contractors stop giving away billable work.
+3. **Scope-of-work check.** Sindri reads the project's scope-of-work document, flags inconsistencies, and separates work covered by the bid from likely time-and-materials (T&M) work, with the reasoning for each flag. Contractors stop giving away billable work.
 
 ## How it works
 - Hybrid pipeline: computer vision and geometry for drawing regions and photo matching, LLMs for reasoning and answers.
@@ -60,7 +60,7 @@ Construction drawings are hard to search, and general AI models often misread th
 Draft. Building over the weekend.
 ```
 
-## Idea 1: SiteLens
+## Idea 1: Sindri
 - **Challenge:** Stoa, Make Blueprints Talk. Stacks: Gemini, Gemma, Verda, Nemotron, ElevenLabs, Aiven, Modal, Codex.
 - **Problem:** People not on site can't tie what they see to the right drawing, standard or bid scope.
 - **User:** Suppliers, clients, design engineers; contractors for scope/T&M.
@@ -80,7 +80,7 @@ Draft. Building over the weekend.
 
 ## Demo model (3D printed)
 - Print a scale model of a structure from the project set, plus its matching drawings (printed sheets).
-- Live demo: judges photograph the model → photogrammetry → SiteLens finds and highlights the matching drawings with confidence and reasoning → ask questions about them.
+- Live demo: judges photograph the model → photogrammetry → Sindri finds and highlights the matching drawings with confidence and reasoning → ask questions about them.
 - Fixes the riskiest part: we control the "site", so we know the ground-truth drawing for every photo.
 - Can also show a design change: print revision A and B (or a swappable part) and estimate the quantity difference.
 - To decide:

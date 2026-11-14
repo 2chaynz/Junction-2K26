@@ -66,9 +66,9 @@ Read Sat 14 Nov 2026. Sources at the bottom.
 **What we do about it:**
 - Measure, don't guess: vector/IFC geometry is exact, so those answers need no warning.
 - Where we guess (scans, VLM fallback), give confidence per answer: confidence score, "two methods agree" (T12), a box on every counted object.
-- Pitch line: "Stoa's product today says 'it can be wrong.' SiteLens shows you why it's right, and tells you when to check."
+- Pitch line: "Stoa's product today says 'it can be wrong.' Sindri shows you why it's right, and tells you when to check."
 
-## For SiteLens
+## For Sindri
 - Research recommends our design: vector/IFC first, symbol detector, VLM on crops only, show uncertainty, human in the loop.
 - Our numbers match: Gemma whole-sheet 0% Swiss areas, 55% CubiCasa vs ours 100% and 85%.
 - Exact geometry from vector/IFC is our answer to "won't be obsoleted by next year's models". Cite these papers in the pitch.
