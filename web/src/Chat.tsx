@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { METHOD_NAME, fmtAnswer, fmtEur, fmtTime, fmtValue, shortName } from "./format";
-import type { Answer, Mark, Msg, Step, Table } from "./types";
+import type { Answer, Mark, Msg, Reason, Source, Step, Table } from "./types";
 
 type Props = {
   msgs: Msg[];
@@ -93,6 +93,101 @@ function Cites({ a, on, hover, focus, onHover, onFocus }: {
   );
 }
 
+const TIER: Record<string, string> = {
+  chat: "Conversation", check: "Answer key", drawing: "This drawing", project: "Related sheet", vlm: "Vision model", web: "Web",
+};
+
+const host = (u: string) => {
+  try {
+    return new URL(u).hostname.replace(/^www\./, "");
+  } catch {
+    return u;
+  }
+};
+
+// One source behind a [n]: where it is (sheet, page, crop) or the web page, and a way to light it on the plan.
+function SourceCard({ s, onShow }: { s: Source; onShow: (() => void) | null }) {
+  if (s.tier === "web")
+    return (
+      <div className="src-card" onClick={(e) => e.stopPropagation()}>
+        <div className="src-head"><span className="src-n">{s.n}</span><span className="src-tier web">Web</span></div>
+        <a href={s.url} target="_blank" rel="noreferrer noopener" className="src-link">{s.title || host(s.url ?? "")}</a>
+      </div>
+    );
+  const crop = s.bbox && s.bbox.length === 4 && s.file
+    ? `/api/file?path=${encodeURIComponent(s.file)}&page=${s.page ?? 0}&clip=${s.bbox.map((v) => v.toFixed(1)).join(",")}&pad=${Math.min(s.bbox[2] - s.bbox[0], s.bbox[3] - s.bbox[1]) < 30 ? 3 : 0.8}&scale=2`
+    : null;
+  return (
+    <div className="src-card" onClick={(e) => e.stopPropagation()}>
+      <div className="src-head">
+        <span className="src-n">{s.n}</span>
+        <span className={`src-tier ${s.tier}`}>{TIER[s.tier] ?? s.tier}</span>
+        <span className="ellipsis" title={s.file}>{s.file ? shortName(s.file) : ""}</span>
+        {s.file && !s.file.endsWith(".ifc") && <span className="dim mono">p. {(s.page ?? 0) + 1}</span>}
+      </div>
+      <div className="src-label">{s.label}</div>
+      {crop && <img className="src-crop" src={crop} alt={s.label} />}
+      {s.ifc_guid && <div className="dim mono">BIM element {s.ifc_guid}</div>}
+      {onShow && <button className="btn small" onClick={onShow}>{s.ifc_guid ? "Show in the model" : "Highlight on the plan"}</button>}
+    </div>
+  );
+}
+
+// The verifiable chain: each line cites [n]; a click opens the source under the line and lights it up.
+function Reasoning({ a, on, focus, onFocus, onActivate }: {
+  a: Answer; on: boolean; focus: number | null; onFocus: (i: number | null) => void; onActivate: () => void;
+}) {
+  const [open, setOpen] = useState<{ line: number; n: number } | null>(null);
+  const [wide, setWide] = useState<Set<number>>(new Set());
+  const rs: Reason[] = a.reasoning ?? [];
+  if (!rs.length) return null;
+  const src = new Map((a.sources ?? []).map((s) => [s.n, s]));
+  const show = (s: Source) =>
+    s.ev === undefined || s.ev === null ? null : () => {
+      if (!on) onActivate();
+      onFocus(s.ev!);
+    };
+  const pick = (line: number, n: number) => {
+    const same = open?.line === line && open.n === n;
+    setOpen(same ? null : { line, n });
+    const s = src.get(n);
+    if (!same && s) show(s)?.();
+  };
+  let tier = "";
+  return (
+    <ol className="reasoning" onClick={(e) => e.stopPropagation()}>
+      {rs.map((r, i) => {
+        const head = r.tier !== tier ? ((tier = r.tier), TIER[r.tier] ?? r.tier) : null;
+        const many = r.src.length > 6 && !wide.has(i);
+        const card = open?.line === i ? src.get(open.n) : undefined;
+        return (
+          <li key={i} className={`r ${r.tier}`}>
+            {head && <div className="r-tier">{head}</div>}
+            <span className="r-text">{r.text}</span>
+            {many ? (
+              <button className="cite range" onClick={() => setWide(new Set([...wide, i]))} title="Show every source">
+                [{r.src[0]}]…[{r.src[r.src.length - 1]}]
+              </button>
+            ) : (
+              r.src.map((n) => {
+                const s = src.get(n);
+                const lit = on && s?.ev != null && focus === s.ev;
+                return (
+                  <button key={n} className={`cite ${open?.line === i && open.n === n ? "open" : ""} ${lit ? "focus" : ""}`}
+                    title={s?.label} onClick={() => pick(i, n)}>
+                    [{n}]
+                  </button>
+                );
+              })
+            )}
+            {card && <SourceCard s={card} onShow={show(card)} />}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 function csvOf(t: Table): string {
   const cell = (v: unknown) => {
     const s = String(v ?? "");
@@ -152,9 +247,11 @@ function AnswerTable({ t, question, on, hover, focus, onHover, onFocus }: {
 
 function AnswerMsg(props: {
   a: Answer; question: string; steps: Step[]; on: boolean; busy: boolean; onAsk: (q: string) => void; hover: number | null; focus: number | null;
-  onHover: (i: number | null) => void; onFocus: (i: number | null) => void;
+  onHover: (i: number | null) => void; onFocus: (i: number | null) => void; onActivate: () => void;
 }) {
   const { a } = props;
+  const reasoning = <Reasoning a={a} on={props.on} focus={props.focus} onFocus={props.onFocus} onActivate={props.onActivate} />;
+  const asked = a.followup && <div className="followup">Read as: “{a.followup.standalone}”</div>;
   const [steps, setSteps] = useState(false);
   // The router appends its own timing line; the meta line shows time instead.
   const notes = a.trace.filter((s) => !/ path, [\d.]+s$/.test(s));
@@ -182,26 +279,34 @@ function AnswerMsg(props: {
   if (a.value === null || a.value === undefined)
     return (
       <>
-        <p>Couldn't read this from the drawing.</p>
+        {asked}
+        <p>Couldn't find this in the drawing, the project or the web.</p>
         <div className="meta">
           {a.tried?.length ? `Tried: ${a.tried.map((t) => METHOD_NAME[t] ?? t).join(", ")} · ` : ""}
           <span className="mono">{fmtTime(a.time_s)}</span>
         </div>
+        {reasoning}
       </>
     );
 
-  if (a.method === "general")
+  if (a.method === "general" || a.method === "web")
     return (
       <>
-        <div className="tag">general · not from the drawing</div>
+        {asked}
+        <div className="tag">{a.method === "web" ? "web search" : "general"} · not from the drawing</div>
         <p>{String(a.value)}</p>
         <div className="meta">{meta}</div>
+        {reasoning}
       </>
     );
 
   const c = a.check;
   return (
     <>
+      {asked}
+      {a.tier === "project" && a.source_path && (
+        <div className="tag">found on a related sheet · {shortName(a.source_path)}</div>
+      )}
       <div className="value-line">
         <span className="value">{fmtAnswer(a)}</span>
         <Cites {...props} />
@@ -216,7 +321,8 @@ function AnswerMsg(props: {
         <AnswerTable t={a.table} question={props.question} on={props.on} hover={props.hover} focus={props.focus}
           onHover={props.onHover} onFocus={props.onFocus} />
       )}
-      {props.steps.length === 0 && notes.length > 0 && (
+      {reasoning}
+      {!a.reasoning?.length && props.steps.length === 0 && notes.length > 0 && (
         <>
           <button className="steps-toggle" onClick={(e) => (e.stopPropagation(), setSteps(!steps))}>
             {steps ? "▾" : "▸"} Steps ({notes.length})
@@ -273,7 +379,7 @@ export default function Chat(p: Props) {
               title={marks && !on ? "Show on the plan" : undefined}
             >
               {m.steps.length > 0 && <Thinking steps={m.steps} live={false} time={m.answer.time_s} />}
-              <AnswerMsg a={m.answer} question={m.question} steps={m.steps} on={on} busy={p.busy} onAsk={p.onAsk} hover={p.hover} focus={p.focus} onHover={p.onHover} onFocus={p.onFocus} />
+              <AnswerMsg a={m.answer} question={m.question} steps={m.steps} on={on} busy={p.busy} onAsk={p.onAsk} hover={p.hover} focus={p.focus} onHover={p.onHover} onFocus={p.onFocus} onActivate={() => p.onActivate(i)} />
             </div>
           );
         })}

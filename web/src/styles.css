@@ -157,6 +157,26 @@ input { font: inherit; color: inherit; }
 .think-body li.trace { color: var(--ink); font-family: var(--mono); font-size: 12px; padding-left: 10px; }
 .think-body li.check { color: var(--ok); }
 .think-body li.understand { color: var(--ink); }
+.think-body li.tier { color: var(--ink); font-weight: 600; margin-top: 4px; }
+.think-body li.followup { color: var(--ink); font-style: italic; }
+/* T75: cited reasoning under the answer; [n] opens its source */
+.followup { font-size: 12px; color: var(--dim); font-style: italic; margin-bottom: 2px; }
+.reasoning { list-style: none; margin: 8px 0 0; padding: 0 0 0 10px; border-left: 2px solid var(--red-soft); font-size: 13px; line-height: 1.5; }
+.reasoning li.r { margin: 0 0 3px; }
+.reasoning .r-tier { font: 600 11px var(--sans); text-transform: uppercase; letter-spacing: 0.04em; color: var(--dim); margin: 6px 0 1px; }
+.reasoning li.r:first-child .r-tier { margin-top: 0; }
+.reasoning .r-text { margin-right: 4px; }
+.reasoning .cite.open { outline: 1px solid var(--red); }
+.src-card { margin: 4px 0 6px; padding: 8px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); display: flex; flex-direction: column; gap: 4px; box-shadow: 0 2px 8px #0001; }
+.src-head { display: flex; align-items: center; gap: 6px; font-size: 12px; min-width: 0; }
+.src-n { font: 12px var(--mono); color: #fff; background: var(--red); border-radius: 2px; padding: 0 5px; }
+.src-tier { font-size: 11px; border: 1px solid var(--line-strong); border-radius: 2px; padding: 0 4px; color: var(--dim); white-space: nowrap; }
+.src-tier.project { border-color: #c98a00; color: #8a5f00; }
+.src-tier.web, .src-tier.vlm { border-color: #6b7fd7; color: #3b4fa8; }
+.src-label { font: 12px var(--mono); }
+.src-crop { max-width: 100%; max-height: 160px; object-fit: contain; align-self: flex-start; border: 1px solid var(--line); background: #fff; }
+.src-link { font-size: 13px; color: #3b4fa8; text-decoration: underline; word-break: break-word; }
+.src-card .btn { align-self: flex-start; }
 .think-body li.clarify { color: var(--ink); font-style: italic; }
 .options { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 4px; }
 .option { text-align: left; font-size: 13px; padding: 5px 9px; border: 1px solid var(--line); border-radius: var(--r); }

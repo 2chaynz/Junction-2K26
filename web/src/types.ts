@@ -24,14 +24,39 @@ export type Answer = {
   tried?: string[];
   table?: Table | null; // listing answers: row i is cited by evidence[i]
   clarify?: { ask: string; options: string[] }; // method "clarify": a question back instead of a guess
+  // T75: numbered sources ([n]; drawing ones mirror evidence[ev]) and the reasoning lines that cite them
+  sources?: Source[];
+  reasoning?: Reason[];
+  tier?: "drawing" | "project" | "vlm" | "web" | "none";
+  followup?: { question: string; standalone: string };
+  source_path?: string; // tier "project": the related sheet that answered
 };
+
+export type Source = {
+  n: number;
+  tier: "drawing" | "project" | "vlm" | "web";
+  label: string;
+  ev?: number;
+  file?: string;
+  page?: number;
+  bbox?: number[];
+  kind?: string;
+  ifc_guid?: string | null;
+  url?: string;
+  title?: string;
+};
+
+export type Reason = { tier: string; text: string; src: number[] };
+
+// T75: earlier turns sent with a question, so follow-ups resolve
+export type Turn = { question: string; answer: string };
 
 export type KeyQuestion = { question: string; answer: unknown; unit: string | null; type: string };
 
 export type Drawing = { path: string; source: string; view: string; questions: KeyQuestion[] };
 
 // One reasoning step streamed by /api/ask/stream (CONTRACT.md → Step).
-export type Step = { kind: "understand" | "try" | "skip" | "fail" | "found" | "trace" | "general" | "check" | "clarify"; path: string; text: string; t: number };
+export type Step = { kind: "understand" | "try" | "skip" | "fail" | "found" | "trace" | "general" | "check" | "clarify" | "tier" | "followup"; path: string; text: string; t: number };
 
 // T49: highlighter stroke on the shown sheet, in evidence coords. r = brush radius.
 export type Mark = { page: number; bbox: number[]; points: number[][]; r: number };

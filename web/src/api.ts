@@ -1,4 +1,4 @@
-import type { Answer, Drawing, Mark, MeasureState, Step } from "./types";
+import type { Answer, Drawing, Mark, MeasureState, Step, Turn } from "./types";
 import { isEnglishQuestion } from "./format";
 
 export const originalUrl = (path: string) => `/api/original?path=${encodeURIComponent(path)}`;
@@ -44,11 +44,13 @@ export async function surprise(): Promise<{ path: string; question: string }> {
 }
 
 // Same as ask(), but reports each reasoning step as the server takes it.
-export async function askStream(path: string, question: string, onStep: (s: Step) => void, region?: Mark | null): Promise<Answer> {
+// history: earlier turns of the session (follow-ups); related: other sheets of the project, nearest first.
+export async function askStream(path: string, question: string, onStep: (s: Step) => void, region?: Mark | null,
+  ctx?: { history?: Turn[]; related?: string[] }): Promise<Answer> {
   const r = await fetch("/api/ask/stream", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(region ? { path, question, region } : { path, question }),
+    body: JSON.stringify(region ? { path, question, region } : { path, question, ...ctx }),
   });
   if (!r.ok || !r.body) throw new Error(`ask: ${r.status} ${await r.text()}`);
   const reader = r.body.pipeThrough(new TextDecoderStream()).getReader();
