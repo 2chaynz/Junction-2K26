@@ -73,5 +73,5 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T66 Link plan locations to schedules and details | ai | T11 | ccolver | blocked | ccolver/T66-plan-reference |  | @ccolver PR #85 second cross-review: require verified plan-tag placement and reject multi-tag lookups. |
 | T67 Highlight on scans: OCR the marked spot before the VLM | ai | T49 | 2chaynz | done | 2chaynz/T67-region-ocr |  |  |
 | T68 Rotation-aware whole-sheet OCR for room counts | ai |  |  | todo |  |  |  |
-| T69 How it works: interactive diagram in site language | app |  | 2chaynz | review | 2chaynz/T69-how-flow |  |  |
+| T69 How it works: interactive diagram in site language | app |  | 2chaynz | done | 2chaynz/T69-how-flow |  |  |
 | T70 App shell: start screen, breadcrumb, project Overview | app | T61 | Asif | doing | asif/T70-app-shell |  |  |
