@@ -39,7 +39,7 @@ export type Mark = { page: number; bbox: number[]; points: number[][]; r: number
 export type Msg =
   | { kind: "user"; path: string; text: string; mark?: Mark }
   | { kind: "answer"; path: string; question: string; answer: Answer; steps: Step[]; mark?: Mark }
-  | { kind: "pending"; path: string; steps: Step[] }
+  | { kind: "pending"; path: string; steps: Step[]; id?: string }
   | { kind: "error"; path: string; text: string }
   | { kind: "switch"; path: string };
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { METHOD_NAME, fmtAnswer, fmtEur, fmtTime, fmtValue, shortName } from "./format";
 import type { Answer, Mark, Msg, Step, Table } from "./types";
 
@@ -18,6 +18,7 @@ type Props = {
   onActivate: (msg: number) => void;
   onHover: (i: number | null) => void;
   onFocus: (i: number | null) => void;
+  head?: ReactNode; // T61: which session this conversation is saved in
 };
 
 const MAX_CITES = 9;
@@ -247,6 +248,7 @@ export default function Chat(p: Props) {
 
   return (
     <aside className="chat">
+      {p.head}
       <div className="log" ref={log}>
         {p.msgs.map((m, i) => {
           if (m.kind === "switch")

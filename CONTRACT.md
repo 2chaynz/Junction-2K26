@@ -64,6 +64,11 @@ POST /api/measure/scale {"path","scale_id"}           → pick a candidate (answ
 GET  /api/takeoff?path=data/…[&format=csv]           → {"path", "source": ifc|schedule|detector|none, "rows": [{category, type, size, count, levels, by_level, length_m, area_m2, volume_m3, evidence}], "notes"}; csv = download
 GET  /api/vlm                                         → {"backend", "current", "latest", "available": [...]}: latest = newer model of the same family, else null
 POST /api/vlm   {"model": "…"}                        → same shape; switches the VLM model for this server process (no .env write); 400 if unknown
+GET  /api/sessions                                    → {project: {"sessions", "updated"}} for the project list
+GET  /api/sessions?project=…                          → [{id, title, created, updated, questions, paths, last: {question, value, unit}}], newest first
+GET  /api/session?project=…&id=…                      → {id, project, title?, created, updated, msgs: [Msg]}
+PUT  /api/session {"project", "id", "msgs", "title"?} → summary; saves the Ask conversation (pending msgs dropped)
+DELETE /api/session?project=…&id=…                    → {"deleted"}
 ```
 - `/api/ask` and `/api/ask/stream` take an optional `region: {"page", "bbox", "points": [[x, y]...], "r"}` (T49): a highlighter stroke on the shown sheet (`view`), same units as `bbox`, `r` = brush radius. The answer is about that spot only (`sitelens/region.py`): `method` `region`, `<path>+region` (counts kept inside the mark) or `vlm` (crop). First evidence is the mark itself, label `your mark`. No clarify, no `check`.
 - `/api/ask` adds `time_s`, `view` (file the UI shows; IFC → its rendered plan) and, when the question is Stoa's, `check: {expected, unit, match}`.
@@ -71,6 +76,7 @@ POST /api/vlm   {"model": "…"}                        → same shape; switches
 - Vague question (not one of Stoa's) → `method: "clarify"`, `value: null`, `clarify: {"ask": "Which floor?", "options": [full reformulated questions]}`, no evidence. UI shows the options; picking one asks it. Rules first, then Gemini (`sitelens/clarify.py`).
 - Step: `{"kind": understand|try|skip|fail|found|trace|general|check|clarify, "path": "ifc"|"", "text": "plain words", "t": seconds}`. `trace` steps are the winning path's trace lines. Python: `router.answer(path, q, on_step)`.
 - `/api/drawings` includes `model`, the related IFC path or null.
+- Projects (T61): the UI groups drawings into projects (`web/src/workspace.ts`: `bim/<building>`, `set/<sheet set>`, `portfolio/swiss`, `archive/cubicasa`) with typed subfolders. Sessions are stored per project key in `.sitelens/sessions/` (next to `SITELENS_STORE`); `Msg` is `web/src/types.ts`.
 - `/api/file` takes optional `scale` (default 1 = bbox coords).
 - Measure (`sitelens/measure.py`): points in bbox units. Scale = `m_per_unit` + `source` (dxf | sibling | note | bar | sheet_size | manual) + `refs: [{file, page, bbox, text, kind}]` (file may be another sheet of the project). `scale: null` → `ask` + `options`. Stored per drawing in `SITELENS_STORE`.
 - Run: `STOA_DATA=… python -m sitelens.server` (serves `web/dist` after `cd web && npm ci && npm run build`). Dev: `npm run dev` in `web/` proxies `/api` to :8000.
