@@ -58,3 +58,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T51 Ignore spread autotune outputs | setup |  | Asif | done | asif/T51-spread-ignore |  |  |
 | T52 Resizable panels: drag the explorer and chat edges | app |  | 2chaynz | doing | 2chaynz/T52-resize |  |  |
 | T53 Multi-sheet questions: ask a whole building | ai |  |  | todo |  |  |  |
+| T54 Multi-sheet benchmark with free gold answers | eval |  |  | todo |  |  |  |
