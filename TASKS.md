@@ -48,3 +48,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T41 Export redline as PDF markup (Bluebeam) | app |  |  | todo |  |  |  |
 | T42 Review mode: tick/cross uncertain marks, live count | app |  |  | todo |  |  |  |
 | T43 Proof strip + arithmetic receipt under answers | app |  |  | todo |  |  |  |
+| T44 Us vs frontier model side by side (Benchmark) | app |  |  | todo |  |  |  |
