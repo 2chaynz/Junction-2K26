@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // One command to run the demo on http://localhost:8000. Safe to re-run: finished steps are skipped.
-//   node scripts/dev.mjs            set up whatever is missing, then serve
+//   node scripts/dev.mjs            set up venv + web build if missing, then serve (dataset is yours to drop in)
 //   node scripts/dev.mjs --check    only report what is missing
 //   node scripts/dev.mjs --no-build skip the web build
 import { spawnSync, spawn } from "node:child_process";
@@ -12,9 +12,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WEB = join(ROOT, "web");
 const win = process.platform === "win32";
 const args = new Set(process.argv.slice(2));
-const ZIP_URL =
-  "https://fwjydgxpttajiqpfmqtj.supabase.co/storage/v1/object/public/stoa-junction-2026/junction-dataset-preview.zip";
-const DEFAULT_DATA = resolve(ROOT, "..", "junction-data", "preview", "junction-dataset-preview");
+const DATA_HOME = resolve(ROOT, "..", "junction-data");
 
 const log = (m) => console.log(`==> ${m}`);
 const die = (m) => {
@@ -50,13 +48,29 @@ function loadEnv() {
 }
 
 const venvPy = join(ROOT, ".venv", win ? "Scripts" : "bin", win ? "python.exe" : "python");
-const dataDir = resolve(process.env.STOA_DATA || loadEnv().STOA_DATA || DEFAULT_DATA);
+
+// any folder under DATA_HOME holding questions.jsonl counts, so a drag-and-drop of the unzipped folder just works
+function findData(dir, depth = 3) {
+  if (existsSync(join(dir, "questions.jsonl"))) return dir;
+  if (depth === 0 || !existsSync(dir)) return null;
+  const subs = readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
+    .sort((x, y) => Number(/preview/i.test(y)) - Number(/preview/i.test(x)));
+  for (const n of subs) {
+    const hit = findData(join(dir, n), depth - 1);
+    if (hit) return hit;
+  }
+  return null;
+}
+const envData = process.env.STOA_DATA || loadEnv().STOA_DATA;
+const dataDir = envData ? resolve(envData) : findData(DATA_HOME);
 // stamp is written only after pip succeeds, so an interrupted install is retried
 const depsStamp = join(ROOT, ".venv", ".deps-ok");
 const reqFile = join(ROOT, "requirements.txt");
 const needVenv =
   !existsSync(venvPy) || !existsSync(depsStamp) || statSync(reqFile).mtimeMs > statSync(depsStamp).mtimeMs;
-const needData = !existsSync(join(dataDir, "questions.jsonl"));
+const needData = !dataDir || !existsSync(join(dataDir, "questions.jsonl"));
 const distIndex = join(WEB, "dist", "index.html");
 const needBuild =
   !args.has("--no-build") &&
@@ -66,12 +80,23 @@ const needBuild =
 
 if (args.has("--check")) {
   console.log(`venv:    ${needVenv ? "missing or deps not installed" : "ok"}`);
-  console.log(`dataset: ${needData ? "MISSING" : "ok"}  (${dataDir})`);
+  console.log(`dataset: ${needData ? "MISSING" : "ok"}  (${dataDir ?? DATA_HOME})`);
   console.log(`web/dist: ${needBuild ? "missing or stale" : "ok"}`);
   process.exit(needVenv || needData || needBuild ? 1 : 0);
 }
 
 if (!ok("node", ["--version"])) die("node missing: install Node 18+");
+
+if (needData) {
+  const where = envData ? resolve(envData) : DATA_HOME;
+  mkdirSync(where, { recursive: true });
+  console.error("FIX  dataset not found. Unzip it and drag the unzipped folder (the one that contains questions.jsonl) into:");
+  console.error(`
+     ${where}
+`);
+  console.error("     then run this script again. Data is large: it stays outside the repo and is never committed.");
+  process.exit(1);
+}
 
 if (needVenv) {
   if (!existsSync(venvPy)) {
@@ -84,22 +109,6 @@ if (needVenv) {
   if (run(venvPy, ["-m", "pip", "install", "-r", "requirements.txt"]).status !== 0)
     die("pip install failed");
   writeFileSync(depsStamp, new Date().toISOString());
-}
-
-if (needData) {
-  if (args.has("--no-download")) die(`dataset not found at ${dataDir}. Set STOA_DATA or drop --no-download`);
-  const parent = dirname(dataDir);
-  const zip = join(dirname(parent), "junction-dataset-preview.zip");
-  log(`downloading dataset to ${zip}`);
-  mkdirSync(parent, { recursive: true });
-  const res = await fetch(ZIP_URL);
-  if (!res.ok) die(`download failed: HTTP ${res.status}`);
-  writeFileSync(zip, Buffer.from(await res.arrayBuffer()));
-  log(`extracting to ${parent}`);
-  // Windows ships bsdtar, which reads zip; elsewhere use unzip
-  const x = win ? run("tar", ["-xf", zip, "-C", parent]) : run("unzip", ["-q", "-o", zip, "-d", parent]);
-  if (x.status !== 0 || !existsSync(join(dataDir, "questions.jsonl")))
-    die(`extract failed. Unzip ${zip} into ${parent} by hand`);
 }
 
 if (needBuild) {
