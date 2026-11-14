@@ -228,6 +228,31 @@ def export(req: Export):
                     headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
+class VlmModel(BaseModel):
+    model: str
+
+
+@app.get("/api/vlm")
+def vlm_status():
+    """Active VLM and the newest model of its family (T29). Never fails: a check error means latest=null."""
+    from .vlm_backends import latest
+    try:
+        return latest.status()
+    except Exception as e:
+        backend, model = latest.current()
+        return {"backend": backend, "current": model, "latest": None, "available": [], "error": str(e)}
+
+
+@app.post("/api/vlm")
+def vlm_use(req: VlmModel):
+    """Switch the VLM model for this server process only; .env is untouched (CLI: --upgrade saves it)."""
+    from .vlm_backends import latest
+    try:
+        return latest.use(req.model)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 @app.get("/api/random")
 def surprise():
     qs = _questions()

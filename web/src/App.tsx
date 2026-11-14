@@ -8,6 +8,7 @@ import { DEMO, SOURCE_LABEL, TYPE, fmtSize, pickChips, sheetCode, shortName } fr
 import HowItWorks from "./HowItWorks";
 import type { Answer, Drawing, Msg, Step } from "./types";
 import Viewer from "./Viewer";
+import VlmBadge from "./VlmBadge";
 
 // three.js + web-ifc are ~4 MB: only fetch them when a model is opened in 3D.
 const Model3D = lazy(() => import("./Model3D"));
@@ -196,6 +197,7 @@ export default function App() {
           ))}
         </nav>
         <span className="spacer" />
+        <VlmBadge />
         {tab === "Ask" && <button className="btn" onClick={onRandom}>Random question</button>}
       </header>
 
