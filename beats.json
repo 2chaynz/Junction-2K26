@@ -382,5 +382,11 @@
   "branch": "ccolver/T62-drawing-takeoff",
   "text": "claimed",
   "at": "2026-11-14T20:50:15.011Z"
+ },
+ "T75": {
+  "who": "ccolver",
+  "branch": "claude/chat-reasoning-sources-c3c33f",
+  "text": "claimed",
+  "at": "2026-11-14T20:50:24.503Z"
  }
 }
