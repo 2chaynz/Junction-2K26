@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fileUrl, isImage } from "./api";
 import { KIND_LABEL, type Kind, type Overview, type Proj, type Recent, ago, sheetName, thumbOf } from "./workspace";
 
@@ -35,13 +35,33 @@ function Still({ p, scale }: { p: Proj; scale: number }) {
   return v ? <img src={fileUrl(v, isImage(v) ? scale * 0.6 : scale)} loading="lazy" alt="" /> : <ModelGlyph />;
 }
 
+// The turntable only spins while its card is hovered: eight videos decoding at once halved the frame
+// rate (30 vs 52 fps) and made the intro and every animation stutter. The video loads on first hover.
 function Spin({ p }: { p: Proj }) {
   const base = spinOf(p);
   const [ok, setOk] = useState(true);
+  const video = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = video.current;
+    const card = v?.closest(".pcard");
+    if (!v || !card) return;
+    const play = () => { v.play().catch(() => {}); };
+    const stop = () => v.pause();
+    card.addEventListener("mouseenter", play);
+    card.addEventListener("mouseleave", stop);
+    card.addEventListener("focus", play);
+    card.addEventListener("blur", stop);
+    return () => {
+      card.removeEventListener("mouseenter", play);
+      card.removeEventListener("mouseleave", stop);
+      card.removeEventListener("focus", play);
+      card.removeEventListener("blur", stop);
+    };
+  }, [base, ok]);
   if (!base || !ok) return <Still p={p} scale={0.2} />;
   return (
-    <video className="pspin" src={`${base}.webm`} poster={`${base}.jpg`} autoPlay muted loop playsInline
-      preload="metadata" onError={() => setOk(false)} aria-label={`${p.name}, 3D model`} />
+    <video ref={video} className="pspin" src={`${base}.webm`} poster={`${base}.jpg`} muted loop playsInline
+      preload="none" onError={() => setOk(false)} aria-label={`${p.name}, 3D model`} />
   );
 }
 

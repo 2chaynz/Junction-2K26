@@ -68,7 +68,7 @@ function Leaderboard() {
                 key={e.model}
                 className={`row ${e.model === "sitelens" ? "us" : ""} ${e.model === picked.model ? "on" : ""}`}
                 onClick={() => setPick(e.model)}
-                style={{ animationDelay: `${i * 45}ms` }}
+                style={{ animationDelay: `${i * 70}ms` }}
               >
                 <span className="rank mono">{e.acc === null ? "" : i + 1}</span>
                 <ModelLogo maker={mo.maker} />
@@ -77,7 +77,7 @@ function Leaderboard() {
                   <span className="maker dim">{mo.makerName}</span>
                 </span>
                 <span className="track">
-                  {e.acc !== null && <span className="fill" style={{ width: grow ? `${e.acc}%` : 0, transitionDelay: `${i * 45}ms` }} />}
+                  {e.acc !== null && <span className="fill" style={{ width: grow ? `${e.acc}%` : 0, transitionDelay: `${i * 70}ms` }} />}
                 </span>
                 <span className="acc mono">{e.acc === null ? "—" : <><CountUp to={e.acc} run={grow} />%</>}</span>
                 <span className="cost mono dim">{e.cost}</span>

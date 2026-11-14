@@ -22,13 +22,13 @@
 :where(.lb .row):hover { translate: 2px 0; }
 
 /* 3. benchmark: bars grow in, rows rise in on tab switch */
-.lb .fill, .held .fill { transition: width 0.7s var(--ease); }
-.lb .rows > .row { animation: rise 0.35s var(--ease) both; }
-@keyframes rise { from { opacity: 0; translate: 0 6px; } }
+.lb .fill, .held .fill { transition: width 1s var(--ease); }
+.lb .rows > .row { animation: rise 0.45s var(--ease) both; }
+@keyframes rise { from { opacity: 0; translate: 0 12px; } }
 
 /* 4. sections fade up once */
-.rv { transition: opacity 0.5s var(--ease), translate 0.5s var(--ease); }
-.rv:not(.in) { opacity: 0; translate: 0 10px; }
+.rv { transition: opacity 0.6s var(--ease), translate 0.6s var(--ease); }
+.rv:not(.in) { opacity: 0; translate: 0 18px; }
 
 /* 6. 3D model loading: wireframe building turning */
 .loader { display: grid; place-items: center; gap: 12px; color: var(--dim); font-size: 13px; padding: 24px 0; }
@@ -56,10 +56,11 @@
 @keyframes sl-draw { 0% { stroke-dashoffset: 1; opacity: 1; } 60% { stroke-dashoffset: 0; opacity: 1; } 85% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
 
 /* home: project cards rise in, staggered */
-.pgrid > * { animation: rise 0.4s var(--ease) both; }
-.pgrid > :nth-child(2) { animation-delay: 40ms; } .pgrid > :nth-child(3) { animation-delay: 80ms; }
-.pgrid > :nth-child(4) { animation-delay: 120ms; } .pgrid > :nth-child(5) { animation-delay: 160ms; }
-.pgrid > :nth-child(6) { animation-delay: 200ms; } .pgrid > :nth-child(n+7) { animation-delay: 240ms; }
+.pgrid > * { animation: rise 0.5s var(--ease) both; }
+.pgrid > :nth-child(2) { animation-delay: 60ms; } .pgrid > :nth-child(3) { animation-delay: 120ms; }
+.pgrid > :nth-child(4) { animation-delay: 180ms; } .pgrid > :nth-child(5) { animation-delay: 240ms; }
+.pgrid > :nth-child(6) { animation-delay: 300ms; } .pgrid > :nth-child(7) { animation-delay: 360ms; }
+.pgrid > :nth-child(n+8) { animation-delay: 420ms; }
 
 /* 7. answers: the value settles in as it counts */
 .msg.sl .value-line .value { display: inline-block; animation: settle 0.45s var(--ease) both; }

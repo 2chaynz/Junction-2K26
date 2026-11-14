@@ -32,7 +32,7 @@ export function useReveal<T extends HTMLElement>(ref: RefObject<T>) {
       ([...root.children] as HTMLElement[]).forEach((k) => {
         if (k.classList.contains("rv")) return;
         k.classList.add("rv");
-        k.style.transitionDelay = `${Math.min(n++, 4) * 40}ms`;
+        k.style.transitionDelay = `${Math.min(n++, 4) * 70}ms`;
         io.observe(k);
       });
     tag();
@@ -43,7 +43,7 @@ export function useReveal<T extends HTMLElement>(ref: RefObject<T>) {
 }
 
 /** Counts from 0 to `to` once `run` is true; keeps the decimals of `to`. */
-export function CountUp({ to, run = true, decimals, ms = 700 }: { to: number; run?: boolean; decimals?: number; ms?: number }) {
+export function CountUp({ to, run = true, decimals, ms = 1000 }: { to: number; run?: boolean; decimals?: number; ms?: number }) {
   const d = decimals ?? (String(to).split(".")[1]?.length ?? 0);
   const [v, setV] = useState(reduced() ? to : 0);
   useEffect(() => {
