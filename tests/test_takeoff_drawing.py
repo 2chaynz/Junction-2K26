@@ -250,6 +250,22 @@ class DrawingTakeoff(unittest.TestCase):
             self.assertEqual(row["size"], "")
             self.assertTrue(any("multiple views" in line for line in row["reason"]))
 
+    def test_scan_view_boundaries(self):
+        import numpy as np
+
+        image = np.full((600, 600), 255, dtype=np.uint8)
+        image[30:180, 400:575] = 0
+        image[33:177, 403:572] = 255
+        plan = ("GROUND FLOOR PLAN", [25, 25, 125, 35])
+        legend = ("DOOR LEGEND", [420, 50, 510, 60])
+        regions, excluded, issue = takeoff_2d._scan_metadata([plan, legend], lambda: image)
+        self.assertFalse(excluded)
+        self.assertTrue(takeoff_2d._outside_schedule([90, 100, 120, 105], regions))
+        self.assertFalse(takeoff_2d._outside_schedule([420, 100, 450, 105], regions))
+        self.assertIn("multiple views", issue)
+        _, excluded, _ = takeoff_2d._scan_metadata([legend], lambda: image)
+        self.assertTrue(excluded)
+
     def test_disagreeing_scale_bars_do_not_produce_dimensions(self):
         from sitelens.measure import Scale
 

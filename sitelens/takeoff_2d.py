@@ -372,16 +372,83 @@ def _outside_schedule(box, regions):
     return not any(x0 <= x <= x1 and y0 <= y <= y1 for x0, y0, x1, y1 in regions)
 
 
+def _scan_views(image, labels):
+    import cv2
+    import numpy as np
+
+    titles = [b for label, b in labels if NON_PLAN_VIEW.fullmatch(label)]
+    if not titles:
+        return [], False
+    gray = np.asarray(image)
+    _, ink = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
+    contours, _ = cv2.findContours(ink, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    frames = []
+    for contour in contours:
+        perimeter = cv2.arcLength(contour, True)
+        polygon = cv2.approxPolyDP(contour, .01 * perimeter, True)
+        x, y, w, h = cv2.boundingRect(polygon)
+        if len(polygon) == 4 and .90 * w * h <= cv2.contourArea(polygon) and w * h < gray.size / 3:
+            frames.append((x, y, x + w, y + h))
+    regions = []
+    for x0, y0, x1, y1 in titles:
+        candidates = [b for b in frames if b[0] <= x0 and b[1] <= y0 and b[2] >= x1 and b[3] >= y1
+                      and b[3] - b[1] >= 4 * (y1 - y0)]
+        if candidates:
+            regions.append(min(candidates, key=lambda b: (b[2] - b[0]) * (b[3] - b[1])))
+    return regions, len(regions) != len(titles)
+
+
+def _scan_metadata(labels, load_image):
+    text = "\n".join(label for label, _ in labels)
+    has_plan = bool(PLAN_TITLE.search(text))
+    has_other = bool(NON_PLAN_VIEW.search(text))
+    regions, unbounded = [], has_other
+    if has_plan and has_other:
+        regions, unbounded = _scan_views(load_image(), labels)
+    schedule_heading = re.search(r"\b(?:doors?|windows?)[ \t]+schedules?\b", text, re.I)
+    excluded = unbounded or bool(schedule_heading and not has_plan)
+    issue = UNKNOWN_VIEW_SCALE if NOT_TO_SCALE.search(text) else ""
+    if not issue and (has_other or len(list(PLAN_TITLE.finditer(text))) > 1):
+        issue = "This sheet has multiple views; the applicable scale is unknown."
+    return regions, excluded, issue
+
+
+def _pdf_scan_words(page):
+    import numpy as np
+    import pymupdf
+
+    from .ocr import _engine
+
+    zoom = min(2, 2200 / max(page.rect.width, page.rect.height))
+    pix = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), colorspace=pymupdf.csGRAY, alpha=False)
+    gray = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width)
+    rgb = np.repeat(gray[:, :, None], 3, axis=2)
+    result, _ = _engine()(rgb)
+    labels = [(text, [min(p[0] for p in quad), min(p[1] for p in quad),
+                      max(p[0] for p in quad), max(p[1] for p in quad)])
+              for quad, text, confidence in result or [] if confidence >= .8]
+    regions, excluded, issue = _scan_metadata(labels, lambda: gray)
+    words = [(label, [v / zoom for v in box]) for label, box in labels]
+    return words, [[v / zoom for v in box] for box in regions], excluded, issue
+
+
 @lru_cache(maxsize=16)
 def _sheet(path, root, mtime, weights_mtime):
     if measure.is_image(path):
         bars = [b for b in measure.bar(path) if b.confidence >= .75]
         words = [(text, list(box)) for text, confidence, box in measure._ocr(path) if confidence >= .8]
-        text = "\n".join(label for label, _ in words)
-        scale_issue = UNKNOWN_VIEW_SCALE if NOT_TO_SCALE.search(text) else ""
-        excluded = int(bool(NON_PLAN_VIEW.search(text)))
-        objects = [] if excluded else _detected(path)
-        return [(0, objects, words, bars, scale_issue)], False, [], excluded
+        from PIL import Image
+
+        def gray():
+            import numpy as np
+
+            with Image.open(root / path) as image:
+                return np.asarray(image.convert("L"))
+
+        regions, excluded, scale_issue = _scan_metadata(words, gray)
+        objects = [] if excluded else [obj for obj in _detected(path)
+                                      if _outside_schedule(obj[1].bbox, regions)]
+        return [(0, objects, words, bars, scale_issue)], False, [], int(excluded)
     import pymupdf
 
     pages, page_tables = [], []
@@ -392,6 +459,13 @@ def _sheet(path, root, mtime, weights_mtime):
         for page, tables in zip(doc.pages(0, reviewed), tables_by_page):
             words = _words(page)
             page_tables.extend((page.number, t) for t in tables)
+            if not words and page.get_images():
+                words, regions, skip, scale_issue = _pdf_scan_words(page)
+                objects = [] if skip else [obj for obj in _detected(path, page)
+                                           if _outside_schedule(obj[1].bbox, regions)]
+                excluded += int(skip)
+                pages.append((page.number, objects, words, [], scale_issue))
+                continue
             regions = [measure._union(t.boxes) for t in tables if t.boxes]
             words = [(token, box) for token, box in words if _outside_schedule(box, regions)]
             text = page.get_text()
