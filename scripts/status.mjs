@@ -134,7 +134,10 @@ const beatTicket = () => {
   try {
     const branch = git(["branch", "--show-current"], { cwd: root });
     const me = git(["config", "user.name"], { cwd: root });
-    const doing = parseTable(showFile("TASKS.md")).rows.filter((r) => r.status === "doing");
+    const md = showFile("TASKS.md");
+    // parseTable exits the process on a missing table; the hook must never fail.
+    if (!/^\|\s*Ticket\s*\|/im.test(md)) return fromName;
+    const doing = parseTable(md).rows.filter((r) => r.status === "doing");
     const hit = doing.find((r) => branch && r.branch === branch) || doing.find((r) => idOf(r) === fromName);
     if (hit) return idOf(hit);
     const mine = doing.filter((r) => r.owner === me);
