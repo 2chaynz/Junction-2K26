@@ -2,6 +2,9 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 19:03 · ccolver · T50 PR #68: same-session Claude review PASS (no Codex, claude -p empty); fixed duplicate floor plates when a floor has pdf+png
+- 2026-11-14 19:01 · ccolver · pitch angle: one integration tool for PE/site mgr/super/PM/estimator (takeoff CSV, measure). T2 ticket updated; DECISION.md in PR #70, blocked on xreview (no codex, claude CLI login)
+- 2026-11-14 18:59 · Asif · T51 PR #69 merged: spread/.gitignore ignores autotune.log, tuned_params.json, bl.txt; removed stray q&a/ + spread outputs locally
 - 2026-11-14 18:57 · ccolver · T46 PR #66: Measure panel: area/length takeoffs, scale from DXF/notes/scan scale bars/sibling files, ask-back + calibrate when none, references stored per drawing. Waiting on xreview (CLI auth)
 - 2026-11-14 18:56 · ccolver · T50 PR #68: explorer groups drawings by project; Swiss buildings with 2+ floors get a Building view (exploded 3D stack or side by side). Floor order = floor id, unverified. xreview failed (no codex, claude -p empty)
 - 2026-11-14 18:45 · Asif · T48 PR #62 +: watch hook tells agents when their open PR conflicts with main (merge-tree, only when main moves); fix = merge origin/main, no rebase
