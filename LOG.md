@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 15:14 · johanseneuson · johanseneuson: Stoa's CubiCasa answers = public CubiCasa5K SVG label counts (windows 241/241, toilets 240/240, doors 176/176 exact). So (1) our window misses are pure detection errors, fix = higher-res detector; (2) any model trained on CubiCasa5K without excluding Stoa plans memorizes the answers - we exclude them (train/exclude.py), say so in the pitch
 - 2026-11-14 15:04 · 2chaynz · gemini-2.5-flash returns 404 for new API keys; set SITELENS_GEMINI_MODEL=gemini-3.8-flash. VLM path never returns null (says 'not mentioned'), fixed for the UI in PR #33
 - 2026-11-14 15:02 · Asif · T22 PR #36: beats go to the claimed ticket (fixes T5 'no heartbeat'), hook beat timeouts 4s->8s, failed beat retries in 1 min
 - 2026-11-14 15:00 · ccolver · T19 PR #35: room-label OCR, balconies only (rest: OCR 85% vs boxes 71%). cubicasa dev 82.8% -> 83.8%. WC/bedroom OCR worse than v2 boxes, dropped; AECV not rerun
