@@ -140,6 +140,31 @@ class DrawingTakeoff(unittest.TestCase):
             self.assertEqual(row["size"], "")
             self.assertIn("Dimensions could not be inferred.", row["reason"])
 
+    def test_elevation_does_not_count_and_nts_blocks_scale(self):
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"STOA_DATA": d, "SITELENS_STORE": d}):
+            path = "Views.pdf"
+            with pymupdf.open() as doc:
+                plan = doc.new_page()
+                plan.insert_text((50, 50), "GROUND FLOOR PLAN")
+                plan.insert_text((50, 70), "Scale 1:100")
+                plan.insert_text((50, 90), "Inset: N.T.S.")
+                elevation = doc.new_page()
+                elevation.insert_text((50, 50), "NORTH ELEVATION")
+                doc.save(Path(d) / path)
+
+            def detected(path, page):
+                return [("Windows", Evidence(path, [200, 100, 230, 104], page=page.number),
+                         "Detected symbol", None)]
+
+            with patch.object(takeoff_2d, "_detected", side_effect=detected) as detector:
+                result = takeoff.takeoff(path)
+            detector.assert_called_once()
+            row, = result["rows"]
+            self.assertEqual(row["count"], 1)
+            self.assertEqual(row["size"], "")
+            self.assertTrue(any("not-to-scale" in line for line in row["reason"]))
+            self.assertTrue(any("Skipped symbol counts on 1" in line for line in result["notes"]))
+
     def test_disagreeing_scale_bars_do_not_produce_dimensions(self):
         from sitelens.measure import Scale
 

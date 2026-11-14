@@ -113,6 +113,14 @@ def _words(page):
     return [(w[4], list(pymupdf.Rect(w[:4]) * page.rotation_matrix)) for w in page.get_text("words")]
 
 
+NON_PLAN_VIEW = re.compile(
+    r"(?im)^\s*(?:[A-Z]?[0-9]+\s+)?(?:[\w-]+[ \t]+){0,4}"
+    r"(?:elevations?|sections?|details?|legends?|reflected ceiling plans?)"
+    r"(?:[ \t]+[A-Z0-9-]+)?[ \t]*$"
+)
+NOT_TO_SCALE = re.compile(r"\b(?:not[ \t]+to[ \t]+scale|N\.?[ \t]*T\.?[ \t]*S\.?)\b", re.I)
+
+
 def _pdf_bars(path, page, words):
     """Require a drawn horizontal segment beneath a labelled, proportional tick sequence."""
     ticks = [(float(t), b) for t, b in words if re.fullmatch(r"\d{1,3}(?:\.\d+)?", t)]
@@ -167,7 +175,10 @@ def _pdf_bars(path, page, words):
     return bars
 
 
-def _scale(path, page, bars):
+def _scale(path, page, bars, ambiguous_view=False):
+    if ambiguous_view:
+        refs = [ref for bar in bars for ref in bar.refs]
+        return None, "This sheet has a not-to-scale label; the applicable scale is unknown.", refs
     stored = measure._active(measure.load(path), page)
     if stored and stored["source"] == "manual":
         return stored["m_per_unit"], stored["text"], [measure.Ref(**r) for r in stored["refs"]]
@@ -336,10 +347,11 @@ def _outside_schedule(box, regions):
 def _sheet(path, root, mtime, weights_mtime):
     if measure.is_image(path):
         bars = [b for b in measure.bar(path) if b.confidence >= .75]
-        return [(0, _detected(path), [(t, list(b)) for t, c, b in measure._ocr(path) if c >= .8], bars)], False, []
+        return [(0, _detected(path), [(t, list(b)) for t, c, b in measure._ocr(path) if c >= .8], bars, False)], False, [], 0
     import pymupdf
 
     pages, page_tables = [], []
+    excluded = 0
     with pymupdf.open(data_root() / path) as doc:
         for page in doc:
             words = _words(page)
@@ -348,12 +360,18 @@ def _sheet(path, root, mtime, weights_mtime):
             regions = [measure._union(t.boxes) for t in tables if t.boxes]
             words = [(token, box) for token, box in words if _outside_schedule(box, regions)]
             bars = _pdf_bars(path, page, words)
-            objects = (_vector(path) if page.number == 0 else []) or _detected(path, page)
+            text = page.get_text()
+            objects = _vector(path) if page.number == 0 else []
+            if not objects:
+                if NON_PLAN_VIEW.search(text):
+                    excluded += 1
+                else:
+                    objects = _detected(path, page)
             objects = [obj for obj in objects if _outside_schedule(obj[1].bbox, regions)]
-            pages.append((page.number, objects, words, bars))
+            pages.append((page.number, objects, words, bars, bool(NOT_TO_SCALE.search(text))))
             if len(pages) == MAX_PAGES:
                 break
-        return pages, len(doc) > len(pages), page_tables
+        return pages, len(doc) > len(pages), page_tables, excluded
 
 
 def takeoff(path):
@@ -361,19 +379,21 @@ def takeoff(path):
 
     source = data_root() / path
     weights = detector._weights()
-    pages, truncated, page_tables = _sheet(path, data_root().resolve(), source.stat().st_mtime_ns, weights.stat().st_mtime_ns if weights.exists() else 0)
+    pages, truncated, page_tables, excluded = _sheet(path, data_root().resolve(), source.stat().st_mtime_ns, weights.stat().st_mtime_ns if weights.exists() else 0)
     from .takeoff import _schedule
 
     schedule = _schedule(path, page_tables) if page_tables else None
-    if schedule and not any(objects for _, objects, _, _ in pages):
+    if schedule and not any(objects for _, objects, _, _, _ in pages):
         schedule["notes"].append("No placements were identified outside the schedule table.")
         if truncated:
             schedule["notes"].append(f"Only the first {MAX_PAGES} PDF pages were reviewed.")
+        if excluded:
+            schedule["notes"].append(f"Skipped symbol counts on {excluded} page(s) labeled with non-plan views.")
         return schedule
     specs, inspected, limited, failed = _specs(path, page_tables)
     rows = []
-    for page, objects, words, bars in pages:
-        page_rows = _rows(objects, words, specs, _scale(path, page, bars), measure.is_image(path))
+    for page, objects, words, bars, ambiguous_view in pages:
+        page_rows = _rows(objects, words, specs, _scale(path, page, bars, ambiguous_view), measure.is_image(path))
         if len(pages) > 1:
             for row in page_rows:
                 row["levels"].add(f"Page {page + 1}")
@@ -395,6 +415,8 @@ def takeoff(path):
         rows.extend(entries)
     if specs:
         notes.append("Numeric-only labels cannot be distinguished from dimensions and are not matched to schedules.")
+    if excluded:
+        notes.append(f"Skipped symbol counts on {excluded} page(s) labeled with non-plan views, including mixed views.")
     if not weights.exists():
         notes.append("Symbol detector weights are unavailable; only supported drawing geometry can be counted.")
     if not rows:
