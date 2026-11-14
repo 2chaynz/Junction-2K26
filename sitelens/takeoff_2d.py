@@ -408,7 +408,8 @@ def _scan_metadata(labels, load_image, native_text="", has_schedule=False):
     if has_plan and has_other:
         regions, unbounded = _scan_views(load_image(), labels)
     schedule_heading = re.search(r"\b(?:doors?|windows?)[ \t]+schedules?\b", text, re.I)
-    excluded = unbounded or bool((schedule_heading or has_schedule) and not has_plan)
+    # OCR headings alone cannot bound a schedule or its illustrations.
+    excluded = unbounded or bool(schedule_heading and not has_schedule) or (has_schedule and not has_plan)
     issue = UNKNOWN_VIEW_SCALE if NOT_TO_SCALE.search(text) else ""
     if not issue and (has_other or len(list(PLAN_TITLE.finditer(text))) > 1):
         issue = "This sheet has multiple views; the applicable scale is unknown."
