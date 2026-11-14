@@ -31,4 +31,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T24 Facts path: free-form questions over extracted facts | ai |  | johanseneuson | review | johanseneuson/T24-facts |  |  |
 | T25 DrawingVQA: whole-sheet VLM vs our crop pipeline | eval | T13,T20 |  | todo |  |  |  |
 | T26 Hooks run status.mjs from origin/main | setup | T22 | Asif | doing | asif/T26-hooks-from-main |  |  |
-| T27 Spread bot: top 10 at level 8 (Bahn side challenge) | spread |  |  | todo |  |  |  |
+| T27 Spread bot: top 10 at level 8 (Bahn side challenge) | spread |  | Asif | doing | asif/spread-bot |  |  |
