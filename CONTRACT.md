@@ -53,6 +53,7 @@ GET  /api/file?path=data/…&page=0                     → PNG render of the dr
 GET  /api/drawings                                    → [{"path", "source", "view", "questions": [...]}]
 GET  /api/ifc?path=data/…ifc                          → raw IFC bytes (3D viewer)
 GET  /api/random                                      → {"path", "question"} from questions.jsonl
+GET  /api/takeoff?path=data/…[&format=csv]           → {"path", "source": ifc|schedule|detector|none, "rows": [{category, type, size, count, levels, by_level, length_m, area_m2, volume_m3, evidence}], "notes"}; csv = download
 ```
 - `/api/ask` adds `time_s`, `view` (file the UI shows; IFC → its rendered plan) and, when the question is Stoa's, `check: {expected, unit, match}`.
 - No path answers → `/api/ask` adds `tried: [path names]`. With `GEMINI_API_KEY` set, a question that isn't about the drawing gets `method: "general"`, text `value`, no evidence, no `check`.
