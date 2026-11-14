@@ -28,3 +28,16 @@ export const SOURCE_LABEL: Record<string, string> = {
 };
 
 export const shortName = (path: string) => path.split("/").pop() ?? path;
+
+const PREFIX: Record<string, string> = {
+  swiss_dwellings: "SW", cubicasa5k: "CC", ifc_models: "BIM", ifc_bench: "IB", opening_design: "US",
+};
+
+/** Title-block style sheet number, e.g. SW-001, stable per source. */
+export function sheetCode(paths: string[], path: string, source: string): string {
+  const same = paths.filter((p) => p.split("/")[1] === source);
+  return `${PREFIX[source] ?? "XX"}-${String(same.indexOf(path) + 1).padStart(3, "0")}`;
+}
+
+// Measured whole-sheet baseline (Gemma 4 12B, LOG 14 Nov): EUR 0.003–0.005 per answer.
+export const BASELINE_EUR = 0.004;

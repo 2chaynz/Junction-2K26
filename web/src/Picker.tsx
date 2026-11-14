@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { fileUrl, isImage } from "./api";
-import { SOURCE_LABEL, shortName } from "./format";
+import { SOURCE_LABEL, sheetCode, shortName } from "./format";
 import type { Drawing } from "./types";
 
 type Props = { drawings: Drawing[]; selected: string; onSelect: (path: string) => void };
@@ -13,6 +13,7 @@ export default function Picker({ drawings, selected, onSelect }: Props) {
     return [...c.entries()];
   }, [drawings]);
   const list = drawings.filter((d) => d.source === source);
+  const paths = useMemo(() => drawings.map((d) => d.path), [drawings]);
 
   return (
     <nav className="panel picker">
@@ -28,7 +29,7 @@ export default function Picker({ drawings, selected, onSelect }: Props) {
         ))}
       </div>
       <div className="thumbs">
-        {list.map((d, i) => (
+        {list.map((d) => (
           <button key={d.path} className={`thumb ${d.path === selected ? "on" : ""}`} onClick={() => onSelect(d.path)}>
             {d.view.endsWith(".ifc") ? (
               <div className="thumb-img ifc">IFC</div>
@@ -41,7 +42,7 @@ export default function Picker({ drawings, selected, onSelect }: Props) {
               />
             )}
             <div className="thumb-cap">
-              <span className="mono">{`${source.slice(0, 2).toUpperCase()}-${String(i + 1).padStart(3, "0")}`}</span>
+              <span className="mono">{sheetCode(paths, d.path, d.source)}</span>
               <span className="dim">{d.questions.length} Qs</span>
             </div>
           </button>

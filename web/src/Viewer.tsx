@@ -9,15 +9,24 @@ type Props = {
   hover: number | null;
   focus: number | null;
   onHover: (i: number | null) => void;
+  busy: boolean;
 };
 
 type T = { s: number; x: number; y: number };
-type Box = { i: number; x0: number; y0: number; x1: number; y1: number; label: string };
+type Box = { i: number; x0: number; y0: number; x1: number; y1: number; label: string; poly: number[][] | null };
 
 // Deterministic jitter so a circle keeps its hand-drawn shape across renders.
 function rand(seed: number) {
   const x = Math.sin(seed * 9301 + 49297) * 233280;
   return x - Math.floor(x);
+}
+
+// Large regions (rooms) get a wobbly rectangle: overlapping loops would hide the plan.
+function penRect(b: Box, pad: number): string {
+  const x0 = b.x0 - pad, y0 = b.y0 - pad, x1 = b.x1 + pad, y1 = b.y1 + pad;
+  const j = (k: number) => (rand(b.i * 17 + k) - 0.5) * pad * 1.2;
+  return `M${x0 + j(1)},${y0 + j(2)} L${x1 + j(3)},${y0 + j(4)} L${x1 + j(5)},${y1 + j(6)} ` +
+    `L${x0 + j(7)},${y1 + j(8)} L${x0 + j(9)},${y0 + j(10) + pad * 1.5}`;
 }
 
 function penLoop(b: Box, minR: number): string {
@@ -36,7 +45,7 @@ function penLoop(b: Box, minR: number): string {
   return "M" + pts.join(" L");
 }
 
-export default function Viewer({ view, answer, hover, focus, onHover }: Props) {
+export default function Viewer({ view, answer, hover, focus, onHover, busy }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [t, setT] = useState<T>({ s: 1, x: 0, y: 0 });
@@ -51,7 +60,7 @@ export default function Viewer({ view, answer, hover, focus, onHover }: Props) {
     return answer.evidence
       .map((e, i) => ({ e, i }))
       .filter(({ e }) => e.file === view && e.bbox.length === 4)
-      .map(({ e, i }) => ({ i, x0: e.bbox[0], y0: e.bbox[1], x1: e.bbox[2], y1: e.bbox[3], label: e.label }));
+      .map(({ e, i }) => ({ i, x0: e.bbox[0], y0: e.bbox[1], x1: e.bbox[2], y1: e.bbox[3], label: e.label, poly: e.polygon }));
   }, [answer, view]);
 
   const fitTo = useCallback(
@@ -70,14 +79,16 @@ export default function Viewer({ view, answer, hover, focus, onHover }: Props) {
 
   const fitAll = useCallback(() => size && fitTo(0, 0, size.w, size.h, 1, true), [size, fitTo]);
 
-  // New answer → zoom to all evidence; no evidence → whole sheet.
-  useEffect(() => {
+  const fitEvidence = useCallback(() => {
     if (!size) return;
     if (boxes.length === 0) return fitTo(0, 0, size.w, size.h, 1, false);
     const x0 = Math.min(...boxes.map((b) => b.x0)), y0 = Math.min(...boxes.map((b) => b.y0));
     const x1 = Math.max(...boxes.map((b) => b.x1)), y1 = Math.max(...boxes.map((b) => b.y1));
     fitTo(x0, y0, x1, y1, 1.5, true);
   }, [boxes, size, fitTo]);
+
+  // New answer → zoom to all evidence; no evidence → whole sheet.
+  useEffect(() => fitEvidence(), [fitEvidence]);
 
   useEffect(() => {
     const b = boxes.find((x) => x.i === focus);
@@ -148,10 +159,17 @@ export default function Viewer({ view, answer, hover, focus, onHover }: Props) {
                 onMouseEnter={() => onHover(b.i)}
                 onMouseLeave={() => onHover(null)}
               >
+                {b.poly && b.poly.length > 2 && (
+                  <polygon className="area" points={b.poly.map((p) => p.join(",")).join(" ")} />
+                )}
                 <path
-                  d={penLoop(b, 9 / t.s)}
+                  d={Math.max(b.x1 - b.x0, b.y1 - b.y0) * t.s > 70 ? penRect(b, 3 / t.s) : penLoop(b, 9 / t.s)}
                   pathLength={1}
-                  style={{ animationDelay: `${Math.min(k * 45, 1400)}ms` }}
+                  style={{
+                    animationDelay: `${Math.min(k * 45, 1400)}ms`,
+                    // Firefox ignores non-scaling-stroke under CSS transforms: keep width in screen px by hand.
+                    strokeWidth: (hover === b.i ? 5 : 2.2) / t.s,
+                  }}
                 />
                 {boxes.length <= 60 && (
                   <text x={Math.max(b.x1, b.x0 + 9 / t.s) + 4 / t.s} y={b.y0 - 2 / t.s} fontSize={13 / t.s}>
@@ -163,11 +181,16 @@ export default function Viewer({ view, answer, hover, focus, onHover }: Props) {
             {union && note && (
               <g className="margin-note" transform={`translate(${union.x + 14 / t.s} ${union.y - 10 / t.s})`}>
                 <text fontSize={30 / t.s}>{note}</text>
-                <path d={`M0 ${8 / t.s} q ${60 / t.s} ${6 / t.s} ${120 / t.s} 0`} />
+                <path d={`M0 ${8 / t.s} q ${60 / t.s} ${6 / t.s} ${120 / t.s} 0`} style={{ strokeWidth: 2 / t.s }} />
               </g>
             )}
           </svg>
         )}
+      </div>
+      {busy && <div className="scan" />}
+      <div className="viewer-tools" onMouseDown={(e) => e.stopPropagation()}>
+        <button onClick={fitAll}>Page</button>
+        {boxes.length > 0 && <button onClick={fitEvidence}>Evidence</button>}
       </div>
       <div className="viewer-hint mono">scroll to zoom · drag to pan · double-click to fit</div>
     </div>
