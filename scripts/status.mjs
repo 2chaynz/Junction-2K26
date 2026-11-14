@@ -200,7 +200,7 @@ const commands = {
       if (!needsMet(t, r) && !flags.force) fail(`${idOf(r)} needs ${r.needs}, not done yet.`);
       Object.assign(r, { owner, status: "doing", branch: branch || r.branch });
     }));
-    pushBeat(id.toUpperCase(), "claimed");
+    try { pushBeat(id.toUpperCase(), "claimed"); } catch {}
   },
 
   set() {
