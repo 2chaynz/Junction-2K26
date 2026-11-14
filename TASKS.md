@@ -81,3 +81,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T74 Keep repeated marks in takeoff ambiguity checks | app |  | ccolver | done | ccolver/T74-takeoff-marks |  |  |
 | T75 Chat follow-ups + cited reasoning: drawing, project, web | app |  | ccolver | doing | ccolver/T75-cited-reasoning |  |  |
 | T76 Fix opening_design schedule counts (regression) | ai |  |  | todo |  |  |  |
+| T77 IFC count fixes: curtain walls, bsc-duplex, gymzaal | ai |  |  | todo |  |  |  |
