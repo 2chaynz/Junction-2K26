@@ -17,22 +17,28 @@ export function useInView<T extends Element>(ref: RefObject<T>, margin = "0px 0p
   return seen;
 }
 
-/** Fades the direct children of `ref` up as each scrolls into view, once. */
+/** Fades the direct children of `ref` up as each scrolls into view, once. Children that mount later
+ *  (data loaded after the page) are picked up too; untagged children are never hidden. */
 export function useReveal<T extends HTMLElement>(ref: RefObject<T>) {
   useEffect(() => {
     const root = ref.current;
     if (!root || reduced() || typeof IntersectionObserver === "undefined") return;
-    const kids = [...root.children] as HTMLElement[];
-    root.classList.add("reveal");
     const io = new IntersectionObserver(
       (es) => es.forEach((e) => e.isIntersecting && (e.target.classList.add("in"), io.unobserve(e.target))),
       { rootMargin: "0px 0px -6% 0px" },
     );
-    kids.forEach((k, i) => {
-      k.style.transitionDelay = `${Math.min(i, 4) * 40}ms`;
-      io.observe(k);
-    });
-    return () => io.disconnect();
+    let n = 0;
+    const tag = () =>
+      ([...root.children] as HTMLElement[]).forEach((k) => {
+        if (k.classList.contains("rv")) return;
+        k.classList.add("rv");
+        k.style.transitionDelay = `${Math.min(n++, 4) * 40}ms`;
+        io.observe(k);
+      });
+    tag();
+    const mo = new MutationObserver(tag);
+    mo.observe(root, { childList: true });
+    return () => (io.disconnect(), mo.disconnect());
   }, [ref]);
 }
 

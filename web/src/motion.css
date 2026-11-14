@@ -27,8 +27,8 @@
 @keyframes rise { from { opacity: 0; translate: 0 6px; } }
 
 /* 4. sections fade up once */
-.reveal > * { opacity: 0; translate: 0 10px; transition: opacity 0.5s var(--ease), translate 0.5s var(--ease); }
-.reveal > .in { opacity: 1; translate: 0 0; }
+.rv { transition: opacity 0.5s var(--ease), translate 0.5s var(--ease); }
+.rv:not(.in) { opacity: 0; translate: 0 10px; }
 
 /* 6. 3D model loading: wireframe building turning */
 .bld-loader { display: grid; place-items: center; gap: 14px; color: var(--dim); font-size: 13px; }
@@ -54,9 +54,9 @@
 @media (prefers-reduced-motion: reduce) {
   /* loaders (.busy, .bld-spin) keep moving: they are the only sign something is happening */
   :where(button, .btn, .chip, a.btn, .pcard, .headline > div, .crit, .vs-score, .lb .row, .vs-list button, .ans),
-  .tab-ink.glide, .lb .fill, .held .fill, .reveal > * { transition: none !important; }
+  .tab-ink.glide, .lb .fill, .held .fill, .rv { transition: none !important; }
   :where(button:not(:disabled):active, .btn:active, .chip:active) { scale: none; }
   :where(.pcard, .headline > div, .crit, .vs-score, .lb .row):hover { translate: none; }
   .lb .rows > .row, .msg.sl .value-line .value, .bld-floor { animation: none !important; }
-  .reveal > * { opacity: 1; translate: none; }
+  .rv:not(.in) { opacity: 1; translate: none; }
 }
