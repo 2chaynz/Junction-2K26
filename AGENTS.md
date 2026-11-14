@@ -49,13 +49,14 @@ node scripts/status.mjs add "<title>" --area a --needs T1 --details path.md
 node scripts/status.mjs log "<one line>"
 node scripts/status.mjs publish ideas/<name>.md context/...
 node scripts/status.mjs beat [T3] "<doing now>"     # heartbeat; ticket defaults to your branch's Tn
+node scripts/status.mjs close-merged                # review tickets with a merged PR → done (also automatic)
 ```
 `<person>` = the human you work for (their git user name).
 
 ## Every session
 **Start**
 1. `node scripts/status.mjs show` (Claude Code runs it automatically).
-2. A ticket of yours shows `PR #n merged` → `set Tn done`.
+2. Merged PRs close their `review` ticket automatically (GitHub Action on merge; `show` as fallback). Still shows `PR #n merged` → `set Tn done`.
 3. Read `DECISION.md`, `CONTRACT.md` and your `tickets/Tn.md`. Read `context/` if the ticket touches the challenge or partner tech.
 4. No ticket → `next <area>` → `claim`. State in one line what you're on.
 
@@ -72,7 +73,7 @@ node scripts/status.mjs beat [T3] "<doing now>"     # heartbeat; ticket defaults
 
 ## Worker loop
 Default mode for every agent: keep pulling work until the queue is empty. Claude Code: `/work`, or `/loop /work` to repeat.
-1. `show`. Your ticket shows `PR #n merged` → `set Tn done`.
+1. `show` (it closes merged `review` tickets itself).
 2. Own a `doing` ticket → continue it. Else `next <area>` → `claim` → create the branch (worktree if you're the second agent).
 3. Work inside the ticket's **Files**. `beat` as you go.
 4. Pull requests steps 1–6 → `set Tn review`, `log` the outcome in one line.
