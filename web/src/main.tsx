@@ -9,11 +9,13 @@ import "./styles.css";
 import App from "./App";
 import Intro from "./Intro";
 
-const demo = new URLSearchParams(location.search).has("demo");
+const which = new URLSearchParams(location.search).get("demo");
+const sheets = which === "sheets";
+const demo = which !== null && !sheets;
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App revisionDemo={demo} />
-    {!demo && <Intro />}
+    <App revisionDemo={demo} sheetDemo={sheets} />
+    {which === null && <Intro />}
   </React.StrictMode>,
 );
