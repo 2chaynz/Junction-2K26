@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fileUrl, viewScale } from "./api";
 import { changeKind } from "./Changes";
 import { fmtAnswer } from "./format";
@@ -28,6 +28,7 @@ type Props = {
   onShapeClick?: (id: string) => void;
   onDraw?: (points: number[][]) => void;
   zoomTo?: number[] | null; // [x0,y0,x1,y1] to fit, e.g. a reference box
+  extra?: ReactNode; // more sheet tools (Measure) in the same toolbar
 };
 
 const CLOSED: Tool[] = ["area", "calarea"];
@@ -83,7 +84,7 @@ function penLoop(b: Box, minR: number): string {
 
 export default function Viewer({
   view, answer, hover, focus, onHover, onFocus, onSize, busy, changes, pen, mark, onPen, onMark,
-  shapes = [], tool = null, mpu, hotShape, onShapeHover, onShapeClick, onDraw, zoomTo,
+  shapes = [], tool = null, mpu, hotShape, onShapeHover, onShapeClick, onDraw, zoomTo, extra,
 }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -353,6 +354,7 @@ export default function Viewer({
           </button>
         )}
         {boxes.length > 0 && <button onClick={() => (focus === null ? fitEvidence() : onFocus(null))}>All marks</button>}
+        {extra}
       </div>
       <div className="viewer-hint mono">
         {tool

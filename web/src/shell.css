@@ -1,0 +1,95 @@
+/* App shell (T70): Home → project breadcrumb → project tabs. Same tokens as styles.css. */
+/* Row 1: where you are (Home / project). Row 2: tabs, always at the same spot, like GitHub / Vercel. */
+.shell { border-bottom: 1px solid var(--line); }
+.shell .top { height: 48px; border-bottom: 0; }
+.shell .brand { padding: 0; margin: 0; font-size: 15px; }
+.shell .brand:hover { color: var(--red); }
+.subnav { height: 38px; padding: 0 2px; }
+.subnav button { font-size: 14px; }
+
+.crumbbar { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 0 1 auto; font-size: 14px; }
+.crumbbar .sep, .sheetbar .sep { color: var(--line-strong); }
+
+/* Sheet bar: folder / sheet + previous, next. Same height as the chat head beside it. */
+.sheetbar { display: flex; align-items: center; gap: 8px; min-height: 37px; padding: 0 8px 0 12px; border-bottom: 1px solid var(--line); font-size: 13px; min-width: 0; }
+.sheetbar .crumb { max-width: 260px; }
+.sheetbar button.crumb:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.sheetbar .cur { color: var(--ink); font-weight: 500; }
+.sheetbar .mono { font-size: 11px; white-space: nowrap; }
+.sheetbar .step { width: 26px; height: 24px; border: 1px solid var(--line); border-radius: var(--r); font-size: 15px; line-height: 1; color: var(--dim); }
+.sheetbar .step:hover:not(:disabled) { border-color: var(--line-strong); color: var(--ink); }
+
+.pmenu { position: relative; z-index: 6; min-width: 0; }
+.pmenu summary { list-style: none; display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600; padding: 4px 8px; margin: 0 -8px; border-radius: var(--r); }
+.pmenu summary::-webkit-details-marker { display: none; }
+.pmenu summary:hover, .pmenu[open] summary { background: var(--canvas); }
+.pmenu .caret { color: var(--dim); font-size: 10px; font-weight: 400; }
+.pmenu-list { position: absolute; top: calc(100% + 6px); left: -8px; width: 280px; padding: 4px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); box-shadow: 0 3px 12px #0002; }
+.pmenu-list button { display: flex; flex-direction: column; width: 100%; padding: 6px 8px; text-align: left; border-radius: 2px; min-width: 0; }
+.pmenu-list button:hover, .pmenu-list button:focus-visible { background: var(--canvas); }
+.pmenu-list .sgroup { padding: 8px 8px 2px; }
+.pmenu-list .all { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 8px; font-size: 13px; }
+.pmenu-cur { display: flex; flex-direction: column; padding: 6px 8px 8px; border-bottom: 1px solid var(--line); border-left: 2px solid var(--red); min-width: 0; }
+.pmenu-cur .pname { font-weight: 600; }
+
+.top .resume { display: inline-flex; gap: 4px; max-width: 280px; font-size: 13px; }
+.top .resume:hover { border-color: var(--red); color: var(--red); }
+
+.explorer .seg { margin-top: 10px; }
+.viewer-tools button.on { border-color: var(--red); color: var(--red); }
+
+/* Project overview */
+.overview { max-width: 1180px; }
+.ov-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.ov-head { min-width: 0; }
+.ov-head h1 { font-size: 30px; letter-spacing: -0.02em; margin: 4px 0 2px; }
+.ov-head p { margin: 0; }
+.ov-kind { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
+.ov-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ov-resume { display: flex; align-items: center; gap: 12px; padding: 6px 12px 6px 6px; border: 1px solid var(--ink); border-radius: var(--r); text-align: left; max-width: 360px; min-width: 0; }
+.ov-resume:hover { border-color: var(--red); }
+.ov-resume:hover .go { color: var(--red); }
+.ov-resume .ov-mini { width: 56px; height: 42px; }
+.ov-rbody { display: flex; flex-direction: column; min-width: 0; font-weight: 500; }
+.ov-rbody .k { font-size: 10px; font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
+.ov-resume .go { font-size: 18px; color: var(--dim); }
+
+.ov-cols { display: grid; grid-template-columns: 1fr 340px; gap: 48px; }
+.ov-mini { flex: none; width: 40px; height: 30px; border: 1px solid var(--line); border-radius: 2px; background: #fff; display: grid; place-items: center; overflow: hidden; font-size: 9px; }
+.ov-mini img { width: 100%; height: 100%; object-fit: contain; }
+
+.ov-reg { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
+.ov-reg td { padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.ov-reg col.t { width: 52px; }
+.ov-reg col.code { width: 84px; }
+.ov-reg col.r { width: 110px; }
+.ov-reg td.t { padding-left: 0; }
+.ov-reg td.code { font-size: 11px; }
+.ov-reg .name > div { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ov-reg td.r { text-align: right; }
+.ov-fold td { padding: 18px 0 6px; font-weight: 600; border-bottom: 1px solid var(--line-strong); }
+.ov-fold:first-child td { padding-top: 0; }
+.ov-fold .fcode { margin-right: 4px; }
+.ov-fold .mono { font-weight: 400; margin-left: 4px; }
+.ov-sheet { cursor: pointer; }
+.ov-sheet:hover { background: var(--canvas); }
+.ov-sheet:hover .name { color: var(--red); }
+.ov-sheet.on .name { color: var(--red); }
+.ov-sheet .tag { flex: none; font-size: 10px; color: var(--red); border: 1px solid var(--red); border-radius: 2px; padding: 0 4px; }
+.ov-showmore td { padding: 8px 0; border-bottom: 0; }
+.ov-showmore button { font-size: 13px; color: var(--dim); }
+.ov-showmore button:hover { color: var(--red); }
+
+.ov-sess, .ov-rev { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.ov-sess button, .ov-rev button { display: flex; flex-direction: column; gap: 1px; width: 100%; padding: 7px 4px; text-align: left; border-bottom: 1px solid var(--line); min-width: 0; font-size: 14px; }
+.ov-sess button:hover, .ov-rev button:hover { background: var(--canvas); }
+.ov-rev button { border-left: 2px solid var(--red); padding-left: 10px; }
+.ov-qty { width: 100%; border-collapse: collapse; font-size: 14px; border-top: 1px solid var(--line); }
+.ov-qty td { padding: 5px 4px; border-bottom: 1px solid var(--line); }
+.ov-qty td.mono { text-align: right; white-space: nowrap; }
+.ov-more { margin-top: 8px; font-size: 13px; color: var(--dim); }
+.ov-more:hover { color: var(--red); }
+
+@media (max-width: 900px) {
+  .ov-cols { grid-template-columns: 1fr; }
+}
