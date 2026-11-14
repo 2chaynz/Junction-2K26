@@ -118,7 +118,7 @@ def _words(page):
 
 
 NON_PLAN_VIEW = re.compile(
-    r"(?im)^[ \t]*(?!(?:see|refer|consult|verify|check|note)\b)"
+    r"(?im)^[ \t]*(?![^\r\n]*\b(?:see|refer|consult|verify|check|note)\b)"
     r"[^\r\n]*\b(?:elevations?|sections?|details?|legends?|reflected ceiling plans?)\b[^\r\n]*$"
 )
 PLAN_TITLE = re.compile(
@@ -402,8 +402,8 @@ def _scan_views(image, labels):
 
 
 SCHEDULE_TITLE = re.compile(
-    r"(?im)^[ \t]*(?!(?:see|refer|consult|verify|check|note)\b)"
-    r"[^\r\n]*\b(?:doors?|windows?)\b[^\r\n]*\bschedules?\b[^\r\n]*$"
+    r"(?im)^[ \t]*(?![^\r\n]*\b(?:see|refer|consult|verify|check|note)\b)"
+    r"[^\r\n]*\b(?:(?:doors?|windows?)\b[^\r\n]*\bschedules?|schedules?\b[^\r\n]*\b(?:doors?|windows?))\b[^\r\n]*$"
 )
 
 
