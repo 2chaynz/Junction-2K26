@@ -1,3 +1,3 @@
 import type { Plugin } from 'vite'
 
-export function askPlugin(key: string | undefined): Plugin
+export function askPlugin(keys: { gemini?: string; cala?: string }): Plugin

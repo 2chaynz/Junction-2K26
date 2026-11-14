@@ -1,6 +1,7 @@
-// POST /api/ask {question} -> {answer, picks: [{id, why}]}. Runs inside the Vite server so the
-// Gemini key never reaches the browser. Retrieval: query embedding vs .cache/embeddings.json
-// (written by scripts/embed.mjs), then Gemini picks and explains from the top matches.
+// POST /api/ask {question} -> {answer, picks: [{id, why}], cala}. Runs inside the Vite server so
+// the keys never reach the browser. Two answers in parallel: Gemini picks from our map (query
+// embedding vs .cache/embeddings.json, from scripts/embed.mjs), and Cala answers live from its
+// own knowledge graph with sources.
 import { existsSync, readFileSync, statSync } from 'node:fs'
 
 const MODEL = 'gemini-3.8-flash'
@@ -8,6 +9,7 @@ const EMBED_MODEL = 'gemini-embedding-001'
 const EMBED_DIM = 768
 const SHORTLIST = 30
 const API = 'https://generativelanguage.googleapis.com/v1beta/models'
+const CALA = 'https://api.cala.ai/v1'
 
 const file = (p) => new URL(`../${p}`, import.meta.url)
 const loaded = new Map()
@@ -33,7 +35,37 @@ async function gemini(key, path, body) {
   return out
 }
 
-export async function ask(question, key) {
+// Cala's sourced answer; failures come back as {error} so the map answer still shows.
+async function calaSearch(question, key) {
+  if (!key) return { error: 'CALA_API_KEY missing in .env' }
+  try {
+    const res = await fetch(`${CALA}/knowledge/search`, {
+      method: 'POST',
+      headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: question, return_entities: true }),
+      signal: AbortSignal.timeout(25000),
+    })
+    const body = await res.json()
+    if (!res.ok) return { error: `Cala ${res.status}: ${body.detail ?? res.statusText}` }
+    const sources = new Map()
+    for (const bit of body.context ?? []) {
+      for (const o of bit.origins ?? []) {
+        const ref = o.document?.url ? o.document : o.source
+        if (ref?.url && !sources.has(ref.url)) sources.set(ref.url, { name: ref.name || new URL(ref.url).hostname, url: ref.url })
+      }
+    }
+    return {
+      answer: body.content ?? '',
+      sources: [...sources.values()].slice(0, 6),
+      entities: (body.entities ?? []).map((e) => ({ id: e.id, name: e.name, type: e.entity_type })),
+    }
+  } catch (e) {
+    return { error: `Cala: ${e.message}` }
+  }
+}
+
+export async function ask(question, key, calaKey) {
+  const cala = calaSearch(question, calaKey)
   const startups = json('src/data/startups.json', [])
   const summaries = json('src/data/summaries.json', {})
   const vectors = json('.cache/embeddings.json', null)
@@ -73,11 +105,11 @@ export async function ask(question, key) {
   })
   const parsed = JSON.parse(out.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') || '{}')
   const valid = new Set(shortlist.map((s) => s.id))
-  return { answer: parsed.answer ?? '', picks: (parsed.picks ?? []).filter((p) => valid.has(p.id)).slice(0, 8), model: MODEL }
+  return { answer: parsed.answer ?? '', picks: (parsed.picks ?? []).filter((p) => valid.has(p.id)).slice(0, 8), model: MODEL, cala: await cala }
 }
 
 // Vite plugin: same endpoint in `vite` and `vite preview`.
-export function askPlugin(key) {
+export function askPlugin({ gemini: key, cala: calaKey }) {
   const handler = async (req, res, next) => {
     if (req.url !== '/api/ask' || req.method !== 'POST') return next()
     let raw = ''
@@ -87,7 +119,7 @@ export function askPlugin(key) {
       const question = String(JSON.parse(raw || '{}').question ?? '').trim().slice(0, 500)
       if (!key) throw new Error('GEMINI_API_KEY missing in .env')
       if (!question) throw new Error('empty question')
-      res.end(JSON.stringify(await ask(question, key)))
+      res.end(JSON.stringify(await ask(question, key, calaKey)))
     } catch (e) {
       res.statusCode = 500
       res.end(JSON.stringify({ error: e.message }))

@@ -4,7 +4,11 @@ import { Icon } from './icons'
 import { sigilUrl } from './Logo'
 
 export interface Pick { id: string; why: string }
-interface Answer { answer: string; picks: Pick[]; model: string }
+interface Cala { answer?: string; sources?: { name: string; url: string }[]; entities?: { id: string; name: string }[]; error?: string }
+interface Answer { answer: string; picks: Pick[]; model: string; cala?: Cala }
+
+// Cala answers in markdown; the card shows plain prose.
+const plain = (md: string) => md.replace(/\*\*|__|`|^#+\s*/gm, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim()
 
 const EXAMPLES = ['startups doing food and AI', 'seed-stage climate tech in Finland', 'who builds tools for game studios?']
 
@@ -17,6 +21,7 @@ export function AskBox({ current, onAnswer, onPick }: { current: string; onAnswe
   const [folded, setFolded] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<Answer | null>(null)
+  const [calaOpen, setCalaOpen] = useState(false)
 
   async function submit(q: string) {
     if (!q.trim() || busy) return
@@ -30,9 +35,13 @@ export function AskBox({ current, onAnswer, onPick }: { current: string; onAnswe
       const body = await res.json()
       if (!res.ok) throw new Error(body.error ?? res.statusText)
       setResult(body)
-      const ids = body.picks.map((p: Pick) => p.id).filter((id: string) => BY_ID.has(id))
+      setCalaOpen(false)
+      // Startups Cala names that are on our map light up too.
+      const calaIds = (body.cala?.entities ?? []).map((e: { id: string }) => e.id)
+      const ids = [...new Set([...body.picks.map((p: Pick) => p.id), ...calaIds])].filter((id) => BY_ID.has(id))
       onAnswer(ids)
-      if (ids[0]) onPick(ids[0])
+      const first = body.picks.find((p: Pick) => BY_ID.has(p.id))?.id ?? ids[0]
+      if (first) onPick(first)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -62,15 +71,36 @@ export function AskBox({ current, onAnswer, onPick }: { current: string; onAnswe
       </form>
       {open && !folded && (
         <div className="ask-body">
-          {busy && <p className="muted">Gemini is reading the map…</p>}
+          {busy && <p className="muted">Asking Cala and reading the map…</p>}
           {error && <p className="ask-error">{error}</p>}
           {!busy && !result && !error && (
             <div className="chips">
               {EXAMPLES.map((q) => <button key={q} className="tag" onClick={() => submit(q)}>{q}</button>)}
             </div>
           )}
+          {!busy && result?.cala && (
+            <section className="cala-live">
+              <div className="ask-label"><span className="live-dot" /> Cala knowledge graph, live</div>
+              {result.cala.error
+                ? <p className="muted">Live answer unavailable ({result.cala.error})</p>
+                : (
+                  <>
+                    <p className={`ask-answer ${calaOpen ? '' : 'clamped'}`} onClick={() => setCalaOpen(!calaOpen)} title={calaOpen ? '' : 'Show the full answer'}>{plain(result.cala.answer ?? '')}</p>
+                    {(result.cala.entities ?? []).some((e) => BY_ID.has(e.id)) && (
+                      <div className="chips">
+                        {result.cala.entities!.filter((e) => BY_ID.has(e.id)).map((e) => <button key={e.id} className="tag" title="On the map: sail there" onClick={() => onPick(e.id)}>{e.name}</button>)}
+                      </div>
+                    )}
+                    {(result.cala.sources ?? []).length > 0 && (
+                      <p className="ask-note">sources {result.cala.sources!.map((src) => <a key={src.url} href={src.url} target="_blank" rel="noreferrer">{src.name}</a>)}</p>
+                    )}
+                  </>
+                )}
+            </section>
+          )}
           {!busy && result && (
             <>
+              <div className="ask-label"><Icon name="spark" size={10} /> On the map</div>
               <p className="ask-answer">{result.answer}</p>
               <ul className="track-list">
                 {result.picks.filter((p) => BY_ID.has(p.id)).map((p) => {

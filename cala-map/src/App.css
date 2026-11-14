@@ -208,3 +208,12 @@ dd { margin: 0; }
 .pick .name { white-space: normal; }
 .why { font-size: 12px; color: var(--muted); line-height: 1.4; }
 @media (max-width: 760px) { .ask { left: 10px; transform: none; width: calc(100% - 130px); } }
+.ask-label { display: flex; align-items: center; gap: 6px; padding: 2px 12px 6px; font: 11px var(--serif); letter-spacing: .3px; color: #fff; }
+.ask-label svg { color: var(--gold); }
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--found); box-shadow: 0 0 6px var(--found); }
+.cala-live { border-bottom: 1px solid var(--line); margin-bottom: 8px; padding-bottom: 4px; }
+.cala-live > p, .cala-live > .chips { padding: 0 12px 8px; margin: 0; }
+.ask-answer.clamped { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+.ask-note a { color: var(--muted); }
+.ask-note a:hover { color: var(--gold); }
+.cala-live > p.ask-answer.clamped { padding-bottom: 0; margin: 0 12px 8px; padding: 0; }
