@@ -10,6 +10,7 @@ from .answer import Answer
 # so tickets can land their path independently.
 PATHS = [
     "sitelens.paths.diff",      # "what changed" on a sheet with a known earlier issue (diff_pairs.json)
+    "sitelens.paths.crosscheck",  # "any conflicts?": door schedule vs drawn tags across the sheet's set
     "sitelens.paths.ifc",      # IFC model → ifcopenshell
     "sitelens.paths.vector",    # vector PDF / DXF text + geometry
     "sitelens.paths.schedule",  # schedule tables on vector sheets (+ Gemini over the extracted table)
