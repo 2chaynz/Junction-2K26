@@ -48,7 +48,7 @@
       {
         "hooks": [
           { "type": "command", "command": "node scripts/status.mjs watch --post --hook", "timeout": 15 },
-          { "type": "command", "command": "node scripts/status.mjs beat --hook", "timeout": 10 }
+          { "type": "command", "command": "node scripts/status.mjs beat --hook", "timeout": 20 }
         ]
       }
     ],
