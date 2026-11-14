@@ -35,3 +35,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T28 UI v3: explorer sidebar, sheet info, How it works + Benchmark | app | T21 | 2chaynz | review | 2chaynz/T28-ui-explorer |  |  |
 | T29 New VLM available: update button | app | T20 |  | todo |  |  |  |
 | T30 Scorer: live progress + resume for long paid runs | eval |  |  | todo |  |  |  |
+| T31 What changed view: revision diff in the UI | app | T28 |  | todo |  |  |  |
