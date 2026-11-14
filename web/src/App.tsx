@@ -546,7 +546,7 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
             <strong>Renovation comparison</strong>
             <span className="dim">BIM-SPEED</span>
             {demoAnswer && <span className="demo-key"><span>Added</span><span>Removed</span></span>}
-            <details><summary>Source files</summary><a href={ifcUrl(baselinePath)} download>Baseline</a>{" ? "}<a href={ifcUrl(demoPath)} download>Proposal</a></details>
+            <details><summary>Source files</summary><a href={ifcUrl(baselinePath)} download>Baseline</a>{" · "}<a href={ifcUrl(demoPath)} download>Proposal</a></details>
           </div>}
           {drawing && folder && (
             <SheetBar

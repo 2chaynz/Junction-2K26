@@ -36,7 +36,7 @@ function lines(steps: Step[]) {
 }
 
 function Thinking({ steps, live, time }: { steps: Step[]; live: boolean; time?: number }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(live);
   const ls = lines(steps);
   return (
     <div className={`think ${live ? "live" : ""}`}>
@@ -214,7 +214,7 @@ function AnswerMsg(props: {
   return (
     <>
       <div className="value-line">
-        <span className={a.method === "revision" ? "demo-answer" : "value"}>{fmtAnswer(a)}</span>
+        <span className="value">{fmtAnswer(a)}</span>
         <Cites {...props} />
         {a.confidence < 0.6 && <span className="warn">please check</span>}
       </div>

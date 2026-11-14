@@ -17,8 +17,8 @@ function dimensionText(values: number[][]) {
     const lengths = values.map((size) => size[axis]);
     const min = Math.min(...lengths).toFixed(2);
     const max = Math.max(...lengths).toFixed(2);
-    return min === max ? min : `${min}?${max}`;
-  }).join(" ? ") + " m";
+    return min === max ? min : `${min}–${max}`;
+  }).join(" × ") + " m";
 }
 
 function countChanges(rows: Change[]) {
@@ -62,7 +62,7 @@ function takeoffImage(rows: Change[], scope: string) {
   text("+" + total.added + " added", 48, 223, "600 32px sans-serif", "#087758");
   text(total.removed + " removed", 510, 223, "600 32px sans-serif", "#ba3027");
   text("ELEMENT TYPE", 64, 263, "600 17px sans-serif", "#666");
-  text("LOCAL BOUNDS X ? Y ? Z", 330, 263, "600 17px sans-serif", "#666");
+  text("LOCAL BOUNDS X × Y × Z", 330, 263, "600 17px sans-serif", "#666");
   text("ADDED", 754, 263, "600 17px sans-serif", "#087758");
   text("REMOVED", 884, 263, "600 17px sans-serif", "#ba3027");
   groups.forEach(([kind, count], i) => {
@@ -74,7 +74,7 @@ function takeoffImage(rows: Change[], scope: string) {
     text(String(count.added), 754, y + 31, "22px sans-serif", "#087758");
     text(String(count.removed), 884, y + 31, "22px sans-serif", "#ba3027");
   });
-  text("Dimensions: local geometry bounds, min?max across measured elements of each type.", 48, canvas.height - 83, "18px sans-serif", "#666");
+  text("Dimensions: local geometry bounds, min–max across measured elements of each type.", 48, canvas.height - 83, "18px sans-serif", "#666");
   text("Added from [2]; removed from [1]. BIM-SPEED / TU Berlin, CC BY 4.0.", 48, canvas.height - 55, "18px sans-serif", "#666");
   text("[1] Baseline IFC     [2] Proposal IFC", 48, canvas.height - 25, "600 19px sans-serif", "#125d9c");
   return canvas.toDataURL("image/png");
@@ -92,7 +92,7 @@ function revisionAnswer(rows: Change[], scope: string): Answer {
     trace: groups.map(([kind, count]) => `${kind}: ${count.added} added, ${count.removed} removed`)
       .concat(groups.map(([kind, count]) =>
         `${kind}: ${dimensionText(count.sizes)} (${count.sizes.length} of ${count.added + count.removed} measured)`))
-      .concat("Dimensions show local geometry bounds (X ? Y ? Z), as ranges across measured elements.",
+      .concat("Dimensions show local geometry bounds (X × Y × Z), as ranges across measured elements.",
         "Counts compare IFC GlobalIds. Edits to shared IDs are outside this takeoff."),
   };
 }
