@@ -1,0 +1,26 @@
+No final is set. Waiting for it: the organisers set a test final 15 minutes before its start, and the final 30 minutes before.
+unreachable: Cannot reach https://spread.bahnexpress.com: The read operation timed out. Check SPREAD_URL, and that the server runs
+No final is set. Waiting for it: the organisers set a test final 15 minutes before its start, and the final 30 minutes before.
+unreachable: Cannot reach https://spread.bahnexpress.com: The read operation timed out. Check SPREAD_URL, and that the server runs
+unreachable: Cannot reach https://spread.bahnexpress.com: [Errno 11001] getaddrinfo failed. Check SPREAD_URL, and that the server runs
+No final is set. Waiting for it: the organisers set a test final 15 minutes before its start, and the final 30 minutes before.
+unreachable: Cannot reach https://spread.bahnexpress.com: The read operation timed out. Check SPREAD_URL, and that the server runs
+unreachable: Cannot reach https://spread.bahnexpress.com: [Errno 11001] getaddrinfo failed. Check SPREAD_URL, and that the server runs
+No final is set. Waiting for it: the organisers set a test final 15 minutes before its start, and the final 30 minutes before.
+unreachable: Cannot reach https://spread.bahnexpress.com: The read operation timed out. Check SPREAD_URL, and that the server runs
+No final is set. Waiting for it: the organisers set a test final 15 minutes before its start, and the final 30 minutes before.
+unreachable: Cannot reach https://spread.bahnexpress.com: The read operation timed out. Check SPREAD_URL, and that the server runs
+No final is set. Waiting for it: the organisers set a test final 15 minutes before its start, and the final 30 minutes before.
+unreachable: Cannot reach https://spread.bahnexpress.com: [Errno 11001] getaddrinfo failed. Check SPREAD_URL, and that the server runs
+No final is set. Waiting for it: the organisers set a test final 15 minutes before its start, and the final 30 minutes before.
+unreachable: Cannot reach https://spread.bahnexpress.com: The read operation timed out. Check SPREAD_URL, and that the server runs
+No final is set. Waiting for it: the organisers set a test final 15 minutes before its start, and the final 30 minutes before.
+final world fd395af531e7414f822ae
+unreachable: Cannot reach https://spread.bahnexpress.com: [WinError 10054] An existing connection was forcibly closed by the remote host. Check SPREAD_URL, and that the server runs
+Thursday   margin €      16.52  revenue €      33.49    27 orders  100.0% on time   0.0% not delivered
+Friday     margin €     775.90  revenue €   1,806.53    56 orders  100.0% on time   0.0% not delivered
+Saturday   margin €   1,050.86  revenue €   2,529.21    56 orders  100.0% on time   0.0% not delivered
+Sunday     margin €   1,050.86  revenue €   2,529.21    56 orders  100.0% on time   0.0% not delivered
+Monday     margin €   1,293.10  revenue €   3,227.84    56 orders  100.0% on time   0.0% not delivered
+Tuesday    margin €   1,293.10  revenue €   3,227.84    56 orders  100.0% on time   0.0% not delivered
+final over: {'marginCents': 129310, 'revenueCents': 322784, 'marginShare': 0.4006084564290671, 'wonOrders': 56, 'onTimeShare': 1, 'undeliveredShare': 0, 'ranked': True}
