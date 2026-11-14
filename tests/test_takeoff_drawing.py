@@ -161,6 +161,7 @@ class DrawingTakeoff(unittest.TestCase):
                 mixed = doc.new_page()
                 mixed.insert_text((50, 50), "FIRST FLOOR PLAN")
                 mixed.insert_text((400, 50), "EAST ELEVATION")
+                mixed.draw_rect(pymupdf.Rect(395, 36, 520, 66))
                 elevation = doc.new_page()
                 elevation.insert_text((50, 50), "NORTH ELEVATION 1:100")
                 doc.save(Path(d) / path)

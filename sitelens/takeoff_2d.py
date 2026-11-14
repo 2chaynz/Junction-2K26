@@ -362,7 +362,7 @@ def _non_plan_regions(page):
     regions = []
     for title in non_plan_titles:
         enclosing = [r for r in borders if r.contains(title) and r.width >= title.width + 8
-                     and r.height >= title.height * 2 and r.get_area() < page.rect.get_area() / 3]
+                     and r.height >= title.height * 4 and r.get_area() < page.rect.get_area() / 3]
         if enclosing:
             regions.append(list(min(enclosing, key=lambda r: r.get_area()) * page.rotation_matrix))
     return regions
