@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import { BuildingLoader } from "./motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -682,14 +683,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
       </div>
       {status && (
         <div className="empty overlay">
-          {status.startsWith("Loading") ? (
-            <div className="bld-loader">
-              <div className="bld"><div className="bld-spin">
-                {[0, 1, 2].map((k) => <div key={k} className="bld-floor"><i /><i /><i /><i /></div>)}
-              </div></div>
-              {status}
-            </div>
-          ) : status}
+          {status.startsWith("Loading") ? <BuildingLoader text={status} /> : status}
         </div>
       )}
       {busy && <div className="busy" />}

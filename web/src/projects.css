@@ -68,7 +68,6 @@
 .pthumb img { width: 100%; height: 100%; object-fit: contain; background: #fff; mix-blend-mode: multiply; padding: 6px; }
 .pglyph { width: 64px; height: 48px; fill: none; stroke: var(--dim); stroke-width: 1.2; stroke-linejoin: round; }
 .pkind { position: absolute; left: 8px; top: 8px; font-size: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 2px; padding: 0 4px; color: var(--dim); }
-.pdemo { position: absolute; right: 8px; top: 4px; font: 600 18px/1 var(--hand); color: var(--red); transform: rotate(-6deg); border: 1.5px solid var(--red); border-radius: 3px; padding: 1px 6px 2px; background: rgba(255, 255, 255, 0.85); }
 .pcard .pbody, .prow .pbody { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px 12px; min-width: 0; }
 .pcard .pname, .prow .pname { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
 .pcard.on .pname { color: var(--red); }

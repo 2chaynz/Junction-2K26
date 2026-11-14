@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Loader } from "./motion";
 import type { Evidence } from "./types";
 
 export type Row = {
@@ -229,7 +230,7 @@ export default function Takeoff({ path, name, onShow }: {
         {all.length > 0 && <a className="btn" href={url(path, true)} download>Download full CSV</a>}
       </div>
       {error && <p role="alert">{error}</p>}
-      {!data && !error && <p className="dim">{path ? "Reading the drawing…" : "Open a drawing or model to see its takeoff."}</p>}
+      {!data && !error && (path ? <Loader kind={/\.ifc$/i.test(path) ? "model" : "sheet"} text={/\.ifc$/i.test(path) ? "Counting the model…" : "Reading the drawing…"} /> : <p className="dim">Open a drawing or model to see its takeoff.</p>)}
       {data && !all.length && <p className="dim">{data.notes.join(" ")}</p>}
       {all.length > 0 && <>
         <div className="tk-filter">

@@ -32,7 +32,7 @@ export function useReveal<T extends HTMLElement>(ref: RefObject<T>) {
       ([...root.children] as HTMLElement[]).forEach((k) => {
         if (k.classList.contains("rv")) return;
         k.classList.add("rv");
-        k.style.transitionDelay = `${Math.min(n++, 4) * 40}ms`;
+        k.style.transitionDelay = `${Math.min(n++, 4) * 70}ms`;
         io.observe(k);
       });
     tag();
@@ -43,7 +43,7 @@ export function useReveal<T extends HTMLElement>(ref: RefObject<T>) {
 }
 
 /** Counts from 0 to `to` once `run` is true; keeps the decimals of `to`. */
-export function CountUp({ to, run = true, decimals, ms = 700 }: { to: number; run?: boolean; decimals?: number; ms?: number }) {
+export function CountUp({ to, run = true, decimals, ms = 1000 }: { to: number; run?: boolean; decimals?: number; ms?: number }) {
   const d = decimals ?? (String(to).split(".")[1]?.length ?? 0);
   const [v, setV] = useState(reduced() ? to : 0);
   useEffect(() => {
@@ -110,4 +110,38 @@ export function TabInk({ dep }: { dep?: unknown }) {
       style={box ? { width: box.w, translate: `${box.x}px 0` } : { display: "none" }}
     />
   );
+}
+
+/** Wireframe building turning: models (IFC) and anything 3D. */
+export function BuildingLoader({ text }: { text: string }) {
+  return (
+    <div className="loader bld-loader" role="status">
+      <div className="bld">
+        <div className="bld-spin">
+          {[0, 1, 2].map((k) => (
+            <div key={k} className="bld-floor"><i /><i /><i /><i /></div>
+          ))}
+        </div>
+      </div>
+      <span>{text}</span>
+    </div>
+  );
+}
+
+/** A red pen sketching a floor plan on a gridded sheet: drawings and schedules. */
+export function SheetLoader({ text }: { text: string }) {
+  return (
+    <div className="loader sheet-loader" role="status">
+      <svg viewBox="0 0 120 84" width="120" height="84" aria-hidden>
+        <rect className="sl-paper" x="1" y="1" width="118" height="82" rx="2" />
+        <path className="sl-grid" d="M1 21H119M1 42H119M1 63H119M30 1V83M60 1V83M90 1V83" />
+        <path className="sl-pen" pathLength={1} d="M14 14H106V70H14Z M14 40H52 M52 14V54 M52 54H70 M78 40H106 M78 40V70 M30 70V58" />
+      </svg>
+      <span>{text}</span>
+    </div>
+  );
+}
+
+export function Loader({ kind, text }: { kind: "model" | "sheet"; text: string }) {
+  return kind === "model" ? <BuildingLoader text={text} /> : <SheetLoader text={text} />;
 }

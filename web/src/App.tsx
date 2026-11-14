@@ -21,7 +21,7 @@ import Takeoff, { type Row } from "./Takeoff";
 import Stack from "./Stack";
 import type { Answer, Drawing, Mark, Msg, Shape, Step, Tool, Turn } from "./types";
 import Viewer from "./Viewer";
-import { TabInk } from "./motion";
+import { Loader, TabInk } from "./motion";
 
 // three.js + web-ifc are ~4 MB: only fetch them when a model is opened in 3D.
 const Model3D = lazy(() => import("./Model3D"));
@@ -585,7 +585,7 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
             {showStack ? (
               <Stack floors={floors} selected={path} onPick={(p) => (select(p), setMode("plan"))} />
             ) : show3d && modelPath ? (
-              <Suspense fallback={<div className="empty">Loading 3D viewer…</div>}>
+              <Suspense fallback={<div className="empty"><Loader kind="model" text="Loading 3D viewer…" /></div>}>
               <Model3D
                 path={modelPath}
                 answer={demoEntered ? demoAnswer : answer}
@@ -627,7 +627,7 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
                 )}
               />
             ) : (
-              <div className="empty">{error || "Loading drawings…"}</div>
+              <div className="empty">{error || <Loader kind="sheet" text="Loading drawings…" />}</div>
             )}
             {hasPair && !msOn && !view.endsWith(".ifc") && !showStack && (
               <button className={`ch-toggle ${showCh ? "on" : ""}`} onClick={() => setChOn((v) => !v)}>
