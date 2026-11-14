@@ -270,7 +270,7 @@ class Desk:
             mdl = load_model()
             leg0 = request["legs"][0]
             o0 = chosen[0]
-            feats = [f"dealer:{request['dealerId']}", f"pk:{leg0['pickup']['placeId']}", f"dl:{leg0['delivery']['placeId']}", f"k:{o0['kind']}"]
+            feats = [f"dealer:{request['dealerId']}", f"pk:{leg0['pickup']['placeId']}", f"dl:{leg0['delivery']['placeId']}", f"k:{o0['kind']}", f"day:{request['arrivedAt'] // DAY}"]
             day = request["arrivedAt"] // DAY
             pkey = (day, leg0["pickup"]["placeId"])
             base = mdl["icpt"] + sum(mdl["w"].get(f, 0.0) for f in feats) + self.bias + self.bias_d.get(day, 0.0) + self.bias_p.get(pkey, 0.0)

@@ -27,8 +27,21 @@ def clock():
         time.sleep(max(0, secs_per_min(state["now"]) - (time.time() - t0)))
 th = threading.Thread(target=clock, daemon=True); th.start()
 t = time.time()
+crash = {"left": int(os.environ.get("SIM_CRASHES", "0")), "n": 0}
+orig = dispatch.Desk.handle
+def flaky(self, event):
+    crash["n"] += 1
+    if crash["left"] and crash["n"] % 4000 == 0:
+        crash["left"] -= 1
+        raise dispatch.Unreachable(0, "injected crash")
+    return orig(self, event)
+dispatch.Desk.handle = flaky
 try:
-    dispatch.play_final(w, now_fn=lambda: state["now"])
+    while True:
+        try:
+            dispatch.play_final(w, now_fn=lambda: state["now"]); break
+        except dispatch.Unreachable as e:
+            print("restart after:", e, flush=True)
 finally:
     th.join(timeout=5)
 s = w.score()
