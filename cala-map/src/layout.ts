@@ -103,8 +103,9 @@ function neck(a: { x: number; y: number }, b: { x: number; y: number }, count: n
     return { x: a.x + (b.x - a.x) * t + nx * bend, y: a.y + (b.y - a.y) * t + ny * bend, t }
   })
   let cells: { x: number; y: number; t: number; d: number }[] = []
-  // At least ~3 tiles wide so it reads as land, not a path.
-  for (let half = 1.2; half <= 3.5; half += 0.4) {
+  // Starts ~3 tiles wide so it reads as land, then widens until every startup fits:
+  // a startup without a tile would crash the panel lists.
+  for (let half = 1.2; cells.length < count && half < 40; half += 0.4) {
     const found = new Map<number, { x: number; y: number; t: number; d: number }>()
     for (const p of spine) {
       const w = half * (0.8 + 0.4 * noise(p.t * 3 + seed, seed + 5))
@@ -119,7 +120,6 @@ function neck(a: { x: number; y: number }, b: { x: number; y: number }, count: n
       }
     }
     cells = [...found.values()]
-    if (cells.length >= count) break
   }
   return cells.sort((p, q) => p.t - q.t)
 }
@@ -130,12 +130,20 @@ export function layoutIslands(startups: Startup[], sectors: string[], positions:
   const blocked = new Set<number>()
   const sectorOf = new Map(startups.map((s) => [s.id, s.sector]))
   const pairKey = (a: string, b: string) => [a, b].sort().join('|')
+  const size = new Map<string, number>()
+  for (const s of startups) size.set(s.sector, (size.get(s.sector) ?? 0) + 1)
   const necks = new Map<string, BridgeLink[]>()
+  const onNeck = new Set<string>()
+  const leaving = new Map<string, number>()
   for (const l of links) {
     const from = sectorOf.get(l.id)
-    if (from && from !== l.to) necks.set(pairKey(from, l.to), [...(necks.get(pairKey(from, l.to)) ?? []), l])
+    if (!from || from === l.to || !size.has(l.to) || onNeck.has(l.id)) continue
+    // At most half an island moves onto necks, so every island keeps land of its own.
+    if ((leaving.get(from) ?? 0) >= Math.floor(size.get(from)! / 2)) continue
+    leaving.set(from, (leaving.get(from) ?? 0) + 1)
+    onNeck.add(l.id)
+    necks.set(pairKey(from, l.to), [...(necks.get(pairKey(from, l.to)) ?? []), l])
   }
-  const onNeck = new Set(links.map((l) => l.id))
   const weight = (a: string, b: string) => necks.get(pairKey(a, b))?.length ?? 0
   const pending = sectors.map((sector, i) => ({ sector, color: PALETTE[i % PALETTE.length], members: startups.filter((s) => s.sector === sector && !onNeck.has(s.id)) }))
   const placed: { sector: string; color: Tile['color']; members: Startup[]; cells: { x: number; y: number }[]; cx: number; cy: number }[] = []
@@ -200,7 +208,7 @@ export function layoutIslands(startups: Startup[], sectors: string[], positions:
       tiles.push({ x: c.x, y: c.y, sector: s?.sector ?? (c.t < 0.5 ? A.sector : B.sector), startup: s, color: s ? color : (color.map((v) => v * 0.75) as Tile['color']) })
     }
   }
-  const partnerOf = new Map(links.map((l) => [l.id, l.to]))
+  const partnerOf = new Map(links.filter((l) => onNeck.has(l.id)).map((l) => [l.id, l.to]))
   return { tiles, islands, partnerOf }
 }
 
