@@ -546,7 +546,8 @@ def resolve(rel: str, page: int = 0, region: list[float] | None = None) -> dict:
                 break
 
     known = area_labels(rel, page)
-    proj_scales, proj_known = project(rel)
+    # other sheets of the project are slow to read: only when this sheet has no scale of its own
+    proj_scales, proj_known = project(rel) if not cands else ((), ())
     if chosen is None and not ask:
         guesses = sheet_size(rel, list(proj_scales))
         what = "this scan" if image else "this sheet"
