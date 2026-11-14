@@ -240,8 +240,20 @@ def bar(rel: str) -> list[Scale]:
         cy = (ub[1] + ub[3]) / 2
         row = [(v, b) for v, b in nums if abs((b[1] + b[3]) / 2 - cy) < 3 * h and abs((b[0] + b[2]) / 2 - ub[0]) < 40 * h]
         row = sorted({(v, round((b[0] + b[2]) / 2)): b for v, b in row}.items(), key=lambda x: x[0][1])
-        if len(row) < 2:
+        # a second bar (metres next to feet) can share the row: keep the increasing run nearest the unit word
+        runs, cur = [], row[:1]
+        for prev, nxt in zip(row, row[1:]):
+            if nxt[0][0] > prev[0][0]:
+                cur.append(nxt)
+            else:
+                runs.append(cur)
+                cur = [nxt]
+        runs.append(cur)
+        runs = [r for r in runs if len(r) >= 2]
+        if not runs:
             continue
+        ux = (ub[0] + ub[2]) / 2
+        row = min(runs, key=lambda r: min(abs(k[1] - ux) for k, _ in r))
         vs = [k[0] for k, _ in row]
         xs = [k[1] for k, _ in row]
         if any(b <= a for a, b in zip(vs, vs[1:])):  # ticks must increase left to right
