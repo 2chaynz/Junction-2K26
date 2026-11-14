@@ -1,4 +1,4 @@
-import type { Answer, Drawing, Mark, Step } from "./types";
+import type { Answer, Drawing, Mark, MeasureState, Step } from "./types";
 
 export const fileUrl = (path: string, scale = 1, page = 0) =>
   `/api/file?path=${encodeURIComponent(path)}&page=${page}&scale=${scale}`;
@@ -58,3 +58,32 @@ export async function askStream(path: string, question: string, onStep: (s: Step
   }
   throw new Error("ask: stream ended without an answer");
 }
+
+async function json<T>(r: Response, what: string): Promise<T> {
+  if (!r.ok) {
+    let msg = await r.text();
+    try {
+      msg = JSON.parse(msg).detail ?? msg;
+    } catch {}
+    throw new Error(`${what}: ${msg}`);
+  }
+  return r.json();
+}
+
+const post = (url: string, body: object, method = "POST") =>
+  fetch(url, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+
+export const getMeasure = async (path: string, page = 0): Promise<MeasureState> =>
+  json(await fetch(`/api/measure?path=${encodeURIComponent(path)}&page=${page}`), "measure");
+
+export const addTakeoff = async (path: string, kind: string, points: number[][], label: string) =>
+  json(await post("/api/measure", { path, kind, points, label }), "measure");
+
+export const delTakeoff = async (path: string, id: string) =>
+  json(await fetch(`/api/measure?path=${encodeURIComponent(path)}&id=${id}`, { method: "DELETE" }), "delete");
+
+export const calibrate = async (path: string, points: number[][], length: string, known_id?: string, label = "") =>
+  json(await post("/api/measure/calibrate", { path, points, length, known_id, label }), "calibrate");
+
+export const chooseScale = async (path: string, scale_id: string | null) =>
+  json(await post("/api/measure/scale", { path, scale_id }), "scale");

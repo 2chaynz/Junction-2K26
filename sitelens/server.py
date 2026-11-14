@@ -307,6 +307,62 @@ def export(req: Export):
                     headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
+class Shape(BaseModel):
+    path: str
+    page: int = 0
+    kind: str = "length"            # measure: length | area | count
+    points: list[list[float]] = []  # drawing coords (bbox units)
+    label: str = ""
+    length: str = ""                # calibrate: real length (12'-6", 3.5 m) or area (15.9 m2)
+    known_id: str | None = None     # calibrate against a known dimension (this or another sheet)
+    scale_id: str | None = None     # choose: answer to the scale question
+
+
+def _m(fn, *a):
+    from . import measure
+    try:
+        return getattr(measure, fn)(*a)
+    except (ValueError, LookupError) as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/measure")
+def measure_get(path: str, page: int = 0):
+    """Scale (with references), the question back when there is none, auto takeoff, stored manual takeoffs."""
+    _safe(path)
+    r = _m("resolve", path, page)
+    r["auto"] = _m("auto", path, page)
+    return r
+
+
+@app.post("/api/measure")
+def measure_add(req: Shape):
+    _safe(req.path)
+    return _m("add_measurement", req.path, req.page, req.kind, req.points, req.label)
+
+
+@app.delete("/api/measure")
+def measure_del(path: str, id: str):
+    _safe(path)
+    return {"deleted": _m("delete_measurement", path, id)}
+
+
+@app.post("/api/measure/calibrate")
+def measure_calibrate(req: Shape):
+    _safe(req.path)
+    return _m("calibrate", req.path, req.page, req.points, req.length, req.known_id, req.label)
+
+
+@app.post("/api/measure/scale")
+def measure_scale(req: Shape):
+    """Pick a candidate scale (scale_id) or, with none, forget the stored one."""
+    _safe(req.path)
+    if req.scale_id:
+        return _m("choose", req.path, req.page, req.scale_id)
+    _m("reset_scale", req.path, req.page)
+    return {"reset": True}
+
+
 class VlmModel(BaseModel):
     model: str
 

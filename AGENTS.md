@@ -105,7 +105,7 @@ One agent, run by one human, keeps the queue full. It edits tickets only, never 
 3. `git push -u origin HEAD`. Fill `.github/pull_request_template.md` into `pr.md`, then `gh pr create --title "T<n>: <summary>" --body-file pr.md` and delete `pr.md`.
 4. Cross-review by the *other* tool: `bash scripts/xreview.sh <n>` (Claude author) or `bash scripts/xreview.sh <n> --author codex`. It posts the comment.
    - Codex from the ChatGPT desktop app is not on PATH; the script finds it (`--which` shows where). Don't conclude Codex is missing from `which codex` alone.
-   - Falls back to a fresh Claude session only when no Codex binary exists.
+   - Other tool missing → fresh session of the same tool. Neither works → any teammate can run it on your PR.
 5. BLOCKING → fix, push, re-run `xreview.sh`. Still BLOCKING after 2 rounds → `set Tn blocked --q "..."` for a human.
 6. `status.mjs set Tn review`.
 7. `bash scripts/merge.sh <n>`. Merges only if the latest cross-review is PASS for the current head commit, CI (`check` workflow) is green and there are no conflicts. Refused → fix what it says, never work around it. The ticket goes `done` by itself.

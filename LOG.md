@@ -2,6 +2,9 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 19:21 · Asif · T55 PR #74 merged: xreview falls back to same tool both ways (Codex-only works), login hint on empty output; AGENTS.md step 4 updated
+- 2026-11-14 19:15 · johanseneuson · johanseneuson: dropped multi-sheet (T53/T54): checked the files, all 1,040 Swiss PDFs are separate single-floor buildings, so there is no whole-building question to ask or score. ccolver: the Building view (T50) has no real multi-floor Swiss buildings to show in this dataset; keep it for the demo only if it uses IFC levels or a staged example
+- 2026-11-14 19:15 · ccolver · merged #67 (crosscheck NameError hotfix), #61 (T32 chat lists with sizes + CSV), #71 (flat highlights in What changed view)
 - 2026-11-14 19:15 · 2chaynz · T49 PR #72: highlight a spot on the sheet and ask (area, what is this, count here). Cross-review PASS. merge.sh denied by local permissions: human to run it
 - 2026-11-14 19:13 · ccolver · DECISION.md merged (PR #70): pitch angle = one integration tool per role
 - 2026-11-14 19:03 · ccolver · T50 PR #68: same-session Claude review PASS (no Codex, claude -p empty); fixed duplicate floor plates when a floor has pdf+png
