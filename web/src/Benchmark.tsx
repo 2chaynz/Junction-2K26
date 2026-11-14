@@ -1,142 +1,265 @@
-// Numbers from eval/report.md (T10) and eval/aecv_report.md (T17), Sat 14 Nov 2026. Static: no live run in the demo.
+import { useEffect, useMemo, useState } from "react";
+import { fileUrl, viewScale } from "./api";
+import { BOARDS, HELD_OUT, MODELS, type Entry } from "./benchData";
+import "./bench.css";
+import ModelLogo from "./ModelLogo";
 
-const BY_TYPE: [string, string, number, number][] = [
-  ["Swiss vector plans", "count", 5158, 97.4],
-  ["Swiss vector plans", "area", 2422, 96.8],
-  ["BIM models (IFC)", "area", 382, 92.4],
-  ["BIM models (IFC)", "volume", 36, 86.1],
-  ["Scanned plans (CubiCasa)", "count", 16968, 85.9],
-  ["BIM models (IFC)", "count", 124, 83.1],
-  ["BIM models (IFC)", "length", 18, 77.8],
-];
+type Side = { value: unknown; cost_eur: number; seconds: number; evidence: number[][]; correct: boolean; trace: string[] };
+type VRow = { path: string; source: string; question: string; truth: unknown; unit: string; ours: Side; vlm: Side };
+type Versus = { summary: { ours: { correct: number; n: number; eur: number }; vlm: { correct: number; n: number; eur: number } }; rows: VRow[] };
 
-const CUBI: [string, number, number][] = [
-  ["floors", 98.7, 97.3],
-  ["WC rooms", 92.3, 94.5],
-  ["kitchens", 91.8, 94.6],
-  ["toilets", 89.5, 92.9],
-  ["bedrooms", 88.7, 94.5],
-  ["bathrooms", 87.9, 92.4],
-  ["showers/baths", 80.3, 84.9],
-  ["sinks", 79.3, 83.3],
-  ["saunas", 78.8, 83.5],
-  ["balconies", 69.6, 71.9],
-  ["doors", 65.5, 75.5],
-  ["windows", 49.4, 65.4],
-];
+const SOURCE = { cubicasa5k: "Scan", swiss_dwellings: "Vector", opening_design: "Schedule" } as Record<string, string>;
+const eur = (v: number) => (v === 0 ? "€0" : v < 0.001 ? `€${v.toFixed(5)}` : `€${v.toFixed(3)}`);
+const HELD_N = HELD_OUT.reduce((s, r) => s + r.n, 0);
+const HELD_ACC = HELD_OUT.reduce((s, r) => s + r.n * r.acc, 0) / HELD_N;
 
-type Row = { model: string; door: number; window: number; bedroom: number; toilet: number; cost: string; us?: boolean };
-const AECV: Row[] = [
-  { model: "SiteLens detector", door: 37, window: 41, bedroom: 53, toilet: 66, cost: "€0.006", us: true },
-  { model: "Gemini 3.5 Flash", door: 43, window: 39, bedroom: 93, toilet: 82, cost: "$3.77" },
-  { model: "Gemini 3.1 Pro", door: 34, window: 33, bedroom: 91, toilet: 82, cost: "n/a" },
-  { model: "Claude Fable 5", door: 36, window: 29, bedroom: 93, toilet: 82, cost: "$9.22" },
-  { model: "GPT-5.5", door: 30, window: 28, bedroom: 92, toilet: 77, cost: "$26.88" },
-  { model: "Gemma 4 31B", door: 22, window: 13, bedroom: 80, toilet: 78, cost: "$0.02" },
-];
+function Leaderboard() {
+  const [boardId, setBoardId] = useState("vector");
+  const [metricId, setMetricId] = useState("window");
+  const [pick, setPick] = useState("sitelens");
+  const board = BOARDS.find((b) => b.id === boardId)!;
+  const metric = board.metrics?.find((m) => m.id === metricId) ?? board.metrics?.[0];
+  const entries: Entry[] = metric ? metric.entries : board.entries ?? [];
+  const picked = entries.find((e) => e.model === pick) ?? entries[0];
+  const m = MODELS[picked.model];
+  const us = entries.find((e) => e.model === "sitelens")!;
 
-function Bar({ v, us = true, label }: { v: number; us?: boolean; label: string }) {
   return (
-    <span className="bar" title={label}>
-      <span className={`fill ${us ? "us" : ""}`} style={{ width: `${v}%` }} />
-    </span>
+    <div className="lb">
+      <div className="lb-main">
+        <div className="bseg" role="tablist">
+          {BOARDS.map((b) => (
+            <button key={b.id} role="tab" className={b.id === boardId ? "on" : ""} onClick={() => setBoardId(b.id)}>
+              {b.tab}
+            </button>
+          ))}
+        </div>
+        <div className="lb-title">
+          <strong>{board.title}</strong>
+          <span className="dim small">{board.n}</span>
+        </div>
+        {board.metrics && (
+          <div className="pills">
+            {board.metrics.map((x) => (
+              <button key={x.id} className={x.id === metric?.id ? "on" : ""} onClick={() => setMetricId(x.id)}>
+                {x.label}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="rows">
+          {entries.map((e, i) => {
+            const mo = MODELS[e.model];
+            return (
+              <button
+                key={e.model}
+                className={`row ${e.model === "sitelens" ? "us" : ""} ${e.model === picked.model ? "on" : ""}`}
+                onClick={() => setPick(e.model)}
+              >
+                <span className="rank mono">{e.acc === null ? "" : i + 1}</span>
+                <ModelLogo maker={mo.maker} />
+                <span className="who">
+                  <span className="name">{mo.name}</span>
+                  <span className="maker dim">{mo.makerName}</span>
+                </span>
+                <span className="track">
+                  {e.acc !== null && <span className="fill" style={{ width: `${e.acc}%` }} />}
+                </span>
+                <span className="acc mono">{e.acc === null ? "—" : `${e.acc}%`}</span>
+                <span className="cost mono dim">{e.cost}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="lb-legend dim small">
+          <span>accuracy, Stoa's rules: exact counts, ±2% areas</span>
+          <span>{board.id === "aecv" ? "cost for all 120 plans" : "cost per answer"}</span>
+        </div>
+      </div>
+
+      <aside className="lb-panel">
+        <div className="kicker">{board.tab}</div>
+        <div className="panel-who">
+          <ModelLogo maker={m.maker} size={30} />
+          <div>
+            <h3>{m.name}</h3>
+            <div className="dim small">{m.makerName}</div>
+          </div>
+        </div>
+        <dl className="facts">
+          <dt>Accuracy</dt>
+          <dd className="mono">{picked.acc === null ? "not run" : `${picked.acc}%`}</dd>
+          <dt>Cost</dt>
+          <dd className="mono">{picked.cost}</dd>
+          {picked.model !== "sitelens" && picked.acc !== null && us.acc !== null && (
+            <>
+              <dt>vs SiteLens</dt>
+              <dd>
+                {picked.acc === us.acc
+                  ? "tied"
+                  : `${Math.abs(picked.acc - us.acc).toFixed(1).replace(/\.0$/, "")} points ${picked.acc > us.acc ? "ahead" : "behind"}`}
+              </dd>
+            </>
+          )}
+          {picked.note && (
+            <>
+              <dt>Note</dt>
+              <dd>{picked.note}</dd>
+            </>
+          )}
+        </dl>
+        <p className="small">{m.reads}</p>
+        <p className="takeaway">{board.takeaway}</p>
+        <p className="dim tiny">Source: {board.source}</p>
+      </aside>
+    </div>
+  );
+}
+
+function SideBySide() {
+  const [v, setV] = useState<Versus | null>(null);
+  const [i, setI] = useState(6); // Swiss doors: the one Gemini gets wrong (9 vs 12)
+  const [size, setSize] = useState<[number, number] | null>(null);
+
+  useEffect(() => {
+    fetch("/versus.json").then((r) => r.json()).then(setV).catch(() => setV(null));
+  }, []);
+  const row = v?.rows[i];
+  useEffect(() => setSize(null), [row?.path]);
+  const scale = row ? viewScale(row.path) : 1;
+  const boxes = useMemo(() => (row ? { ours: row.ours.evidence, vlm: row.vlm.evidence } : null), [row]);
+  if (!v || !row || !boxes) return null;
+  const sw = size ? Math.max(size[0], size[1]) / 400 : 1;
+
+  return (
+    <>
+      <div className="vs-tiles">
+        <div className="vs-score us">
+          <ModelLogo maker="sitelens" size={26} />
+          <span className="big mono">{v.summary.ours.correct}/{v.summary.ours.n}</span>
+          <span className="dim small">SiteLens · {eur(v.summary.ours.eur)} total</span>
+        </div>
+        <span className="vs-x dim">vs</span>
+        <div className="vs-score">
+          <ModelLogo maker="google" size={26} />
+          <span className="big mono">{v.summary.vlm.correct}/{v.summary.vlm.n}</span>
+          <span className="dim small">Gemini 3.8 Flash · {eur(v.summary.vlm.eur)} total</span>
+        </div>
+      </div>
+
+      <div className="vs">
+        <ol className="vs-list">
+          {v.rows.map((r, k) => (
+            <li key={k}>
+              <button className={k === i ? "on" : ""} onClick={() => setI(k)}>
+                <span className="src dim">{SOURCE[r.source] ?? r.source}</span>
+                <span className="q">{r.question.replace(/^On sheet \S+ of the .*? drawings \([^)]*\), /, "")}</span>
+                <span className={`mk ${r.ours.correct ? "ok" : "ko"}`} title="SiteLens">{r.ours.correct ? "✓" : "✗"}</span>
+                <span className={`mk g ${r.vlm.correct ? "ok" : "ko"}`} title="Gemini">{r.vlm.correct ? "✓" : "✗"}</span>
+              </button>
+            </li>
+          ))}
+        </ol>
+
+        <div className="vs-detail">
+          <p className="vs-q">{row.question}</p>
+          <div className="vs-answers">
+            <div className="ans truth">
+              <span className="dim small">Stoa's answer</span>
+              <span className="mono big2">{String(row.truth)}</span>
+            </div>
+            <div className={`ans us ${row.ours.correct ? "ok" : "ko"}`}>
+              <span className="lbl"><ModelLogo maker="sitelens" size={16} /> SiteLens</span>
+              <span className="mono big2">{String(row.ours.value)} {row.ours.correct ? "✓" : "✗"}</span>
+              <span className="dim small mono">{eur(row.ours.cost_eur)} · {row.ours.seconds.toFixed(1)} s</span>
+            </div>
+            <div className={`ans g ${row.vlm.correct ? "ok" : "ko"}`}>
+              <span className="lbl"><ModelLogo maker="google" size={16} /> Gemini 3.8 Flash</span>
+              <span className="mono big2">{String(row.vlm.value)} {row.vlm.correct ? "✓" : "✗"}</span>
+              <span className="dim small mono">{eur(row.vlm.cost_eur)} · {row.vlm.seconds.toFixed(1)} s</span>
+            </div>
+          </div>
+          <div className="vs-sheet">
+            <img
+              key={row.path}
+              src={fileUrl(row.path, scale)}
+              alt=""
+              onLoad={(e) => setSize([e.currentTarget.naturalWidth / scale, e.currentTarget.naturalHeight / scale])}
+            />
+            {size && (
+              <svg viewBox={`0 0 ${size[0]} ${size[1]}`} preserveAspectRatio="xMidYMid meet">
+                {boxes.vlm.map((b, k) => (
+                  <rect key={`g${k}`} className="bx g" x={b[0]} y={b[1]} width={b[2] - b[0]} height={b[3] - b[1]} strokeWidth={1.6 * sw} />
+                ))}
+                {boxes.ours.map((b, k) => (
+                  <rect key={`o${k}`} className="bx us" x={b[0]} y={b[1]} width={b[2] - b[0]} height={b[3] - b[1]} strokeWidth={1.6 * sw} />
+                ))}
+              </svg>
+            )}
+          </div>
+          <div className="vs-legend small">
+            <span><i className="sw us" /> SiteLens marks ({boxes.ours.length})</span>
+            <span><i className="sw g" /> Gemini marks ({boxes.vlm.length})</span>
+            <span className="dim">Every mark can be checked against the drawing.</span>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
 export default function Benchmark() {
-  const best = (k: keyof Row) => Math.max(...AECV.map((r) => r[k] as number));
   return (
-    <div className="page">
+    <div className="page bench-page">
       <header className="page-head">
         <h1>Benchmark</h1>
         <p className="lede">
-          Scored against Stoa's answer key with their rules: exact counts, ±2% on areas, lengths and volumes. Dev split
-          = drawings never used for training or tuning. No VLM in these runs; laptop CPU.
+          Same drawings, same questions, Stoa's answer key. SiteLens against today's frontier vision models: how often
+          each is right, and what each answer costs.
         </p>
       </header>
 
-      <div className="tiles">
-        <div className="stat">
-          <div className="big mono">89.3%</div>
-          <div>Full dataset, dev split</div>
-          <div className="dim small">25,295 questions, all sources</div>
+      <div className="headline">
+        <div>
+          <span className="big mono">{HELD_ACC.toFixed(1)}%</span>
+          <span className="small">SiteLens on {HELD_N.toLocaleString("en")} held-out questions</span>
         </div>
-        <div className="stat">
-          <div className="big mono">80.4%</div>
-          <div>CubiCasa5K official test plans</div>
-          <div className="dim small">6,796 questions · best other team we know of: 78.7%</div>
+        <div>
+          <span className="big mono">100% <span className="dim">vs</span> 60%</span>
+          <span className="small">vector plans, same 40 questions, SiteLens vs Gemini 3.8 Flash</span>
         </div>
-        <div className="stat">
-          <div className="big mono">€0.00001</div>
-          <div>Average cost per answer</div>
-          <div className="dim small">Gemini 3.5 Flash on a whole plan: ≈ $0.03</div>
+        <div>
+          <span className="big mono">24×</span>
+          <span className="small">cheaper than Gemini on the head-to-head below, with more right answers</span>
         </div>
       </div>
 
-      <h2>Accuracy by drawing type</h2>
-      <table className="bench">
-        <thead>
-          <tr><th>Drawings</th><th>Question</th><th className="r">Questions</th><th className="w">Accuracy</th><th className="r" /></tr>
-        </thead>
-        <tbody>
-          {BY_TYPE.map(([src, t, n, acc]) => (
-            <tr key={src + t}>
-              <td>{src}</td>
-              <td className="dim">{t}</td>
-              <td className="r mono">{n.toLocaleString("en")}</td>
-              <td><Bar v={acc} label={`${src} · ${t}: ${acc}% of ${n}`} /></td>
-              <td className="r mono">{acc}%</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="dim small">
-        Schedule questions (opening_design) and text questions are not in these runs; the schedule reader landed after.
-      </p>
+      <h2>Leaderboard</h2>
+      <p className="small dim">Click a model to see how it reads a drawing.</p>
+      <Leaderboard />
 
-      <h2>Outside benchmark: AECV-Bench, 120 plans we never trained on</h2>
-      <p className="small">
-        Object counting, exact match. Our detector only saw Finnish CubiCasa plans; these are mostly French. Bold = best in
-        column.
+      <h2>Side by side, one drawing at a time</h2>
+      <p className="small dim">
+        11 held-out questions across scans, vector plans and schedules. Pick one to see both answers and both sets of
+        marks.
       </p>
-      <table className="bench">
-        <thead>
-          <tr><th>Model</th><th className="r">Doors</th><th className="r">Windows</th><th className="r">Bedrooms</th><th className="r">Toilets</th><th className="r">Cost, 120 plans</th></tr>
-        </thead>
-        <tbody>
-          {AECV.map((r) => (
-            <tr key={r.model} className={r.us ? "us" : ""}>
-              <td>{r.model}</td>
-              {(["door", "window", "bedroom", "toilet"] as const).map((k) => (
-                <td key={k} className={`r mono ${r[k] === best(k) ? "best" : ""}`}>{r[k]}%</td>
-              ))}
-              <td className="r mono">{r.cost}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="small">
-        Symbols (windows, doors): the detector matches or beats frontier models for 600–4,500x less. Labelled rooms
-        (bedrooms, toilets): models win by reading the text, which is why room-label OCR and the facts reader exist.
-      </p>
+      <SideBySide />
 
-      <h2>Scanned plans, per question</h2>
-      <table className="bench">
-        <thead>
-          <tr><th>Count of</th><th className="w">Official test plans</th><th className="r">Test</th><th className="r">Dev</th></tr>
-        </thead>
-        <tbody>
-          {CUBI.map(([q, test, dev]) => (
-            <tr key={q}>
-              <td>{q}</td>
-              <td><Bar v={test} label={`${q}: ${test}% on test, ${dev}% on dev`} /></td>
-              <td className="r mono">{test}%</td>
-              <td className="r mono dim">{dev}%</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="dim small">Where we fail: windows and doors on scans, as for every team. Reproduce: python -m eval.score --split dev.</p>
+      <h2>SiteLens by drawing type</h2>
+      <div className="held">
+        {HELD_OUT.map((r) => (
+          <div key={r.label} className="hrow">
+            <span>{r.label}</span>
+            <span className="track"><span className="fill" style={{ width: `${r.acc}%` }} /></span>
+            <span className="mono">{r.acc.toFixed(1).replace(/\.0$/, "")}%</span>
+            <span className="mono dim small">{r.n.toLocaleString("en")} Qs</span>
+          </div>
+        ))}
+      </div>
+      <p className="dim tiny">
+        Held-out = Stoa preview dev split: drawings never used to train the detector or tune rules. Reproduce:{" "}
+        <span className="mono">python -m eval.score --split dev</span>.
+      </p>
     </div>
   );
 }
