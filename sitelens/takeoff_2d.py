@@ -419,7 +419,7 @@ def _unbounded_schedule(text, tables, has_plan, bounded=False):
     return bool((SCHEDULE_TITLE.search(text) or tables) and not (bounded and has_plan))
 
 
-def _scan_metadata(labels, load_image, native_text="", has_schedule=False, bounded_schedule=False):
+def _scan_metadata(labels, load_image, native_text="", has_schedule=False, bounded_schedule=False, allow_unlabeled=False):
     text = "\n".join([*(label for label, _ in labels), *native_text.splitlines()])
     has_plan = bool(PLAN_TITLE.search(text))
     has_other = bool(NON_PLAN_VIEW.search(text))
@@ -427,10 +427,14 @@ def _scan_metadata(labels, load_image, native_text="", has_schedule=False, bound
     if has_plan and has_other:
         regions, unbounded = _scan_views(load_image(), labels)
     # OCR headings alone cannot bound a schedule or its illustrations.
-    excluded = not has_plan or len(list(PLAN_TITLE.finditer(text))) > 1 or unbounded or _unbounded_schedule(text, has_schedule, has_plan, bounded_schedule)
+    plan_count = len(list(PLAN_TITLE.finditer(text)))
+    excluded = ((not has_plan and not allow_unlabeled) or plan_count > 1 or unbounded
+                or _unbounded_schedule(text, has_schedule, has_plan, bounded_schedule))
     issue = UNKNOWN_VIEW_SCALE if NOT_TO_SCALE.search(text) else ""
     if not issue and (has_other or len(list(PLAN_TITLE.finditer(text))) > 1):
         issue = "This sheet has multiple views; the applicable scale is unknown."
+    if not issue and not has_plan and allow_unlabeled:
+        issue = "No plan heading was identified; the applicable scale is unknown."
     return regions, excluded, issue
 
 
@@ -479,7 +483,7 @@ def _sheet(path, root, mtime, weights_mtime):
             with Image.open(root / path) as image:
                 return np.asarray(image.convert("L"))
 
-        regions, excluded, scale_issue = _scan_metadata(words, gray)
+        regions, excluded, scale_issue = _scan_metadata(words, gray, allow_unlabeled=True)
         objects = [] if excluded else [obj for obj in _detected(path)
                                       if _outside_schedule(obj[1].bbox, regions)]
         return [(0, objects, words, bars, scale_issue, False)], False, [], int(excluded)
