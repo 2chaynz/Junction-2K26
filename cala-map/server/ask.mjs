@@ -51,7 +51,7 @@ async function calaSearch(question, key) {
     for (const bit of body.context ?? []) {
       for (const o of bit.origins ?? []) {
         const ref = o.document?.url ? o.document : o.source
-        if (ref?.url && !sources.has(ref.url)) sources.set(ref.url, { name: ref.name || new URL(ref.url).hostname, url: ref.url })
+        if (ref?.url && !sources.has(ref.url)) sources.set(ref.url, { name: ref.name || ref.url.replace(/^https?:\/\//, '').split('/')[0], url: ref.url })
       }
     }
     return {
