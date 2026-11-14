@@ -685,7 +685,18 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
             </span>
           ))}
       </div>
-      {status && <div className="empty overlay">{status}</div>}
+      {status && (
+        <div className="empty overlay">
+          {status.startsWith("Loading") ? (
+            <div className="bld-loader">
+              <div className="bld"><div className="bld-spin">
+                {[0, 1, 2].map((k) => <div key={k} className="bld-floor"><i /><i /><i /><i /></div>)}
+              </div></div>
+              {status}
+            </div>
+          ) : status}
+        </div>
+      )}
       {busy && <div className="busy" />}
 
       <div className="viewer-tools">

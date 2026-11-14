@@ -21,6 +21,7 @@ import Takeoff, { levelLabel, projectLanguage, type Row } from "./Takeoff";
 import Stack from "./Stack";
 import type { Answer, Drawing, Mark, Msg, Shape, Step, Tool, Turn } from "./types";
 import Viewer from "./Viewer";
+import { TabInk } from "./motion";
 import VlmBadge from "./VlmBadge";
 
 // three.js + web-ifc are ~4 MB: only fetch them when a model is opened in 3D.
@@ -492,12 +493,13 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
           {revisionDemo ? <><a className="btn" href="?demo">Replay</a><a className="btn" href={location.pathname}>All projects</a></> :
             <><a className="btn" href="?demo">Final demo</a><VlmBadge /></>}
         </div>
-        <nav className="tabs subnav">
+        <nav className="tabs subnav inked">
           {(revisionDemo ? [demoEntered ? "Drawings" : "Projects"] as const : inProject ? PROJECT_TABS : HOME_TABS).map((t) => (
             <button key={t} className={t === tab ? "on" : ""} onClick={() => setTab(t)}>
               {t}
             </button>
           ))}
+          <TabInk dep={`${tab}|${inProject}|${revisionDemo}`} />
         </nav>
       </header>
 
