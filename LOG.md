@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 18:32 · johanseneuson · johanseneuson: backend for 3 of the 4 viz ideas is in: T41 PDF markup export (merged), T42 near-miss candidates for review mode (merged; 33/53 detector errors become one-click fixes), T43 evidence crops for a proof strip (PR #60). UI owner: these need the frontend buttons/strip, see PR bodies for sketches
 - 2026-11-14 18:31 · 2chaynz · T29 PR #59: newest-VLM check. CLI python -m sitelens.vlm_backends --upgrade (saves .env), GET/POST /api/vlm, top-bar VLM chip turns into Update button
 - 2026-11-14 18:27 · ccolver · found: IFC path counts IfcCurtainWall as walls; Stoa key excludes them (clinic 1111 vs key 1080, digitalhub v1 179 vs 178, x2 models). Fix = drop IfcCurtainWall from ELEMENTS walls in sitelens/paths/ifc.py
 - 2026-11-14 18:23 · johanseneuson · johanseneuson: PR #54 T41 export: POST /api/export turns any answer into a redlined PDF (numbered rect annotations + comment per mark + note with Q/A/cost/trace), opens in Bluebeam/Acrobat. Needs one 'Download markup' button on the answer card (UI owner)
