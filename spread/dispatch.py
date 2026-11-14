@@ -44,9 +44,12 @@ class Params:
     town_risk: float = 0.0
     min_slack: int = 3 * HOUR
     urgent_lead: int = 6 * HOUR
-    max_backlog: int = 15
+    max_backlog: int = 40
     backlog_free: int = 5
     backlog_cost: float = 0.05
+    # Level 8 thins drivers town by town: pickups with few drivers nearby go late.
+    min_supply: int = 60
+    supply_minutes: int = 60
 
 
 def default_params() -> Params:
@@ -105,6 +108,13 @@ class SmartDesk(Desk):
         self.quoted: dict[str, float] = {}  # request id -> lowest quoted price/list ratio
         self.held: dict[str, int] = {}  # order id -> minute won, waiting for a partner
         self.paired = 0
+        homes: dict[str, int] = {}
+        for driver in world.roster():
+            homes[driver["homePlaceId"]] = homes.get(driver["homePlaceId"], 0) + 1
+        self.homes = homes
+        self.supply_cache: dict[str, int] = {}
+        self.ledger: dict[str, int] = {}
+        self.counts: dict[str, int] = {}
 
     # --- quotes -------------------------------------------------------------
 
@@ -128,7 +138,8 @@ class SmartDesk(Desk):
     def quote_winprob(self, request: PriceRequest) -> None:
         """Quotes the price/list ratio that maximises P(win) x (price - cost)."""
         backlog = self.backlog()
-        if backlog >= self.p.max_backlog:
+        thin = min(self.supply(l["pickup"]["placeId"]) for l in request["legs"]) < self.p.min_supply
+        if backlog >= self.p.max_backlog or thin:
             prices = {o["kind"]: o["listPriceCents"] * 10 for o in request["options"]}
             self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
             return
@@ -155,6 +166,13 @@ class SmartDesk(Desk):
             prices[option["kind"]] = int(listed * best_x) if best_x else listed * 10
         self.quoted[request["id"]] = min(prices[o["kind"]] / o["listPriceCents"] for o in request["options"])
         self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
+
+    def supply(self, place: str) -> int:
+        """Drivers living within `supply_minutes` of the place."""
+        if place not in self.supply_cache:
+            self.supply_cache[place] = sum(n for home, n in self.homes.items()
+                                           if home == place or self.roads(home, place) <= self.p.supply_minutes)
+        return self.supply_cache[place]
 
     def order_of(self, gig_id) -> str:
         action = self.posts.get(gig_id or "")
@@ -207,6 +225,10 @@ class SmartDesk(Desk):
         self.dealer_markup[request["dealerId"]] = min(self.p.max_markup, max(self.p.min_markup, m))
 
     def handle(self, event) -> None:
+        self.counts[event["kind"]] = self.counts.get(event["kind"], 0) + 1
+        if event["kind"] == "ledger":
+            line = event["line"]
+            self.ledger[line["kind"]] = self.ledger.get(line["kind"], 0) + line["cents"]
         if event["kind"] == "order_lost":
             self.learn(event["requestId"], False)
         elif event["kind"] == "order_won":
@@ -397,6 +419,8 @@ def play_practice(world: World, level: int, params: Params, roads: Roads, quiet:
             report(WEEKDAYS[day % 7], world.score())
     score = world.score()
     score["paired"] = desk.paired
+    score["ledger"] = desk.ledger
+    score["counts"] = desk.counts
     return score
 
 
