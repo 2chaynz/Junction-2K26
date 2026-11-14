@@ -42,7 +42,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T35 Cross-review script that finds Codex (ChatGPT app install) | setup |  | Asif | done | asif/T35-xreview |  |  |
 | T36 Live reasoning in chat: verifiable steps while answering | app | T34 | 2chaynz | doing | 2chaynz/T36-live-reasoning |  |  |
 | T37 Reasoning stream backend: router steps + /api/ask/stream | ai |  | 2chaynz | done | 2chaynz/T37-reasoning-stream |  |  |
-| T38 One-command local start (scripts/dev.mjs) | setup |  | Asif | review | asif/T38-dev-script |  |  |
+| T38 One-command local start (scripts/dev.mjs) | setup |  | Asif | done | asif/T38-dev-script |  |  |
 | T39 Ask back when unclear: clarify + reformulate | ai |  |  | todo |  |  |  |
 | T40 IFC floors: storey picker, 2D plan per floor, toggles, element info | app |  |  | todo |  |  |  |
 | T41 Export redline as PDF markup (Bluebeam) | app |  | johanseneuson | doing | johanseneuson/T41-export |  |  |
