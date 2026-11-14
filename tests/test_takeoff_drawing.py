@@ -82,7 +82,7 @@ class DrawingTakeoff(unittest.TestCase):
                         page.set_rotation(270)
                     if layout == "later page":
                         page = doc.new_page()
-                    if layout in ("same page", "later page", "numeric label", "unrelated placement"):
+                    if layout in ("same page", "numeric label", "unrelated placement"):
                         page.insert_text((100, 380), "GROUND FLOOR PLAN")
                     if layout in ("same page", "later page", "numeric label"):
                         page.insert_text((110, 405), "900" if layout == "numeric label" else "101.A")
@@ -155,12 +155,15 @@ class DrawingTakeoff(unittest.TestCase):
                 plan.insert_text((50, 70), "Scale 1:100")
                 plan.insert_text((50, 90), "Inset: N.T.S.")
                 plan.insert_text((50, 110), "SEE DETAILS")
+                plan.insert_text((400, 50), "EAST ELEVATION")
                 elevation = doc.new_page()
                 elevation.insert_text((50, 50), "NORTH ELEVATION")
                 doc.save(Path(d) / path)
 
             def detected(path, page):
                 return [("Windows", Evidence(path, [200, 100, 230, 104], page=page.number),
+                         "Detected symbol", None),
+                        ("Windows", Evidence(path, [410, 100, 440, 104], page=page.number),
                          "Detected symbol", None)]
 
             with patch.object(takeoff_2d, "_detected", side_effect=detected) as detector:
