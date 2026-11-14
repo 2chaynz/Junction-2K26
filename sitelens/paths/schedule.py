@@ -16,7 +16,9 @@ from .. import data_root
 from ..answer import Answer, Evidence
 
 DEBUG = False
-ROW_GAP = 5.0          # pt: words within this vertical distance share a row (scaled by font size)
+ROW_GAP = 5.0
+HEADER_WORDS = {"count", "type", "mark", "door", "number", "room", "area", "width", "height", "window", "size",
+                "no", "no.", "id", "tag", "level", "frame", "finish", "code", "key", "unit", "qty", "item", "name"}          # pt: words within this vertical distance share a row (scaled by font size)
 
 
 @dataclass
@@ -64,7 +66,7 @@ def _join_tokens(ws) -> list[tuple[float, float, str]]:
         h = w[3] - w[1]
         if out and w[0] - out[-1][1] < h * 0.6:
             out[-1][1] = w[2]
-            out[-1][2] += (" " if w[0] - out[-1][1] > h * 0.12 else "") + w[4]
+            out[-1][2] += " " + w[4]   # PDF words are real words: keep the space
         else:
             out.append([w[0], w[2], w[4]])
     return [tuple(o) for o in out]
@@ -74,6 +76,7 @@ def _join_tokens(ws) -> list[tuple[float, float, str]]:
 def extract(path: str) -> list[Table]:
     W = _words(path)
     tables = []
+    titles = [w for w in W if w[4].lower() in ("schedule", "schedules", "key", "legend")]
     for i, w in enumerate(W):
         if w[4].lower() not in ("schedule", "schedules", "key", "legend"):
             continue
@@ -83,7 +86,11 @@ def extract(path: str) -> list[Table]:
             continue
         cx = (w[0] + w[2]) / 2
         # candidate region: below the title, horizontally around it; grow until a big vertical gap
-        below = [x for x in W if x[1] > w[3] and abs((x[0] + x[2]) / 2 - cx) < 560]
+        # horizontal reach: halfway to the nearest other title that sits at a similar height
+        others = [abs((o[0] + o[2]) / 2 - cx) for o in titles if o is not w and abs(o[1] - w[1]) < 600
+                  and abs((o[0] + o[2]) / 2 - cx) > 50]
+        reach = min([800.0] + [d / 2 for d in others])
+        below = [x for x in W if x[1] > w[3] and abs((x[0] + x[2]) / 2 - cx) < reach]
         rows = _rows(below)
         body, last_y = [], w[3]
         for r in rows:
@@ -96,7 +103,11 @@ def extract(path: str) -> list[Table]:
             continue
         if DEBUG: print("cand", title, len(body), [r[0][4] for r in body[:6]])
         # header = rows before the first row whose first token looks like an id (100.A1, 128, 101)
-        first = next((k for k, r in enumerate(body) if re.match(r"^\d{2,4}(\.[A-Z0-9]+)?$|^[A-Z]{1,3}-?\d", r[0][4])), None)
+        def is_data(r):
+            t0 = r[0][4]
+            return (len(r) >= 3 and re.fullmatch(r"[A-Z0-9][A-Za-z0-9.\-/]{0,9}", t0) is not None
+                    and t0.lower() not in HEADER_WORDS)
+        first = next((k for k, r in enumerate(body) if k > 0 and is_data(r)), None)
         if not first:
             continue
         head_rows, data_rows = body[:first], body[first:]
@@ -154,7 +165,10 @@ Question: {q}
 
 {tables}
 
-Reply with JSON only: {{"answer": <number for counts/areas, otherwise short text exactly as written on the sheet>,
+Answer style: counts and areas as a bare number (no units). Dimensions exactly as written (e.g. 5'-10 3/8").
+When asked what a code is or means (door type, finish, base, wall, ceiling), answer "CODE - description" using the
+key/legend table, e.g. "F4 - resilient flooring (T.B.D.)". Several values: join with " & ".
+Reply with JSON only: {{"answer": <number or short text>,
 "table": "<title of the table you used>", "rows": [<row indexes you used>]}}
 If the tables cannot answer the question, reply {{"answer": null}}."""
 EUR_PER_MTOK = (0.30, 2.50)
@@ -193,8 +207,12 @@ def _llm(path: str, question: str, tables: list[Table]) -> Answer | None:
     t = next((t for t in tables if t.title == j.get("table")), tables[0])
     idx = [i for i in j.get("rows") or [] if isinstance(i, int) and 0 <= i < len(t.rows)]
     v = j["answer"]
-    if isinstance(v, str) and re.fullmatch(r"[\d,]+(\.\d+)?", v.strip()):
-        v = float(v.replace(",", ""))
+    if isinstance(v, str) and re.fullmatch(r"[\d,]+(\.\d+)?\s*(SF|sq\.? ?ft|m2|m²)?", v.strip(), re.I):
+        v = float(re.sub(r"[^\d.]", "", v))
+    if isinstance(v, str):
+        v = re.sub(r"(\d)' - (\d)", r"'-", v)   # 5' - 10 3/8" -> 5'-10 3/8" (as printed)
+    if isinstance(v, float) and v.is_integer():
+        v = int(v)
     return Answer(value=v, unit=None, method="vector+llm", confidence=0.7, cost_eur=round(cost, 6),
                   evidence=[Evidence(file=path, bbox=t.boxes[i], label=" | ".join(c for c in t.rows[i] if c)[:80]) for i in idx],
                   trace=[f"{len(tables)} tables extracted from the sheet's text layer", f"{model} read table '{t.title}'",
