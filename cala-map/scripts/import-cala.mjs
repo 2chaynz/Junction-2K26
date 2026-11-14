@@ -36,7 +36,7 @@ async function call(method, path, body) {
       await new Promise((r) => setTimeout(r, 2000 * 2 ** attempt))
       continue
     }
-    const data = await res.json()
+    const data = await res.json().catch(() => ({}))
     if (!res.ok || data.response_type === 'ERROR') {
       console.warn(`  ${res.status} ${path}`, JSON.stringify(data).slice(0, 200))
       if (res.status === 402 && !broke) {

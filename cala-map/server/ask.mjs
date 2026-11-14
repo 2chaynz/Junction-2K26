@@ -94,8 +94,8 @@ async function calaRounds(id, key) {
       headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
       body: JSON.stringify(ROUND_QUERY),
       signal: AbortSignal.timeout(60000),
-    })
-    const d = await res.json()
+    }).catch((e) => ({ ok: false, status: e.name === 'TimeoutError' ? 'timeout' : 'network' }))
+    const d = res.ok ? await res.json().catch(() => ({})) : {}
     if (!res.ok || !d.properties) return { id: r.id, name: r.name, date: r.date, error: `Cala ${res.status}` }
     const v = (k) => d.properties[k]?.value ?? null
     const sources = Object.values(d.properties).flatMap((p) => p?.sources ?? [])

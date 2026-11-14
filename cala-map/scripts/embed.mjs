@@ -147,8 +147,10 @@ const vec = gemini ?? new Map(startups.map((s, i) => [s.id, fallback[i]]))
 // Sector by vote of the 15 most similar labelled startups, weighted by similarity.
 const labelled = startups.filter((s) => s.sector)
 const unlabelled = startups.filter((s) => !s.sector)
+if (unlabelled.length && !labelled.length) throw new Error('no startup has a sector to learn from')
 for (const s of unlabelled) {
   const v = vec.get(s.id)
+  if (!v) throw new Error(`no embedding for ${s.name}`)
   const near = labelled.map((o) => ({ o, sim: dot(v, vec.get(o.id)) })).sort((a, b) => b.sim - a.sim).slice(0, 15)
   const votes = new Map()
   for (const { o, sim } of near) votes.set(o.sector, (votes.get(o.sector) ?? 0) + sim)
