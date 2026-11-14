@@ -57,6 +57,7 @@ GET  /api/random                                      → {"path", "question"} f
 GET  /api/vlm                                         → {"backend", "current", "latest", "available": [...]}: latest = newer model of the same family, else null
 POST /api/vlm   {"model": "…"}                        → same shape; switches the VLM model for this server process (no .env write); 400 if unknown
 ```
+- `/api/ask` and `/api/ask/stream` take an optional `region: {"page", "bbox", "points": [[x, y]...], "r"}` (T49): a highlighter stroke on the shown sheet (`view`), same units as `bbox`, `r` = brush radius. The answer is about that spot only (`sitelens/region.py`): `method` `region`, `<path>+region` (counts kept inside the mark) or `vlm` (crop). First evidence is the mark itself, label `your mark`. No clarify, no `check`.
 - `/api/ask` adds `time_s`, `view` (file the UI shows; IFC → its rendered plan) and, when the question is Stoa's, `check: {expected, unit, match}`.
 - No path answers → `/api/ask` adds `tried: [path names]`. With `GEMINI_API_KEY` set, a question that isn't about the drawing gets `method: "general"`, text `value`, no evidence, no `check`.
 - Vague question (not one of Stoa's) → `method: "clarify"`, `value: null`, `clarify: {"ask": "Which floor?", "options": [full reformulated questions]}`, no evidence. UI shows the options; picking one asks it. Rules first, then Gemini (`sitelens/clarify.py`).
