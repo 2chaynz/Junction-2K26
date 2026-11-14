@@ -2,22 +2,34 @@
 
 Sat 14 Nov 2026 · commit `bda132f` (main + detector v2 weights, `gh release download detector-v2`) · router, no VLM key (VLM path off) · CPU laptop.
 
-## Headline
-| Set | Qs | Accuracy | €/answer |
-|---|---|---|---|
-| Full dataset, dev split (all sources) | 25,295 (25,125 graded) | **89.3%** | 0.00001 |
-| Full dataset, CubiCasa5K official test plans | 6,796 | **80.4%** | 0.00001 |
-| Preview, dev split | 1,856 | 89.9% | 0.00001 |
+## Headline (held out: use these in the pitch)
+| Set | Accuracy | €/answer |
+|---|---|---|
+| Preview dev split, all sources | **91.9%** | 0.00001 (rules) · ~0.004 schedules (Gemini) |
+| · scanned plans (CubiCasa5K) | **83.6%** | 0.00001 |
+| · Swiss vector plans | 97.4% | 0 |
+| · BIM / IFC | 100% | 0 |
+| · schedules (opening_design) | 94.1% | ~0.004 |
 
-- Same 6,796 Qs on 387 plans as easyiowa's "official test split" (78.7%). We're +1.7 pts.
-- Our detector never saw any Stoa drawing (`train/exclude.py`). easyiowa trains on the Stoa train-split plans.
+- Detector v2 trained on all CubiCasa5K plans except the 241 preview plans, so only the preview plans are clean for scans. Numbers: johanseneuson, after PR #87 (NMS 0.4), LOG 21:15 / 22:01. The NMS value was picked on these plans: slightly optimistic, small set.
+- Stoa's CubiCasa answers are the public CubiCasa5K labels, so a plan seen in training means its answers were seen.
+- Schedules need `GEMINI_API_KEY` (T76). Without it the rules fallback gets 20 of 64.
+- No fair comparison with easyiowa's 78.7% on the official test plans: our detector trained on those plans.
 - Text questions (ifc_bench, opening_design text) are not auto-graded.
+
+## Not held out (do not quote)
+| Set | Qs | Accuracy | Why not |
+|---|---|---|---|
+| Full dataset, dev split (all sources) | 25,295 | 89.3% | its CubiCasa plans were in detector training |
+| Full dataset, CubiCasa5K official test plans | 6,796 | 80.4% | same: test plans were in training |
+
+- The 74%-data retrain that held out dev + test plans scored 77.7% on the preview plans (weaker model, not shipped); its test-plan score was never logged.
 
 ## Splits
 - The Stoa dataset ships no split. `--split test` = cubicasa5k plans listed in public CubiCasa5K `test.txt` (`eval/cubicasa_test.txt`, 400 ids, 387 in Stoa). Other sources have no test split.
 - `--split dev` = our hash split (`eval/split.py`), ~20% of drawings.
 
-## Full dataset, dev split
+## Full dataset, dev split (CubiCasa rows not held out)
 | source | type | n | acc |
 |---|---|---|---|
 | cubicasa5k | count | 16,968 | 85.9% |
@@ -30,9 +42,9 @@ Sat 14 Nov 2026 · commit `bda132f` (main + detector v2 weights, `gh release dow
 | opening_design | count | 17 | 0% |
 
 - IFC is lower than on the preview (100%): two dev models not in the preview. bsc-duplex 12/38, bsc-gymzaal-amersfoort 97/128, bsc-molio 392/394.
-- opening_design: T11 (schedule tables) is not on this commit.
+- opening_design: T11 (schedule tables) was not on this commit. With Gemini, dev counts are now 17/17 (T76).
 
-## CubiCasa per question
+## CubiCasa per question (both columns were in detector training: use for relative gaps only)
 | question | test (6,796) | full dev (16,968) |
 |---|---|---|
 | floors | 98.7% | 97.3% |
@@ -49,7 +61,6 @@ Sat 14 Nov 2026 · commit `bda132f` (main + detector v2 weights, `gh release dow
 | windows | 49.4% | 65.4% |
 
 - Windows and doors are the gap, as for every team.
-- The test plans are harder than dev (80.4% vs 85.9%), so compare test with test only.
 
 ## Reproduce
 ```
