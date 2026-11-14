@@ -101,7 +101,8 @@ export function useRevisionDemo(enabled: boolean, entered: boolean, onOpen: () =
     const previous = active === null ? undefined : messages[active];
     const priorFloor = previous?.kind === "answer" && previous.answer.view === demoPath
       && String(previous.answer.value).startsWith("Floor 2");
-    const focused = floor || (wantsTakeoff && priorFloor);
+    const wholeBuilding = /\b(all changes|whole building|entire building|all floors|every floor)\b/.test(q);
+    const focused = floor || (wantsTakeoff && priorFloor && !wholeBuilding);
     const rows = focused ? changes.filter((row) => row.level === "Level 2") : changes;
     const scope = focused ? "Floor 2" : "Whole building";
     const answer = revisionAnswer(rows, scope);
