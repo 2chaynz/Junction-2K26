@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fileUrl, viewScale } from "./api";
 import { changeKind } from "./Changes";
 import { fmtAnswer } from "./format";
-import type { Answer } from "./types";
+import type { Answer, Shape, Tool } from "./types";
 
 type Props = {
   view: string;
@@ -14,7 +14,34 @@ type Props = {
   onSize?: (w: number, h: number) => void;
   busy: boolean;
   changes?: boolean; // revision diff: colour marks by added / removed / changed, no margin note
+  // Measure: takeoff shapes to draw, the active draw tool and the scale for the live readout.
+  shapes?: Shape[];
+  tool?: Tool | null;
+  mpu?: number | null;
+  hotShape?: string | null;
+  onShapeHover?: (id: string | null) => void;
+  onShapeClick?: (id: string) => void;
+  onDraw?: (points: number[][]) => void;
+  zoomTo?: number[] | null; // [x0,y0,x1,y1] to fit, e.g. a reference box
 };
+
+const CLOSED: Tool[] = ["area", "calarea"];
+
+function readout(pts: number[][], tool: Tool, mpu: number | null | undefined): string {
+  if (tool === "count") return `${pts.length}`;
+  if (!mpu || pts.length < 2) return "";
+  if (CLOSED.includes(tool) && pts.length >= 3) {
+    let a = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const [x0, y0] = pts[i], [x1, y1] = pts[(i + 1) % pts.length];
+      a += x0 * y1 - x1 * y0;
+    }
+    return `${((Math.abs(a) / 2) * mpu * mpu).toFixed(2)} m²`;
+  }
+  let l = 0;
+  for (let i = 1; i < pts.length; i++) l += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+  return `${(l * mpu).toFixed(2)} m`;
+}
 
 type T = { s: number; x: number; y: number };
 type Box = { i: number; x0: number; y0: number; x1: number; y1: number; label: string; poly: number[][] | null };
@@ -49,15 +76,59 @@ function penLoop(b: Box, minR: number): string {
   return "M" + pts.join(" L");
 }
 
-export default function Viewer({ view, answer, hover, focus, onHover, onFocus, onSize, busy, changes }: Props) {
+export default function Viewer({
+  view, answer, hover, focus, onHover, onFocus, onSize, busy, changes,
+  shapes = [], tool = null, mpu, hotShape, onShapeHover, onShapeClick, onDraw, zoomTo,
+}: Props) {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [t, setT] = useState<T>({ s: 1, x: 0, y: 0 });
   const [animate, setAnimate] = useState(false);
   const drag = useRef<{ x: number; y: number; t: T } | null>(null);
   const scale = viewScale(view);
+  const [draft, setDraft] = useState<number[][]>([]);
+  const [cursor, setCursor] = useState<number[] | null>(null);
+  const down = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => setSize(null), [view]);
+  useEffect(() => setDraft([]), [tool, view]);
+
+  const toPaper = (e: { clientX: number; clientY: number }) => {
+    const r = box.current!.getBoundingClientRect();
+    return [+((e.clientX - r.left - t.x) / t.s).toFixed(2), +((e.clientY - r.top - t.y) / t.s).toFixed(2)];
+  };
+
+  function finish(pts = draft) {
+    if (!tool || !onDraw) return;
+    const need = tool === "count" ? 1 : CLOSED.includes(tool) ? 3 : 2;
+    if (pts.length >= need) onDraw(pts);
+    setDraft([]);
+  }
+
+  function addPoint(p: number[]) {
+    if (!tool) return;
+    const last = draft[draft.length - 1];
+    if (last && Math.hypot(last[0] - p[0], last[1] - p[1]) * t.s < 4) return; // double-click's second click
+    const first = draft[0];
+    // clicking the first point closes an area
+    if (CLOSED.includes(tool) && first && draft.length >= 3 && Math.hypot(first[0] - p[0], first[1] - p[1]) * t.s < 10)
+      return finish();
+    const next = [...draft, p];
+    if (tool === "calibrate" && next.length === 2) return finish(next);
+    setDraft(next);
+  }
+
+  useEffect(() => {
+    if (!tool) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).tagName === "INPUT") return;
+      if (e.key === "Escape") setDraft([]);
+      if (e.key === "Enter") finish();
+      if (e.key === "Backspace") setDraft((d) => d.slice(0, -1));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   const boxes: Box[] = useMemo(() => {
     if (!answer) return [];
@@ -92,6 +163,10 @@ export default function Viewer({ view, answer, hover, focus, onHover, onFocus, o
     fitTo(x0, y0, x1, y1, 1.5, true);
   }, [boxes, size, fitTo]);
 
+  useEffect(() => {
+    if (zoomTo && zoomTo.length === 4) fitTo(zoomTo[0], zoomTo[1], zoomTo[2], zoomTo[3], 2.2, true);
+  }, [zoomTo]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // New answer → zoom to all evidence; no evidence → whole sheet.
   useEffect(() => fitEvidence(), [fitEvidence]);
 
@@ -117,11 +192,19 @@ export default function Viewer({ view, answer, hover, focus, onHover, onFocus, o
 
   return (
     <div
-      className="viewer"
+      className={`viewer ${tool ? "drawing" : ""}`}
       ref={box}
       onWheel={onWheel}
-      onMouseDown={(e) => (drag.current = { x: e.clientX, y: e.clientY, t })}
+      onMouseDown={(e) => {
+        drag.current = { x: e.clientX, y: e.clientY, t };
+        down.current = { x: e.clientX, y: e.clientY };
+      }}
+      onClick={(e) => {
+        const d = down.current;
+        if (tool && d && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) addPoint(toPaper(e));
+      }}
       onMouseMove={(e) => {
+        if (tool) setCursor(toPaper(e));
         const d = drag.current;
         if (!d) return;
         setAnimate(false);
@@ -129,7 +212,7 @@ export default function Viewer({ view, answer, hover, focus, onHover, onFocus, o
       }}
       onMouseUp={() => (drag.current = null)}
       onMouseLeave={() => (drag.current = null)}
-      onDoubleClick={fitAll}
+      onDoubleClick={() => (tool ? finish() : fitAll())}
     >
       <div
         className={`paper ${animate ? "smooth" : ""}`}
@@ -183,6 +266,57 @@ export default function Viewer({ view, answer, hover, focus, onHover, onFocus, o
                 )}
               </g>
             ))}
+            {shapes.map((sh) => (
+              <g
+                key={sh.id}
+                className={`mshape t-${sh.tone} ${hotShape === sh.id ? "hot" : ""}`}
+                onMouseEnter={() => onShapeHover?.(sh.id)}
+                onMouseLeave={() => onShapeHover?.(null)}
+                onMouseDown={(e) => tool || e.stopPropagation()}
+                onClick={(e) => {
+                  if (tool) return;
+                  e.stopPropagation();
+                  onShapeClick?.(sh.id);
+                }}
+              >
+                {sh.tone === "count"
+                  ? sh.points.map((p, k) => <circle key={k} cx={p[0]} cy={p[1]} r={6 / t.s} style={{ strokeWidth: 2 / t.s }} />)
+                  : sh.closed
+                    ? <polygon points={sh.points.map((p) => p.join(",")).join(" ")} style={{ strokeWidth: (hotShape === sh.id ? 3.5 : 1.8) / t.s }} />
+                    : <polyline points={sh.points.map((p) => p.join(",")).join(" ")} style={{ strokeWidth: (hotShape === sh.id ? 3.5 : 2.2) / t.s }} />}
+                {sh.label && (hotShape === sh.id || shapes.length <= 40) && (
+                  <text
+                    x={sh.points.reduce((a, p) => a + p[0], 0) / sh.points.length}
+                    y={sh.points.reduce((a, p) => a + p[1], 0) / sh.points.length}
+                    fontSize={(hotShape === sh.id ? 14 : 11) / t.s}
+                  >
+                    {sh.label}
+                  </text>
+                )}
+              </g>
+            ))}
+            {tool && draft.length > 0 && (
+              <g className="mdraft">
+                {(() => {
+                  const pts = cursor ? [...draft, cursor] : draft;
+                  const str = pts.map((p) => p.join(",")).join(" ");
+                  const last = pts[pts.length - 1];
+                  return (
+                    <>
+                      {tool === "count" ? null : CLOSED.includes(tool) ? (
+                        <polygon points={str} style={{ strokeWidth: 2 / t.s }} />
+                      ) : (
+                        <polyline points={str} style={{ strokeWidth: 2 / t.s }} />
+                      )}
+                      {draft.map((p, k) => <circle key={k} cx={p[0]} cy={p[1]} r={4 / t.s} />)}
+                      <text x={last[0] + 10 / t.s} y={last[1] - 10 / t.s} fontSize={14 / t.s}>
+                        {readout(tool === "count" ? draft : pts, tool, mpu)}
+                      </text>
+                    </>
+                  );
+                })()}
+              </g>
+            )}
             {union && note && (
               <g className="margin-note" transform={`translate(${union.x + 14 / t.s} ${union.y - 10 / t.s})`}>
                 <text fontSize={30 / t.s}>{note}</text>
@@ -197,7 +331,13 @@ export default function Viewer({ view, answer, hover, focus, onHover, onFocus, o
         <button onClick={fitAll}>Page</button>
         {boxes.length > 0 && <button onClick={() => (focus === null ? fitEvidence() : onFocus(null))}>All marks</button>}
       </div>
-      <div className="viewer-hint mono">scroll to zoom · drag to pan · double-click to fit</div>
+      <div className="viewer-hint mono">
+        {tool
+          ? tool === "calibrate"
+            ? "click both ends of the known dimension"
+            : `click to add points · ${tool === "count" ? "Enter to finish" : "double-click or Enter to finish"} · Backspace undo · Esc cancel`
+          : "scroll to zoom · drag to pan · double-click to fit"}
+      </div>
     </div>
   );
 }

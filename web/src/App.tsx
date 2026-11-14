@@ -6,7 +6,8 @@ import Chat from "./Chat";
 import Explorer from "./Explorer";
 import { DEMO, SOURCE_LABEL, TYPE, fmtSize, pickChips, sheetCode, shortName } from "./format";
 import HowItWorks from "./HowItWorks";
-import type { Answer, Drawing, Msg, Step } from "./types";
+import Measure from "./Measure";
+import type { Answer, Drawing, Msg, Shape, Step, Tool } from "./types";
 import Viewer from "./Viewer";
 
 // three.js + web-ifc are ~4 MB: only fetch them when a model is opened in 3D.
@@ -71,6 +72,13 @@ export default function App() {
   const [chData, setChData] = useState<Record<string, { answer?: Answer; error?: string }>>({});
   const [chHover, setChHover] = useState<number | null>(null);
   const [chFocus, setChFocus] = useState<number | null>(null);
+  const [msOn, setMsOn] = useState(false);
+  const [tool, setTool] = useState<Tool | null>(null);
+  const [drawn, setDrawn] = useState<number[][] | null>(null);
+  const [shapes, setShapes] = useState<Shape[]>([]);
+  const [mpu, setMpu] = useState<number | null>(null);
+  const [msHot, setMsHot] = useState<string | null>(null);
+  const [zoomTo, setZoomTo] = useState<number[] | null>(null);
 
   useEffect(() => {
     getDrawings()
@@ -119,7 +127,7 @@ export default function App() {
   }, [showCh, path]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function activate(i: number | null) {
-    if (i !== null) setChOn(false); // a chat answer takes over the drawing
+    if (i !== null) (setChOn(false), setMsOn(false)); // a chat answer takes over the drawing
     setActive(i);
     setHover(null);
     setFocus(null);
@@ -177,10 +185,10 @@ export default function App() {
 
   const act = active !== null ? msgs[active] : null;
   const answer = act?.kind === "answer" && act.path === path ? act.answer : null;
-  const view = showCh ? drawing?.view ?? "" : answer?.view ?? drawing?.view ?? "";
+  const view = showCh || msOn ? drawing?.view ?? "" : answer?.view ?? drawing?.view ?? "";
   const isIfc = path.endsWith(".ifc");
   const hasPlan = isIfc && !view.endsWith(".ifc");
-  const show3d = isIfc && (mode === "3d" || !hasPlan);
+  const show3d = isIfc && ((mode === "3d" && !msOn) || !hasPlan);
   const ch = chData[path];
   const chAnswer = useMemo(() => (ch?.answer ? onNewSheet(ch.answer, view) : null), [ch, view]);
 
@@ -196,6 +204,20 @@ export default function App() {
           ))}
         </nav>
         <span className="spacer" />
+        {tab === "Ask" && (
+          <button
+            className={`btn ${msOn ? "on" : ""}`}
+            title="Area and length takeoffs with the scale and where it came from"
+            onClick={() => {
+              setMsOn((v) => !v);
+              setChOn(false);
+              setTool(null);
+              setShapes([]);
+            }}
+          >
+            {msOn ? "Close measure" : "Measure"}
+          </button>
+        )}
         {tab === "Ask" && <button className="btn" onClick={onRandom}>Random question</button>}
       </header>
 
@@ -227,7 +249,7 @@ export default function App() {
             ) : view ? (
               <Viewer
                 view={view}
-                answer={showCh ? chAnswer : answer}
+                answer={msOn ? null : showCh ? chAnswer : answer}
                 hover={showCh ? chHover : hover}
                 focus={showCh ? chFocus : focus}
                 onHover={showCh ? setChHover : setHover}
@@ -235,16 +257,42 @@ export default function App() {
                 onSize={(w, h) => setSize([w, h])}
                 busy={busy || (showCh && !ch?.answer && !ch?.error)}
                 changes={showCh}
+                shapes={msOn ? shapes : []}
+                tool={msOn ? tool : null}
+                mpu={mpu}
+                hotShape={msHot}
+                onShapeHover={setMsHot}
+                onShapeClick={setMsHot}
+                onDraw={setDrawn}
+                zoomTo={msOn ? zoomTo : null}
               />
             ) : (
               <div className="empty">{error || "Loading drawings…"}</div>
             )}
-            {hasPair && !view.endsWith(".ifc") && (
+            {hasPair && !msOn && !view.endsWith(".ifc") && (
               <button className={`ch-toggle ${showCh ? "on" : ""}`} onClick={() => setChOn((v) => !v)}>
                 {showCh ? "Hide changes" : "What changed"}
               </button>
             )}
-            {showCh && (
+            {msOn && view && !view.endsWith(".ifc") && (
+              <Measure
+                path={view}
+                tool={tool}
+                setTool={setTool}
+                drawn={drawn}
+                clearDrawn={() => setDrawn(null)}
+                hot={msHot}
+                setHot={setMsHot}
+                onShapes={(s, m) => (setShapes(s), setMpu(m))}
+                onZoom={(b) => setZoomTo([...b])}
+                onOpen={(f) => {
+                  const d = drawings.find((x) => x.path === f || x.view === f);
+                  if (d) select(d.path);
+                  return !!d;
+                }}
+              />
+            )}
+            {showCh && !msOn && (
               <Changes
                 path={path}
                 answer={chAnswer}

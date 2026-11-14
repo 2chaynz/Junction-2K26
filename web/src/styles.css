@@ -260,3 +260,58 @@ input { font: inherit; color: inherit; }
 .mark.k-quantity text { fill: var(--ink); }
 .mark.k-drawing path { stroke: #2563eb; }
 .mark.k-drawing text { fill: #2563eb; }
+
+/* Measure (takeoffs) */
+.btn.on { border-color: var(--red); color: var(--red); }
+.viewer.drawing { cursor: crosshair; }
+.mshape polygon, .mshape polyline { fill: none; stroke: #2563eb; vector-effect: non-scaling-stroke; }
+.mshape { cursor: pointer; }
+.mshape.t-auto polygon { fill: rgba(37, 99, 235, 0.06); stroke: rgba(37, 99, 235, 0.7); }
+.mshape.t-manual polygon { fill: rgba(217, 45, 32, 0.08); stroke: var(--red); }
+.mshape.t-manual polyline { stroke: var(--red); }
+.mshape.t-ref polygon { fill: rgba(199, 119, 0, 0.12); stroke: #c77700; stroke-dasharray: 4 3; }
+.mshape.t-count circle { fill: rgba(217, 45, 32, 0.2); stroke: var(--red); }
+.mshape.hot polygon { fill: rgba(37, 99, 235, 0.18); }
+.mshape.t-manual.hot polygon { fill: rgba(217, 45, 32, 0.2); }
+.mshape text { fill: #1e3a8a; font-family: var(--mono); text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; }
+.mshape.t-manual text, .mshape.t-count text { fill: var(--red); }
+.mshape.t-ref text { fill: #8a5200; }
+.mdraft polygon, .mdraft polyline { fill: rgba(217, 45, 32, 0.08); stroke: var(--red); stroke-dasharray: 5 4; }
+.mdraft polyline { fill: none; }
+.mdraft circle { fill: var(--red); }
+.mdraft text { fill: var(--red); font-family: var(--mono); font-weight: 600; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.measure { flex-basis: 340px; }
+.measure section { padding: 0 0 6px; }
+.measure .link { color: #2563eb; font-size: 12px; }
+.measure .link:hover { text-decoration: underline; }
+.ms-err { margin: 8px 14px; padding: 6px 8px; background: var(--red-soft); color: var(--red); border-radius: var(--r); font-size: 12px; }
+.ms-scale { margin: 6px 14px 8px; padding: 10px; border: 1px solid var(--line); border-radius: var(--r); }
+.ms-ratio { font-size: 15px; }
+.ms-ratio .mono { font-size: 18px; font-weight: 600; }
+.ms-text { margin-top: 4px; font-size: 12.5px; }
+.ms-agree { margin-top: 4px; font-size: 12px; color: var(--ok); }
+.ms-row { display: flex; gap: 10px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.ms-ask { font-size: 12.5px; line-height: 1.45; }
+.ms-opt { display: block; width: 100%; text-align: left; margin-top: 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--r); font-size: 12px; }
+.ms-opt:hover, .ms-opt.on { border-color: var(--ink); }
+.ms-pick { margin-top: 8px; max-height: 220px; overflow-y: auto; }
+.ms-cal { margin: 0 14px 8px; padding: 10px; background: #fff7e6; border: 1px solid #f0c36d; border-radius: var(--r); font-size: 12.5px; }
+.ms-cal input, .ms-label { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: var(--r); padding: 4px 7px; font-size: 12.5px; outline: none; }
+.ms-cal input:focus, .ms-label:focus { border-color: var(--ink); }
+.ms-tools { display: flex; gap: 4px; padding: 0 14px 8px !important; flex-wrap: wrap; }
+.ms-tools button { border: 1px solid var(--line); border-radius: var(--r); padding: 3px 9px; font-size: 12.5px; }
+.ms-tools button.on { border-color: var(--red); color: var(--red); background: var(--red-soft); }
+.ms-tools .ms-label { flex-basis: 100%; margin-top: 4px; }
+.ms-sum { margin: 0 14px 6px; padding: 8px 10px !important; background: var(--canvas); border-radius: var(--r); font-size: 12.5px; line-height: 1.45; }
+.ms-sum p { margin: 0 0 4px; }
+.ms-sum p:last-child { margin: 0; }
+.ms-auto { grid-template-columns: 1fr auto; }
+.ms-item { grid-template-columns: 16px 1fr 18px; align-items: center; }
+.ms-item > button { text-align: left; }
+.ms-item .x { color: var(--dim); font-size: 15px; }
+.ms-item .x:hover { color: var(--red); }
+.ms-ref { grid-template-columns: 58px 1fr; }
+.ms-ref .dim { grid-column: 2; font-size: 11px; }
+.ms-ref .ms-tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #8a5200; }
+.ms-hint { padding: 0 14px 4px; font-size: 11.5px; }
+.ms-more { margin: 2px 14px; }
