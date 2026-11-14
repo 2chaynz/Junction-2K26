@@ -1,6 +1,6 @@
 """Detector path: raster floor plans → counts, one evidence box per detected object.
 
-Weights: $SITELENS_MODELS/detector.pt (default models/detector.pt; `gh release download detector-v1 -D models`), trained by train/ on public
+Weights: $SITELENS_MODELS/detector.pt (default models/detector.pt; `gh release download detector-v2 -D models`), trained by train/ on public
 CubiCasa5K with every Stoa drawing excluded. Class names come from the weights file and match
 train/cubicasa_to_yolo.py NAMES. Runs on CPU; cost per answer is effectively 0.
 """
@@ -37,6 +37,13 @@ COUNT_CUE = re.compile(r"(?i)how many|number of|kuinka monta|montako")
 
 # confidence threshold per target (classes joined by "+"), tuned on the `rest` split only
 CONF = {"default": 0.35}
+# YOLO11l v2 (labels with all sink variants + WC rooms): thresholds tuned on `rest` only
+CONF_L = {"door": 0.35, "floor": 0.25, "room_bath": 0.25, "room_bedroom": 0.2, "room_kitchen": 0.2,
+          "room_outdoor": 0.9, "room_wc": 0.4, "sauna_bench": 0.85, "shower+bathtub": 0.3, "sink": 0.1,
+          "toilet": 0.4, "window": 0.4}
+if os.environ.get("SITELENS_DET_V2", "1") == "1":
+    CONF = {"default": 0.35, **CONF_L}
+GEOM_RULES = os.environ.get("SITELENS_DET_RULES", "0") == "1"   # bath/sink workarounds for the v1 model
 
 
 CLUSTER = {"sauna_bench": 0.05}  # count groups of touching boxes, gap as fraction of image size
@@ -58,7 +65,7 @@ def _weights() -> Path:
 @lru_cache(maxsize=1)
 def _model():
     w = _weights()
-    if not w.exists():  # no weights → path quietly declines (get them: gh release download detector-v1 -D models)
+    if not w.exists():  # no weights → path quietly declines (get them: gh release download detector-v2 -D models)
         return None
     from ultralytics import YOLO
     return YOLO(str(w))
@@ -117,9 +124,9 @@ def answer(path: str, question: str) -> Answer | None:
     classes = ("floor",) if FLOORS.search(question) else next((c for rx, c in TARGETS if re.search(rx, question)), None)
     if classes is None or _model() is None:
         return None
-    if classes == ("room_bath",):
+    if GEOM_RULES and classes == ("room_bath",):
         return _bathrooms(path)
-    if classes == ("sink",):
+    if GEOM_RULES and classes == ("sink",):
         return _sinks(path)
     t = CONF.get("+".join(classes), CONF["default"])
     hits = [d for d in detect(path) if d[0] in classes and d[1] >= t]
