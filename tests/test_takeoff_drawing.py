@@ -305,6 +305,18 @@ class DrawingTakeoff(unittest.TestCase):
             value, _, _ = takeoff_2d._scale("scan.pdf", 0, [], takeoff_2d.UNKNOWN_VIEW_SCALE, scanned_pdf=True)
             self.assertIsNone(value)
 
+    def test_unparsed_native_schedule_does_not_count_illustrations(self):
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"STOA_DATA": d, "SITELENS_STORE": d}):
+            path = "Schedule.pdf"
+            with pymupdf.open() as doc:
+                page = doc.new_page()
+                page.insert_text((50, 50), "DOOR SCHEDULE")
+                doc.save(Path(d) / path)
+            with patch.object(takeoff_2d, "_detected") as detect:
+                result = takeoff.takeoff(path)
+            detect.assert_not_called()
+            self.assertEqual(result["rows"], [])
+
     def test_disagreeing_scale_bars_do_not_produce_dimensions(self):
         from sitelens.measure import Scale
 

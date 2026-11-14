@@ -400,6 +400,11 @@ def _scan_views(image, labels):
     return regions, len(regions) != len(titles)
 
 
+def _unbounded_schedule(text, tables, has_plan):
+    heading = re.search(r"\b(?:doors?|windows?)[ \t]+schedules?\b", text, re.I)
+    return bool((heading and not tables) or (tables and not has_plan))
+
+
 def _scan_metadata(labels, load_image, native_text="", has_schedule=False):
     text = "\n".join(dict.fromkeys([*(label for label, _ in labels), *native_text.splitlines()]))
     has_plan = bool(PLAN_TITLE.search(text))
@@ -407,9 +412,8 @@ def _scan_metadata(labels, load_image, native_text="", has_schedule=False):
     regions, unbounded = [], has_other
     if has_plan and has_other:
         regions, unbounded = _scan_views(load_image(), labels)
-    schedule_heading = re.search(r"\b(?:doors?|windows?)[ \t]+schedules?\b", text, re.I)
     # OCR headings alone cannot bound a schedule or its illustrations.
-    excluded = unbounded or bool(schedule_heading and not has_schedule) or (has_schedule and not has_plan)
+    excluded = unbounded or _unbounded_schedule(text, has_schedule, has_plan)
     issue = UNKNOWN_VIEW_SCALE if NOT_TO_SCALE.search(text) else ""
     if not issue and (has_other or len(list(PLAN_TITLE.finditer(text))) > 1):
         issue = "This sheet has multiple views; the applicable scale is unknown."
@@ -505,7 +509,7 @@ def _sheet(path, root, mtime, weights_mtime):
             multiple_views = len(plan_titles) > 1 or (has_plan and (has_other or bool(excluded_views)))
             objects = _vector(path) if page.number == 0 else []
             if not objects:
-                if has_other or (tables and not has_plan):
+                if has_other or _unbounded_schedule(text, tables, has_plan):
                     excluded += 1
                 else:
                     objects = _detected(path, page)
