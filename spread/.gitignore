@@ -1,0 +1,6 @@
+data/
+out_*.txt
+*.whl
+.venv/
+.env
+__pycache__/
