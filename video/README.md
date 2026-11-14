@@ -1,6 +1,6 @@
 # SiteLens video (Remotion)
 
-A 66-second product cut made of **real screen recordings of the running app**, zooms and burned-in captions
+A 56-second fast-paced product cut (opens on the 3D building, one door question, 12 doors light up) made of **real screen recordings of the running app**, zooms and burned-in captions
 (it works muted), plus a numbers scene built from results files. No voice-over or b-roll yet.
 
 ## Rebuild it
@@ -21,7 +21,7 @@ npx remotion render src/index.ts SiteLens out/sitelens.mp4 --browser-executable=
   frames from Chrome's screencast (a video recorder would need a separate ffmpeg download) with a red cursor dot, and
   writes `public/clips/<scene>/` (git-ignored; re-record any time).
 - `src/SiteLens.tsx` plays each clip back by timestamp, with zoom keyframes and captions per scene, and the numbers scene.
-- Scene order and lengths: `SCENES` at the bottom of `src/SiteLens.tsx` (total `TOTAL` frames, 30 fps).
+- Cut list (scene ids and lengths in seconds): `CUTS` in `src/SiteLens.tsx`; each cut says which raw clip second it starts at and its playback speed.
 
 ## Rules we keep
 - Real UI only; Remotion adds zooms, captions and charts. Never mock up product screens or results.
@@ -29,7 +29,7 @@ npx remotion render src/index.ts SiteLens out/sitelens.mp4 --browser-executable=
   re-run the two commands under step 2 and re-render.
 - Do **not** film the app's Benchmark tab: its text says the dev split was "never used for training", which is not true
   for the full-dataset scanned plans (the detector trained on them). The numbers scene here uses the preview split only.
-- Total length must stay under 2 minutes (it is 66 s).
+- Total length must stay under 2 minutes (it is 56 s).
 
 ## Not done yet (T2)
 Voice-over (ElevenLabs), Higgsfield b-roll, a pain opener, takeoff / what-changed / measure clips (add scenes to

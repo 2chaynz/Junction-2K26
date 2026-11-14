@@ -15,8 +15,17 @@ for (const r of rows) {
 }
 const sources = Object.entries(LABEL).filter(([k]) => by[k]?.n).map(([k, label]) => ({ label, n: by[k].n, acc: by[k].ok / by[k].n }));
 const v = JSON.parse(readFileSync(root("web/public/versus.json"), "utf8"));
+// overall accuracy + cost per answer over every graded answer in the results file
+const graded = rows.filter((r) => r.correct !== null && r.correct !== undefined);
+const overall = { n: graded.length, acc: graded.filter((r) => r.correct).length / graded.length,
+  eurPerAnswer: rows.reduce((a, r) => a + (r.a.cost_eur ?? 0), 0) / rows.length };
+// the hook drawing: the Swiss door question where the frontier model is wrong (same row as in versus.json)
+const hr = v.rows.find((r) => r.path.includes("site2292_bldg3379_floor15050") && /doors/i.test(r.question));
+const hook = { truth: hr.truth, ours: hr.ours.value, vlm: hr.vlm.value, model: "Gemini 3.8 Flash" };
 const out = {
   sources,
+  overall,
+  hook,
   versus: { ours: v.summary.ours, vlm: v.summary.vlm, model: "Gemini 3.8 Flash" },
   note: `Sources: eval/results/${name}.jsonl (dev split of Stoa's preview set; the detector never trained on these plans) and web/public/versus.json.`,
 };

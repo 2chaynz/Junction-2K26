@@ -21,6 +21,17 @@
    "acc": 0.9411764705882353
   }
  ],
+ "overall": {
+  "n": 1853,
+  "acc": 0.9185105234754453,
+  "eurPerAnswer": 0.00005425915948275853
+ },
+ "hook": {
+  "truth": 12,
+  "ours": 12,
+  "vlm": 9,
+  "model": "Gemini 3.8 Flash"
+ },
  "versus": {
   "ours": {
    "correct": 11,
