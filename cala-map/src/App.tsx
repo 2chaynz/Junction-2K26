@@ -9,6 +9,7 @@ import { Icon } from './icons'
 import { Logo, sigilUrl } from './Logo'
 import { MapView, type FlyRequest } from './MapView'
 import { AskBox } from './AskBox'
+import { FounderView, LiveRounds, Src, money } from './Facts'
 import { BY_ID, ISLANDS, LAND, PARTNER, TILES } from './world'
 import './App.css'
 
@@ -16,11 +17,12 @@ const COUNTRIES = [...new Set(STARTUPS.map((s) => s.country))].sort()
 const YEARS = [...new Set(STARTUPS.map((s) => s.founded).filter(Boolean) as number[])].sort()
 // Stage comes from funding rounds; hide it until Cala details are imported.
 const HAS_STAGES = STARTUPS.some((s) => s.stage !== 'Unknown')
+const HAS_SLUSH = STARTUPS.some((s) => s.slush)
 const SOFA_SECONDS = 6
 const now = () => performance.now() / 1000
 
-interface Filters { sector: string; stage: string; country: string; investor: string; year: string; funded: string }
-const NO_FILTERS: Filters = { sector: '', stage: '', country: '', investor: '', year: '', funded: '' }
+interface Filters { sector: string; stage: string; country: string; investor: string; year: string; funded: string; slush: string }
+const NO_FILTERS: Filters = { sector: '', stage: '', country: '', investor: '', year: '', funded: '', slush: '' }
 type Drawer = 'none' | 'search' | 'gems' | 'island'
 
 function matches(s: Startup, f: Filters) {
@@ -29,7 +31,8 @@ function matches(s: Startup, f: Filters) {
     && (!f.country || s.country === f.country)
     && (!f.investor || s.investors.some((i) => i.id === f.investor))
     && (!f.year || s.founded === +f.year)
-    && (!f.funded || !!s.funding || s.rounds.length > 0)
+    && (!f.funded || !!s.funding || !!s.totalFunding || s.rounds.length > 0)
+    && (!f.slush || !!s.slush)
 }
 
 function readHash(): { x: number; y: number; id?: string } | null {
@@ -68,6 +71,7 @@ export default function App() {
   const [sofa, setSofa] = useState(false)
   const [hideSeen, setHideSeen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [allInvestors, setAllInvestors] = useState(false)
   const [hopAt, setHopAt] = useState(now)
 
   const tile = BY_ID.get(selectedId)!
@@ -95,6 +99,7 @@ export default function App() {
     setHistory((h) => [...h, selectedId].slice(-200))
     setSelectedId(id)
     setAddMenu(false)
+    setAllInvestors(false)
     if (!discoveredSet.has(id)) setDiscovered([...discovered, id])
     if (fly) flyTo(t.x, t.y)
     setHopAt(now())
@@ -176,7 +181,7 @@ export default function App() {
     ? STARTUPS.filter((s) => `${s.name} ${s.description}`.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 40)
     : []
   const islandMembers = openIsland ? (lists[openIsland] ?? []).map((id) => BY_ID.get(id)?.startup).filter(Boolean) as Startup[] : []
-  const funded = !!selected.funding || selected.rounds.length > 0
+  const funded = !!selected.funding || !!selected.totalFunding || selected.rounds.length > 0
 
   const filterRows: { key: keyof Filters; label: string; options: string[] }[] = [
     { key: 'sector', label: 'sector', options: SECTORS },
@@ -184,6 +189,7 @@ export default function App() {
     { key: 'year', label: 'founded', options: YEARS.map(String) },
     ...(HAS_STAGES ? [{ key: 'stage' as const, label: 'stage', options: STAGES }] : []),
     { key: 'funded', label: 'funding', options: ['funded'] },
+    ...(HAS_SLUSH ? [{ key: 'slush' as const, label: 'event', options: ['Slush 2026'] }] : []),
   ]
 
   // The current startup's own attributes; clicking one filters the map by it.
@@ -192,6 +198,7 @@ export default function App() {
     { key: 'country', value: selected.country, text: selected.country },
     ...(selected.founded ? [{ key: 'year' as const, value: String(selected.founded), text: `est. ${selected.founded}` }] : []),
     ...(funded ? [{ key: 'funded' as const, value: 'funded', text: 'funded' }] : []),
+    ...(selected.slush ? [{ key: 'slush' as const, value: 'Slush 2026', text: 'at Slush 2026' }] : []),
   ]
   const partner = ISLANDS.find((i) => i.sector === PARTNER.get(selected.id))
   const copyLink = () => { navigator.clipboard?.writeText(location.href); setCopied(true); setTimeout(() => setCopied(false), 1500) }
@@ -386,32 +393,35 @@ export default function App() {
             </>
           ) : <p className="pitch">{selected.description || 'No description yet.'}</p>}
           <dl>
-            {selected.funding && <><dt>raised</dt><dd>{selected.funding}</dd></>}
-            {HAS_STAGES && <><dt>stage</dt><dd>{selected.stage}</dd></>}
-            {selected.hq && <><dt>hq</dt><dd>{selected.hq}</dd></>}
+            {selected.totalFunding
+              ? <><dt>raised</dt><dd>{money(selected.totalFunding.value, selected.totalFunding.units)} <Src s={selected.prov?.total_funding} /></dd></>
+              : selected.funding && <><dt>raised</dt><dd>{selected.funding}</dd></>}
+            {selected.stage !== 'Unknown' && <><dt>stage</dt><dd>{selected.stage} <Src s={selected.prov?.funding_stage} /></dd></>}
+            {selected.headcount && <><dt>team</dt><dd>{selected.headcount} people <Src s={selected.prov?.employee_count_range} /></dd></>}
+            {selected.founded && <><dt>founded</dt><dd>{selected.founded} <Src s={selected.prov?.founding_date} /></dd></>}
+            {selected.hq && <><dt>hq</dt><dd>{selected.hq.replace(/^[\s,]+/, '')} <Src s={selected.prov?.headquarters_address} /></dd></>}
+            {selected.ceo?.length ? <><dt>ceo</dt><dd>{selected.ceo.map((f) => f.name).join(', ')}</dd></> : null}
             {selected.founders.length > 0 && <><dt>founders</dt><dd>{selected.founders.map((f) => f.name).join(', ')}</dd></>}
+            {selected.status && selected.status !== 'ACTIVE' && <><dt>status</dt><dd>{selected.status.toLowerCase()} <Src s={selected.prov?.operational_status} /></dd></>}
           </dl>
           <div className="section-title">Backed by</div>
           <div className="chips">
             {selected.investors.length === 0 && <span className="muted">no investors on record yet</span>}
-            {selected.investors.map((b) => (
+            {(allInvestors ? selected.investors : selected.investors.slice(0, 12)).map((b) => (
               <button key={b.id} className={`tag ${filters.investor === b.id ? 'on' : ''}`} title="Light up this investor's portfolio" onClick={() => toggleFilter('investor', b.id)}>{b.name}</button>
             ))}
+            {selected.investors.length > 12 && <button className="tag" onClick={() => setAllInvestors(!allInvestors)}>{allInvestors ? 'show fewer' : `+${selected.investors.length - 12} more`}</button>}
           </div>
-          {selected.rounds.length > 0 && (
-            <>
-              <div className="section-title">Rounds</div>
-              <ul className="rounds">{selected.rounds.map((r) => <li key={r.id}>funding round · {r.date ?? 'date unknown'}</li>)}</ul>
-            </>
-          )}
+          <LiveRounds startup={selected} onInvestor={(id) => toggleFilter('investor', id)} />
         </section>
+
+        <FounderView startup={selected} onInvestor={(id) => setFilters((f) => ({ ...f, investor: id }))} onPick={flyPick} />
 
         <section className="block footer-link">
           {selected.website
             ? <a href={`https://${selected.website.replace(/^https?:\/\//, '')}`} target="_blank" rel="noreferrer"><Icon name="link" size={12} /> Visit {selected.website}</a>
             : <span className="muted">{IS_MOCK ? 'Mock data' : 'Data from Cala'}</span>}
           <button className="copy" onClick={copyLink}><Icon name="link" size={12} /> {copied ? 'Link copied' : 'Copy link to this startup'}</button>
-          {selected.sources.slice(0, 3).map((s) => <a key={s} className="source" href={s} target="_blank" rel="noreferrer">{s.replace(/^https?:\/\//, '').slice(0, 40)}</a>)}
         </section>
       </aside>
     </div>

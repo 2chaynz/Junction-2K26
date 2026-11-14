@@ -26,12 +26,14 @@ npm run dev
 
 ## Data pipeline
 ```
-node scripts/import-cala.mjs        # full import (needs Cala credits)
-node scripts/build-from-cache.mjs   # rebuild startups.json from cached searches, no API calls
-node scripts/embed.mjs              # Gemini embeddings -> similarity positions + bridges (TF-IDF without a key)
+node scripts/import-cala.mjs        # Cala entity graph: our startups + Slush 2026 attendees, with funding fields
 node scripts/summarize.mjs         # Gemini web-grounded summary per startup (GEMINI_API_KEY), resumable
+node scripts/embed.mjs              # Gemini embeddings -> sectors for new companies, positions, land necks
 ```
-- Optional stack: Context.dev for live news per startup; Gemini/Gemma for embeddings and summaries.
+- `import-cala.mjs` caches every Cala response in `.cache/`. When credits run out it builds from the cache and says how many companies are left; rerun after topping up.
+- Each fact keeps its strongest source (registry > company > press > database) and date; the panel shows them.
+- Round amounts and lead investors are fetched live when a startup is opened (`POST /api/rounds`), cached in `.cache/cala-rounds/`.
+- Optional stack: Context.dev / Exa for live news per startup.
 
 ## Config
 - Login (optional): create a Supabase project, run `supabase/schema.sql` in its SQL editor, enable Email auth, then set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env` (see `.env.example`). Without them the app runs as guest with localStorage.

@@ -11,8 +11,14 @@ const SECTOR_LABEL: Record<string, string> = {
   'enterprise software': 'Enterprise', biotech: 'BioTech',
 }
 
-const STAGES: Stage[] = ['Unknown', 'No rounds', 'Seed', 'Series A', 'Series B', 'Series C+']
-export const stageOf = (rounds: number): Stage => STAGES[Math.min(rounds, 4) + 1]
+const STAGES: Stage[] = ['Unknown', 'No rounds', 'Pre-seed', 'Seed', 'Series A', 'Series B', 'Series C+']
+const byRounds: Stage[] = ['No rounds', 'Seed', 'Series A', 'Series B', 'Series C+']
+export const stageOf = (rounds: number): Stage => byRounds[Math.min(rounds, 4)]
+const CALA_STAGE: Record<string, Stage> = { PRE_SEED: 'Pre-seed', SEED: 'Seed', SERIES_A: 'Series A', SERIES_B: 'Series B' }
+const stage = (s: Raw): Stage => {
+  if (s.fundingStage) return CALA_STAGE[s.fundingStage] ?? (/^SERIES_[C-Z]/.test(s.fundingStage) ? 'Series C+' : 'Unknown')
+  return s.rounds.length || s.sources.length ? stageOf(s.rounds.length) : 'Unknown'
+}
 
 const files = import.meta.glob<Raw[]>('./startups.json', { eager: true, import: 'default' })
 const raw = files['./startups.json']
@@ -24,7 +30,7 @@ const unique = (list: Raw[]) => {
 }
 
 export const STARTUPS: Startup[] = raw
-  ? unique(raw).map((s) => ({ ...s, sector: SECTOR_LABEL[s.sector] ?? s.sector, stage: s.rounds.length || s.sources.length ? stageOf(s.rounds.length) : 'Unknown' }))
+  ? unique(raw).map((s) => ({ ...s, sector: SECTOR_LABEL[s.sector] ?? s.sector, stage: stage(s) }))
   : mockStartups()
 export const IS_MOCK = !raw
 

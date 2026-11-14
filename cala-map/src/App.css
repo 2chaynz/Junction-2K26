@@ -219,3 +219,25 @@ dd { margin: 0; }
 .cala-live > p.ask-answer.clamped { padding-bottom: 0; margin: 0 12px 8px; padding: 0; }
 .live-dot.pulse { animation: pulse 1s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .25; } }
+
+/* ---------- sourced facts, live rounds, founder view ---------- */
+.src { margin-left: 6px; font-size: 10px; color: var(--muted); text-decoration: none; border-bottom: 1px dotted #ffffff33; white-space: nowrap; }
+.src:hover { color: var(--gold); }
+dd { overflow-wrap: anywhere; }
+.live-tag { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; font: 10px Roboto; color: var(--muted); }
+.rounds li { padding: 7px 0; }
+.round-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 13px; color: var(--text); }
+.round-head b { font-weight: 500; }
+.round-head .amount { color: var(--gold); }
+.round-people { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.round-people button { font-size: 11px; padding: 2px 6px; background: var(--raised); border: 1px solid var(--line); color: var(--text-2); }
+.round-people button:hover { border-color: #ffffff4d; color: #fff; }
+.round-people .lead { color: var(--gold); border-color: #ebc87866; }
+.founder { padding-bottom: 12px; }
+.tag .muted { font-size: 11px; margin-left: 4px; }
+.raised { list-style: none; margin: 0; padding: 0 6px; }
+.raised li { display: flex; flex-direction: column; gap: 2px; padding: 6px; cursor: pointer; }
+.raised li:hover { background: var(--hover); }
+.raised .name { font-size: 14px; color: var(--text); }
+.raised .muted { font-size: 11px; }
+.live-dot.off { background: var(--muted); box-shadow: none; }

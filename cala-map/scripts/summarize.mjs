@@ -10,17 +10,20 @@ for (const line of existsSync(new URL('../.env', import.meta.url)) ? readFileSyn
 const KEY = process.env.GEMINI_API_KEY
 if (!KEY) throw new Error('GEMINI_API_KEY missing in .env')
 const MODEL = process.env.GEMINI_MODEL ?? 'gemini-3.8-flash'
-const CONCURRENCY = 6
+const CONCURRENCY = 12
 
 const startups = JSON.parse(readFileSync(new URL('../src/data/startups.json', import.meta.url), 'utf8'))
 const OUT = new URL('../src/data/summaries.json', import.meta.url)
 const done = existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf8')) : {}
+// Drop summaries of startups no longer on the map (e.g. ids re-resolved by the import).
+const live = new Set(startups.map((s) => s.id))
+for (const id of Object.keys(done)) if (!live.has(id)) delete done[id]
 const limit = Number(process.argv[2]) || Infinity
 const todo = [...new Map(startups.map((s) => [s.id, s])).values()].filter((s) => !done[s.id]).slice(0, limit)
 
-const prompt = (s) => `You brief angel investors on Nordic and Baltic startups.
-Company: ${s.name}${s.website ? ` (${s.website})` : ''}, ${s.country}, sector ${s.sector}${s.founded ? `, founded ${s.founded}` : ''}.
-Known facts: ${s.description || 'none'}${s.funding ? `; raised ${s.funding}` : ''}${s.investors.length ? `; investors ${s.investors.map((i) => i.name).join(', ')}` : ''}.
+const prompt = (s) => `You brief angel investors on European startups, many of them at Slush 2026.
+Company: ${s.name}${s.website ? ` (${s.website})` : ''}${s.country ? `, ${s.country}` : ''}${s.sector ? `, sector ${s.sector}` : ''}${s.founded ? `, founded ${s.founded}` : ''}.
+Known facts: ${s.description || 'none'}${s.totalFunding ? `; raised ${s.totalFunding.value} ${s.totalFunding.units}` : s.funding ? `; raised ${s.funding}` : ''}${s.fundingStage ? `; stage ${s.fundingStage}` : ''}${s.investors.length ? `; investors ${s.investors.map((i) => i.name).join(', ')}` : ''}.
 Search the web for this exact company. Write 2-3 plain sentences, max 70 words: what it sells and to whom, traction or funding if known, and one reason an investor might care.
 No headings, no markdown, no hype. If you can't find this company, say only what the known facts support.`
 
