@@ -11,6 +11,7 @@ from .answer import Answer
 LABEL = {
     "diff": "Is there an earlier issue of this sheet? If so, I can compare the two.",
     "crosscheck": "Is this about conflicts? Let me cross-check the plan against its schedule.",
+    "takeoff": "Is this asking for a list with sizes? Then I'll build it element by element from the model or schedule.",
     "ifc": "This could be in the BIM model. IFC elements carry their own properties, so I'll read them directly.",
     "vector": "Let me read the vector drawing: its text labels and geometry are exact.",
     "schedule": "Maybe a schedule table on the sheet has it. Let me read the tables.",
@@ -25,6 +26,7 @@ Step = Callable[[dict], None]
 PATHS = [
     "sitelens.paths.diff",      # "what changed" on a sheet with a known earlier issue (diff_pairs.json)
     "sitelens.paths.crosscheck",  # "any conflicts?": door schedule vs drawn tags across the sheet's set
+    "sitelens.takeoff",         # lists with sizes: "doors in room X and their dimensions" (+ CSV table)
     "sitelens.paths.ifc",      # IFC model → ifcopenshell
     "sitelens.paths.vector",    # vector PDF / DXF text + geometry
     "sitelens.paths.schedule",  # schedule tables on vector sheets (+ Gemini over the extracted table)

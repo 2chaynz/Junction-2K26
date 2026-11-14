@@ -36,7 +36,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T29 New VLM available: update button | app | T20 | 2chaynz | done | 2chaynz/T29-vlm-update |  |  |
 | T30 Scorer: live progress + resume for long paid runs | eval |  |  | todo |  |  |  |
 | T31 What changed view: revision diff in the UI | app | T28 | ccolver | done | ccolver/T31-changes-view |  |  |
-| T32 Takeoff list: doors, windows, columns, beams, walls + dims | ai | T31 | ccolver | review | ccolver/T32-takeoff |  |  |
+| T32 Takeoff list: doors, windows, columns, beams, walls + dims | ai | T31 | ccolver | done | ccolver/T32-takeoff |  |  |
 | T33 Cross-check: plan vs schedule conflicts | ai |  | ccolver | done | ccolver/T33-crosscheck |  |  |
 | T34 IFC 3D view: answer elements highlighted in the model | app | T28 | 2chaynz | done | 2chaynz/T34-ifc-3d |  |  |
 | T35 Cross-review script that finds Codex (ChatGPT app install) | setup |  | Asif | done | asif/T35-xreview |  |  |
@@ -53,9 +53,9 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T46 Measure: area/length takeoffs, scale + references | app |  | ccolver | blocked | ccolver/T46-measure |  | @ccolver PR #66 ready; xreview can't run: no Codex binary and claude CLI login expired. Run 'claude' to log in (or install Codex), then: bash scripts/xreview.sh 66 && bash scripts/merge.sh 66 |
 | T47 dev.mjs: no auto-download, print drop folder | setup |  | Asif | done | asif/T47-dev-no-download |  |  |
 | T48 Agents auto-merge PRs after review + CI | setup |  | Asif | done | asif/T48-auto-merge |  |  |
-| T49 Draw on the sheet to ask (highlighter + region Q&A) | app |  | 2chaynz | doing | 2chaynz/T49-sketch-ask |  |  |
+| T49 Draw on the sheet to ask (highlighter + region Q&A) | app |  | 2chaynz | review | 2chaynz/T49-sketch-ask |  |  |
 | T50 Projects in explorer + Building view for 2D floors | app | T28 | ccolver | review | ccolver/T50-building-view |  | @ccolver PR #68 waiting on a Codex cross-review (only a same-session Claude PASS so far). Install/log in to Codex, then: bash scripts/xreview.sh 68 && bash scripts/merge.sh 68 |
 | T51 Ignore spread autotune outputs | setup |  | Asif | done | asif/T51-spread-ignore |  |  |
-| T52 Resizable panels: drag the explorer and chat edges | app |  | 2chaynz | doing | 2chaynz/T52-resize |  |  |
-| T53 Multi-sheet questions: ask a whole building | ai |  |  | todo |  |  |  |
+| T52 Resizable panels: drag the explorer and chat edges | app |  | 2chaynz | review | 2chaynz/T52-resize |  |  |
+| T53 Multi-sheet questions: ask a whole building | ai |  | johanseneuson | doing | johanseneuson/T53-multi |  |  |
 | T54 Multi-sheet benchmark with free gold answers | eval |  |  | todo |  |  |  |

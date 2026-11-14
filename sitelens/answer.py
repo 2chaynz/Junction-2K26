@@ -29,6 +29,9 @@ class Answer:
     # T42 review mode: objects the reader saw but did NOT count (e.g. detections just under the confidence
     # cut). Not part of the answer; the UI shows them dashed so a human can promote one with a click.
     candidates: list[Evidence] = field(default_factory=list)
+    # Listing answers ("doors in room X with sizes"): {"title", "columns", "rows"}; row i is cited by evidence[i].
+    # The UI shows it under the answer and offers it as CSV.
+    table: dict | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
