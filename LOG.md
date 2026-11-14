@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 23:28 · Asif · T78: merged PR #98: quote only held-out scores: 91.9% preview dev (scans 83.6, Swiss 97.4, BIM 100, schedules 94.1). 89.3%/80.4% not held out (detector trained on those plans); easyiowa +1.7 claim removed. T2: use these in video/README/deck
 - 2026-11-14 23:19 · ccolver · T71: merged Vitoria demo and documented the IFC revision endpoints.
 - 2026-11-14 23:16 · Asif · T76: merged PR #96: schedule rules sum Count columns, abstain on no match/unreadable qty (rules-only 13->20/64); Gemini path unchanged 17/17
 - 2026-11-14 23:14 · Asif · T76: schedule 'regression' = no GEMINI_API_KEY in the eval env; with key opening_design dev 17/17 counts. Rules-only fallback 13->20/64 in PR #96. Load .env before scoring or demoing schedules
