@@ -122,7 +122,7 @@ NON_PLAN_VIEW = re.compile(
 )
 PLAN_TITLE = re.compile(
     r"(?im)^[ \t]*(?:[\w-]+[ \t]+){0,5}"
-    r"(?:floor plans?|level plans?|ground plans?|grundriss|pohjapiirustus|(?:level|floor)[ \t]+-?\d+[A-Z]?)"
+    r"(?:floor plans?|level plans?|ground plans?|grundriss|pohjapiirustus|storeys?|stories|story|floors?|levels?|(?:level|floor|storey|story)[ \t]+-?\d+[A-Z]?)"
     r"(?:[ \t]+[\w-]+){0,3}[ \t]*$"
 )
 UNKNOWN_VIEW_SCALE = "This sheet has a not-to-scale label; the applicable scale is unknown."
@@ -434,7 +434,7 @@ def takeoff(path):
 
     schedule = _schedule(path, page_tables) if page_tables else None
     if schedule and not any(objects for _, objects, _, _, _ in pages):
-        schedule["notes"].append("No placements were identified outside the schedule table.")
+        schedule["notes"].append("Placement counts were unavailable. Identifying a plan on a schedule page requires a recognizable plan heading or aligned drawing geometry.")
         if truncated:
             schedule["notes"].append(f"Only the first {MAX_PAGES} PDF pages were reviewed.")
         if excluded:
