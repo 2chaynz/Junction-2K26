@@ -50,7 +50,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T43 Proof strip + arithmetic receipt under answers | app |  | johanseneuson | done | johanseneuson/T43-proof |  |  |
 | T44 Us vs frontier model side by side (Benchmark) | app |  | johanseneuson | done | johanseneuson/T44-versus |  |  |
 | T45 Gitignore dataset and zips | setup |  | Asif | done | asif/T45-gitignore-dataset |  |  |
-| T46 Measure: area/length takeoffs, scale + references | app |  | ccolver | doing | ccolver/T46-measure |  |  |
+| T46 Measure: area/length takeoffs, scale + references | app |  | ccolver | blocked | ccolver/T46-measure |  | @ccolver PR #66 ready; xreview can't run: no Codex binary and claude CLI login expired. Run 'claude' to log in (or install Codex), then: bash scripts/xreview.sh 66 && bash scripts/merge.sh 66 |
 | T47 dev.mjs: no auto-download, print drop folder | setup |  | Asif | done | asif/T47-dev-no-download |  |  |
 | T48 Agents auto-merge PRs after review + CI | setup |  | Asif | done | asif/T48-auto-merge |  |  |
 | T49 Draw on the sheet to ask (highlighter + region Q&A) | app |  | 2chaynz | doing | 2chaynz/T49-sketch-ask |  |  |
