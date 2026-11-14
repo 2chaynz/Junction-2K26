@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 19:15 · ccolver · merged #67 (crosscheck NameError hotfix), #61 (T32 chat lists with sizes + CSV), #71 (flat highlights in What changed view)
 - 2026-11-14 19:15 · 2chaynz · T49 PR #72: highlight a spot on the sheet and ask (area, what is this, count here). Cross-review PASS. merge.sh denied by local permissions: human to run it
 - 2026-11-14 19:13 · ccolver · DECISION.md merged (PR #70): pitch angle = one integration tool per role
 - 2026-11-14 19:03 · ccolver · T50 PR #68: same-session Claude review PASS (no Codex, claude -p empty); fixed duplicate floor plates when a floor has pdf+png
