@@ -29,6 +29,7 @@ npm run dev
 node scripts/import-cala.mjs        # Cala entity graph: our startups + Slush 2026 attendees, with funding fields
 node scripts/summarize.mjs         # Gemini web-grounded summary per startup (GEMINI_API_KEY), resumable
 node scripts/embed.mjs              # Gemini embeddings -> sectors for new companies, positions, land necks
+node scripts/layout.mjs             # precomputed island layout (embed.mjs runs it); the page computes it itself if stale
 ```
 - `import-cala.mjs` caches every Cala response in `.cache/`. When credits run out it builds from the cache and says how many companies are left; rerun after topping up.
 - Each fact keeps its strongest source (registry > company > press > database) and date; the panel shows them.

@@ -1,15 +1,10 @@
 import type { Stage, Startup } from './types'
 import { mockStartups } from './mock'
+import { SECTOR_LABEL } from './sectors'
 
 // Raw shape written by scripts/import-cala.mjs.
 type Raw = Omit<Startup, 'stage' | 'sector'> & { sector: string }
 
-const SECTOR_LABEL: Record<string, string> = {
-  fintech: 'FinTech', healthtech: 'HealthTech', 'climate tech': 'ClimateTech', 'artificial intelligence': 'AI',
-  robotics: 'Robotics', gaming: 'Gaming', mobility: 'Mobility', 'food tech': 'FoodTech', edtech: 'EdTech',
-  cybersecurity: 'Cybersecurity', 'deep tech': 'DeepTech', consumer: 'Consumer',
-  'enterprise software': 'Enterprise', biotech: 'BioTech',
-}
 
 const STAGES: Stage[] = ['Unknown', 'No rounds', 'Pre-seed', 'Seed', 'Series A', 'Series B', 'Series C+']
 const byRounds: Stage[] = ['No rounds', 'Seed', 'Series A', 'Series B', 'Series C+']
@@ -37,8 +32,9 @@ export const IS_MOCK = !raw
 const posFiles = import.meta.glob<Record<string, [number, number]>>('./positions.json', { eager: true, import: 'default' })
 export const POSITIONS = posFiles['./positions.json'] ?? {}
 export interface Summary { summary: string; sources: { title: string; uri: string }[]; model: string }
-const sumFiles = import.meta.glob<Record<string, Summary>>('./summaries.json', { eager: true, import: 'default' })
-export const SUMMARIES = sumFiles['./summaries.json'] ?? {}
+// Lazy: summaries are the biggest file and only the panel needs them, so they load after first paint.
+const sumFiles = import.meta.glob<Record<string, Summary>>('./summaries.json', { import: 'default' })
+export const loadSummaries = (): Promise<Record<string, Summary>> => sumFiles['./summaries.json']?.() ?? Promise.resolve({})
 // Startup ids that also belong to another sector (scripts/embed.mjs); `to` is the raw Cala sector.
 const bridgeFiles = import.meta.glob<{ id: string; to: string }[]>('./bridges.json', { eager: true, import: 'default' })
 export const BRIDGE_LINKS = (bridgeFiles['./bridges.json'] ?? []).map((b) => ({ id: b.id, to: SECTOR_LABEL[b.to] ?? b.to }))

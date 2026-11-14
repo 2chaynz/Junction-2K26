@@ -171,3 +171,5 @@ writeFileSync(data('positions.json'), JSON.stringify(positions))
 const bridges = findBridges(vec)
 writeFileSync(data('bridges.json'), JSON.stringify(bridges))
 console.log(`${gemini ? 'gemini' : 'tf-idf'}: positions for ${Object.keys(positions).length}, ${bridges.length} bridges`)
+// The layout depends on positions and bridges, so refresh the precomputed one.
+await import('./layout.mjs')

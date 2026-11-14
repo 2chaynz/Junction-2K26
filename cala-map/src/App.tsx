@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { IS_MOCK, SECTORS, STAGES, STARTUPS, SUMMARIES } from './data/load'
+import { IS_MOCK, SECTORS, STAGES, STARTUPS, loadSummaries, type Summary } from './data/load'
 import type { Startup } from './data/types'
 import type { Tile } from './layout'
 import { useStored } from './useStored'
@@ -72,6 +72,8 @@ export default function App() {
   const [hideSeen, setHideSeen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [allInvestors, setAllInvestors] = useState(false)
+  const [summaries, setSummaries] = useState<Record<string, Summary>>({})
+  useEffect(() => { loadSummaries().then(setSummaries) }, [])
   const [hopAt, setHopAt] = useState(now)
 
   const tile = BY_ID.get(selectedId)!
@@ -382,12 +384,12 @@ export default function App() {
 
         <section className="block about card-in" key={`about-${selected.id}`}>
           <div className="section-title">About</div>
-          {SUMMARIES[selected.id] ? (
+          {summaries[selected.id] ? (
             <>
-              <p className="pitch">{SUMMARIES[selected.id].summary}</p>
+              <p className="pitch">{summaries[selected.id].summary}</p>
               <p className="ai-note">
                 <Icon name="spark" size={11} /> Gemini, from the web
-                {SUMMARIES[selected.id].sources.map((s) => <a key={s.uri} href={s.uri} target="_blank" rel="noreferrer">{s.title}</a>)}
+                {summaries[selected.id].sources.map((s) => <a key={s.uri} href={s.uri} target="_blank" rel="noreferrer">{s.title}</a>)}
               </p>
               {selected.description && <p className="cala-line"><span>Cala</span> {selected.description}</p>}
             </>
