@@ -15,3 +15,8 @@ eval/results/
 models/
 *.pt
 runs/
+
+# dataset is large and lives outside the repo
+junction-data/
+junction-dataset*/
+*.zip
