@@ -48,6 +48,7 @@ node scripts/status.mjs set T3 <status> [--q "..."] [--branch b] [--device d]
 node scripts/status.mjs add "<title>" --area a --needs T1 --details path.md
 node scripts/status.mjs log "<one line>"
 node scripts/status.mjs publish ideas/<name>.md context/...
+node scripts/status.mjs beat [T3] "<doing now>"     # heartbeat; ticket defaults to your branch's Tn
 ```
 `<person>` = the human you work for (their git user name).
 
@@ -63,9 +64,26 @@ node scripts/status.mjs publish ideas/<name>.md context/...
 - All agents (Claude Code and Codex): before each new step run `node scripts/status.mjs watch --force`. It prints `[team] main changed` if main moved since you last looked. Silent means nothing new.
 - Claude Code does this by hook after every prompt and tool call, so it needs no manual run. Codex has no hooks, so it must run it.
 - A clean local `main` fast-forwards inside `watch`. Feature branches never do: rebase them yourself.
+- Heartbeat: `status.mjs beat "<what you're doing now>"` whenever your focus changes (one line, ≤140 chars). The board flags a `doing` ticket silent for 15 min as stale.
+- Claude Code also beats by hook every 5 min (keeps your last text). Codex must beat by hand at least every 10 min.
 
 **End** (or after any meaningful step)
 - `status.mjs set` your ticket. `status.mjs log` anything you decided, learned or abandoned.
+
+## Worker loop
+Default mode for every agent: keep pulling work until the queue is empty. Claude Code: `/work`, or `/loop /work` to repeat.
+1. `show`. Your ticket shows `PR #n merged` → `set Tn done`.
+2. Own a `doing` ticket → continue it. Else `next <area>` → `claim` → create the branch (worktree if you're the second agent).
+3. Work inside the ticket's **Files**. `beat` as you go.
+4. Pull requests steps 1–6 → `set Tn review`, `log` the outcome in one line.
+5. Back to 1. Nothing claimable → `log "idle: <area> queue empty"` and stop. A human or the planner adds tickets.
+- Stale ticket (silent >30 min, owner not answering) → ask that person before taking it over. Never take over a ticket with an open PR.
+
+## Planner
+One agent, run by one human, keeps the queue full. It edits tickets only, never code.
+- After each merge (or about every hour): read `DECISION.md`, `show`, open PRs.
+- Keep 2–3 claimable `todo` tickets per active area, with `--needs` and disjoint **Files**.
+- Answer `blocked` questions it can from the repo; leave the rest for humans.
 
 ## Tickets
 - Only work on a claimed ticket. Stay inside its **Files**. Need something outside → add a ticket or ask.
