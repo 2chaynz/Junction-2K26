@@ -66,11 +66,11 @@ def _matches(room: str, s: dict) -> bool:
 
 
 ELEMENTS = [  # question keyword (en / da / et / de / fi) → IFC types
-    (r"(?i)\bdoors?\b|døre|\bust\b|türen|ovea", ("IfcDoor",)),
-    (r"(?i)windows?|vinduer|akne|aken|fenster|ikkun", ("IfcWindow",)),
-    (r"(?i)columns?|søjler|sammas|stützen|pilar", ("IfcColumn",)),
+    (r"(?i)\bdoors?\b|døre|\bust\b|türen|ovea", ("IfcDoor", "IfcDoorStandardCase")),
+    (r"(?i)windows?|vinduer|akne|aken|fenster|ikkun", ("IfcWindow", "IfcWindowStandardCase")),
+    (r"(?i)columns?|søjler|sammas|stützen|pilar", ("IfcColumn", "IfcColumnStandardCase")),
     (r"(?i)stairs?|trapper|trepp|treppen|portai", ("IfcStair",)),
-    (r"(?i)slabs?|dæk|plaat|platten|laatt", ("IfcSlab",)),
+    (r"(?i)slabs?|dæk|plaat|platten|laatt", ("IfcSlab", "IfcSlabStandardCase")),
     (r"(?i)walls?|vægge|sein|wände|seini", ("IfcWall", "IfcWallStandardCase", "IfcCurtainWall")),
     (r"(?i)rooms?|spaces?|\brum\b|ruumi|räume|tilo|huone", ("IfcSpace",)),
 ]
@@ -91,7 +91,11 @@ def _storey_elements(f, storey: str | None, types) -> list:
     import ifcopenshell.util.element as U
     out = []
     for t in types:
-        for e in f.by_type(t, include_subtypes=False) if t != "IfcWall" else f.by_type("IfcWall", include_subtypes=False):
+        try:
+            found = f.by_type(t, include_subtypes=False)
+        except RuntimeError:  # type not in this schema (e.g. StandardCase in IFC2X3 vs IFC4X3)
+            continue
+        for e in found:
             if e.Decomposes and e.Decomposes[0].RelatingObject.is_a(t):
                 continue  # part of a bigger element (e.g. stair flights inside an IfcStair)
             st = U.get_container(e) or U.get_aggregate(e)
