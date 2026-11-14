@@ -7,9 +7,11 @@ import "@fontsource/jetbrains-mono/700.css";
 import "@fontsource/caveat/600.css";
 import "./styles.css";
 import App from "./App";
+import Intro from "./Intro";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <App />
+    <Intro />
   </React.StrictMode>,
 );
