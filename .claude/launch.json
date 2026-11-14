@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "cala-map",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "cala-map", "run", "dev", "--", "--port", "5174", "--strictPort"],
+      "port": 5174
+    }
+  ]
+}
