@@ -106,7 +106,7 @@ def _gemini(prompt: str, json_mode: bool = False, search: bool = False, timeout:
 
 
 WEB = """You are SiteLens, a tool for construction project teams. The user has the drawing "{name}" open.
-The drawing's own readers could not answer the question{why}. Answer it from reliable web sources
+The drawing's own readers could not answer the question{why}. Always run a Google Search first, then answer from reliable web sources
 (building codes, manufacturer data, standards, typical practice) in at most 4 short sentences, plain text,
 no markdown. Say plainly when the answer depends on the specific project and can't be known from the web.
 {turns}Question: {q}"""
@@ -120,6 +120,11 @@ def web(path: str, question: str, history: list[dict] | None, why: str = "") -> 
     prompt = WEB.format(name=Path(path).name, q=question, why=why, turns=turns)
     try:
         (text, gm), cost, model = _gemini(prompt, search=True)
+        if not gm.get("groundingChunks"):   # the model sometimes skips the search; one retry
+            (text2, gm2), cost2, model = _gemini(prompt, search=True)
+            cost += cost2
+            if gm2.get("groundingChunks"):
+                text, gm = text2, gm2
     except Exception:
         try:   # search grounding has its own quota: model knowledge, shown as uncited
             (text, gm), cost, model = _gemini(prompt)
