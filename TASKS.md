@@ -33,22 +33,23 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T26 Hooks run status.mjs from origin/main | setup | T22 | Asif | done | asif/T26-hooks-from-main |  |  |
 | T27 Spread bot: top 10 at level 8 (Bahn side challenge) | spread |  | Asif | done | asif/spread-bot |  |  |
 | T28 UI v3: explorer sidebar, sheet info, How it works + Benchmark | app | T21 | 2chaynz | done | 2chaynz/T28-ui-explorer |  |  |
-| T29 New VLM available: update button | app | T20 | 2chaynz | doing | 2chaynz/T29-vlm-update |  |  |
+| T29 New VLM available: update button | app | T20 | 2chaynz | review | 2chaynz/T29-vlm-update |  |  |
 | T30 Scorer: live progress + resume for long paid runs | eval |  |  | todo |  |  |  |
 | T31 What changed view: revision diff in the UI | app | T28 | ccolver | done | ccolver/T31-changes-view |  |  |
-| T32 Takeoff list: doors, windows, columns, beams, walls + dims | ai | T31 | ccolver | doing | ccolver/T32-takeoff |  |  |
+| T32 Takeoff list: doors, windows, columns, beams, walls + dims | ai | T31 | ccolver | review | ccolver/T32-takeoff |  |  |
 | T33 Cross-check: plan vs schedule conflicts | ai |  | ccolver | done | ccolver/T33-crosscheck |  |  |
 | T34 IFC 3D view: answer elements highlighted in the model | app | T28 | 2chaynz | done | 2chaynz/T34-ifc-3d |  |  |
 | T35 Cross-review script that finds Codex (ChatGPT app install) | setup |  | Asif | done | asif/T35-xreview |  |  |
-| T36 Live reasoning in chat: verifiable steps while answering | app | T34 | 2chaynz | review | 2chaynz/T36-live-reasoning |  |  |
+| T36 Live reasoning in chat: verifiable steps while answering | app | T34 | 2chaynz | done | 2chaynz/T36-live-reasoning |  |  |
 | T37 Reasoning stream backend: router steps + /api/ask/stream | ai |  | 2chaynz | done | 2chaynz/T37-reasoning-stream |  |  |
 | T38 One-command local start (scripts/dev.mjs) | setup |  | Asif | done | asif/T38-dev-script |  |  |
-| T39 Ask back when unclear: clarify + reformulate | ai |  | 2chaynz | doing | 2chaynz/T39-clarify |  |  |
-| T40 IFC floors: storey picker, 2D plan per floor, toggles, element info | app |  | 2chaynz | review | 2chaynz/T40-ifc-floors |  |  |
+| T39 Ask back when unclear: clarify + reformulate | ai |  | 2chaynz | done | 2chaynz/T39-clarify |  |  |
+| T40 IFC floors: storey picker, 2D plan per floor, toggles, element info | app |  | 2chaynz | done | 2chaynz/T40-ifc-floors |  |  |
 | T41 Export redline as PDF markup (Bluebeam) | app |  | johanseneuson | done | johanseneuson/T41-export |  |  |
 | T42 Review mode: tick/cross uncertain marks, live count | app |  | johanseneuson | done | johanseneuson/T42-review |  |  |
-| T43 Proof strip + arithmetic receipt under answers | app |  | johanseneuson | doing | johanseneuson/T43-proof |  |  |
-| T44 Us vs frontier model side by side (Benchmark) | app |  |  | todo |  |  |  |
-| T45 Gitignore dataset and zips | setup |  | Asif | doing | asif/T45-gitignore-dataset |  |  |
+| T43 Proof strip + arithmetic receipt under answers | app |  | johanseneuson | review | johanseneuson/T43-proof |  |  |
+| T44 Us vs frontier model side by side (Benchmark) | app |  | johanseneuson | review | johanseneuson/T44-versus |  |  |
+| T45 Gitignore dataset and zips | setup |  | Asif | done | asif/T45-gitignore-dataset |  |  |
 | T46 Measure: area/length takeoffs, scale + references | app |  | ccolver | doing | ccolver/T46-measure |  |  |
-| T47 dev.mjs: no auto-download, print drop folder | setup |  | Asif | doing | asif/T47-dev-no-download |  |  |
+| T47 dev.mjs: no auto-download, print drop folder | setup |  | Asif | review | asif/T47-dev-no-download |  |  |
+| T48 Agents auto-merge PRs after review + CI | setup |  | Asif | doing | asif/T48-auto-merge |  |  |
