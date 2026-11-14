@@ -56,8 +56,8 @@
  "T20": {
   "who": "Asif",
   "branch": "asif/T20-vlm-backends",
-  "text": "investigating heartbeat reliability",
-  "at": "2026-11-14T13:28:52.438Z"
+  "text": "scoring gemini, gemma-api, nemotron-verda on 40 dev Qs/source",
+  "at": "2026-11-14T13:30:16.179Z"
  },
  "T10": {
   "who": "ccolver",
