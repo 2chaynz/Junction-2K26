@@ -162,7 +162,7 @@ class DrawingTakeoff(unittest.TestCase):
                 mixed.insert_text((50, 50), "FIRST FLOOR PLAN")
                 mixed.insert_text((400, 50), "EAST ELEVATION")
                 elevation = doc.new_page()
-                elevation.insert_text((50, 50), "NORTH ELEVATION")
+                elevation.insert_text((50, 50), "NORTH ELEVATION 1:100")
                 doc.save(Path(d) / path)
 
             def detected(path, page):
