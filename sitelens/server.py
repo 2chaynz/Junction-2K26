@@ -154,7 +154,7 @@ def _ask(path: str, question: str, on_step=None) -> dict:
     if a["method"] == "vlm" and isinstance(a["value"], str):
         g = _general(path, question)
         if g:
-            step("general", "The vision model found nothing on the sheet; answering as a general question")
+            step("general", "The vision model found nothing on the sheet. This looks like a general question, so I'll answer it without citations.")
             g["cost_eur"] = round(g["cost_eur"] + a["cost_eur"], 6)
             g["trace"] = [f"vlm replied '{a['value']}'"] + g["trace"]
             a = g
@@ -162,7 +162,7 @@ def _ask(path: str, question: str, on_step=None) -> dict:
         a["tried"] = [n.rsplit(".", 1)[1] for n in PATHS if _load(n) is not None]
         g = _general(path, question)
         if g:
-            step("general", "Not about this drawing; answering as a general question (no citations)")
+            step("general", "This isn't about the drawing itself. I'll answer it as a general question, without citations.")
             a = g
     a["time_s"] = round(time.time() - t, 3)
     a["view"] = _view_of(path)
@@ -171,7 +171,7 @@ def _ask(path: str, question: str, on_step=None) -> dict:
     if key and a["method"] != "general":
         from eval.score import grade
         a["check"] = {"expected": key["answer"], "unit": key["unit"], "match": grade(key, a["value"])}
-        step("check", f"Stoa's answer key says {key['answer']} {key['unit'] or ''}".strip())
+        step("check", f"Checking against Stoa's answer key: {key['answer']} {key['unit'] or ''}".strip())
     return a
 
 

@@ -134,6 +134,20 @@ input { font: inherit; color: inherit; }
 .stoa.ok { color: var(--ok); }
 .stoa.ko { color: var(--red); border: 1px solid var(--red); border-radius: var(--r); padding: 0 5px; margin-left: 6px; font-size: 12px; }
 .tag { font-size: 12px; color: var(--dim); margin-bottom: 2px; }
+/* Reasoning, streamed live: quiet grey text, like a margin note */
+.think { margin: 2px 0 6px; }
+.think-head { font-size: 13px; color: var(--dim); }
+.think-head:hover:not(:disabled) { color: var(--ink); }
+.think-head:disabled { opacity: 1; }
+.think.live .think-head { animation: pulse 1.4s ease-in-out infinite; }
+.think-body { list-style: none; margin: 4px 0 0; padding: 0 0 0 10px; border-left: 2px solid var(--line); font-size: 13px; line-height: 1.5; color: var(--dim); }
+.think-body li { margin: 0 0 3px; }
+.think-body li.skip { color: #a3a3a3; }
+.think-body li.fail { color: #b4534a; }
+.think-body li.found { color: var(--ink); }
+.think-body li.trace { color: var(--ink); font-family: var(--mono); font-size: 12px; padding-left: 10px; }
+.think-body li.check { color: var(--ok); }
+.think.live .think-body li:last-child::after { content: ""; display: inline-block; width: 6px; height: 12px; margin-left: 3px; vertical-align: -1px; background: var(--dim); animation: pulse 1s steps(1) infinite; }
 .steps-toggle { font-size: 13px; color: var(--dim); margin-top: 4px; }
 .steps-toggle:hover { color: var(--ink); }
 .steps { margin: 4px 0 0; padding-left: 18px; font-size: 13px; color: var(--dim); }
@@ -203,11 +217,11 @@ input { font: inherit; color: inherit; }
 .model3d .gl canvas { display: block; }
 .model3d .overlay { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
 .tags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.tag {
+.tags .tag {
   position: absolute; left: 0; top: 0; margin: -22px 0 0 -9px; min-width: 18px; padding: 0 4px; text-align: center;
   font: 600 15px/18px var(--hand); color: #fff; background: var(--red); border-radius: 9px; opacity: 0.9;
 }
-.tag.hot { opacity: 1; box-shadow: 0 0 0 3px var(--red-soft); }
+.tags .tag.hot { opacity: 1; box-shadow: 0 0 0 3px var(--red-soft); }
 .model-note { position: absolute; left: 12px; bottom: 10px; font-size: 11px; color: var(--dim); }
 .modes { position: absolute; right: 12px; top: 12px; z-index: 2; display: flex; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); overflow: hidden; }
 .modes button { padding: 3px 12px; font-size: 13px; color: var(--dim); }
