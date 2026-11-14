@@ -163,6 +163,7 @@ dd { margin: 0; }
 .tag { background: var(--raised); border: 1px solid var(--line); padding: 6px 10px; font-size: 13px; }
 .tag:hover { border-color: #ffffff4d; }
 .tag.on { border-color: var(--gold); color: var(--gold); }
+.tag.bridge { color: #d8b07a; border-color: #a87c4e80; }
 .rounds { list-style: none; padding: 0 12px; margin: 0; font-size: 12px; color: var(--text-2); }
 .rounds li { padding: 4px 0; border-bottom: 1px solid var(--line); }
 .footer-link { display: flex; flex-direction: column; gap: 6px; padding: 12px; font: 13px var(--serif); }
@@ -190,3 +191,20 @@ dd { margin: 0; }
   .transport { height: 48px; }
   .t-btn { font-size: 13px; gap: 6px; }
 }
+
+/* ---------- ask (Gemini) ---------- */
+.ask { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: min(480px, calc(100% - 180px)); z-index: 4; background: var(--chip); backdrop-filter: blur(6px); border: 1px solid var(--line); }
+.ask.open { border-color: #ebc87866; }
+.ask form { display: flex; align-items: center; gap: 8px; padding: 0 10px; color: var(--gold); }
+.ask input { border: 0; background: none; padding: 10px 0; font-size: 14px; color: var(--text); }
+.ask-body { border-top: 1px solid var(--line); padding: 8px 0 4px; max-height: 55vh; overflow: auto; }
+.ask-body > p, .ask-body > .chips { padding: 0 12px 8px; margin: 0; }
+.ask-answer { line-height: 1.5; color: var(--text-2); }
+.ask-error { color: #ff6b6b; font-size: 12px; }
+.ask-note { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--muted); }
+.ask-note svg { color: var(--gold); }
+.ask .track-list li { align-items: flex-start; }
+.pick { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pick .name { white-space: normal; }
+.why { font-size: 12px; color: var(--muted); line-height: 1.4; }
+@media (max-width: 760px) { .ask { left: 10px; transform: none; width: calc(100% - 130px); } }

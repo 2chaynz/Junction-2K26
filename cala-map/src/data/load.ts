@@ -33,5 +33,8 @@ export const POSITIONS = posFiles['./positions.json'] ?? {}
 export interface Summary { summary: string; sources: { title: string; uri: string }[]; model: string }
 const sumFiles = import.meta.glob<Record<string, Summary>>('./summaries.json', { eager: true, import: 'default' })
 export const SUMMARIES = sumFiles['./summaries.json'] ?? {}
+// Startup ids that also belong to another sector (scripts/embed.mjs); `to` is the raw Cala sector.
+const bridgeFiles = import.meta.glob<{ id: string; to: string }[]>('./bridges.json', { eager: true, import: 'default' })
+export const BRIDGE_LINKS = (bridgeFiles['./bridges.json'] ?? []).map((b) => ({ id: b.id, to: SECTOR_LABEL[b.to] ?? b.to }))
 export const SECTORS = [...new Set(STARTUPS.map((s) => s.sector))].sort()
 export { STAGES }

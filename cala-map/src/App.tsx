@@ -8,7 +8,8 @@ import { useClock } from './anim'
 import { Icon } from './icons'
 import { Logo, sigilUrl } from './Logo'
 import { MapView, type FlyRequest } from './MapView'
-import { BY_ID, ISLANDS, LAND, TILES } from './world'
+import { AskBox } from './AskBox'
+import { BRIDGES, BY_ID, ISLANDS, LAND, TILES } from './world'
 import './App.css'
 
 const COUNTRIES = [...new Set(STARTUPS.map((s) => s.country))].sort()
@@ -46,6 +47,8 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(startId)
   const [history, setHistory] = useState<string[]>([])
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
+  // Startups picked by the last Gemini answer; empty = no spotlight.
+  const [spotlight, setSpotlight] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [drawer, setDrawer] = useState<Drawer>('none')
   const [openIsland, setOpenIsland] = useState('')
@@ -69,7 +72,7 @@ export default function App() {
 
   const tile = BY_ID.get(selectedId)!
   const selected = tile.startup!
-  const visible = useMemo(() => new Set(STARTUPS.filter((s) => matches(s, filters)).map((s) => s.id)), [filters])
+  const visible = useMemo(() => new Set(STARTUPS.filter((s) => matches(s, filters) && (!spotlight.length || spotlight.includes(s.id))).map((s) => s.id)), [filters, spotlight])
   const discoveredSet = useMemo(() => new Set(discovered), [discovered])
   const gemSet = useMemo(() => new Set(gems.filter((g) => BY_ID.has(g))), [gems])
   const filtering = JSON.stringify(filters) !== JSON.stringify(NO_FILTERS)
@@ -143,6 +146,7 @@ export default function App() {
   const selectRef = useRef(select)
   selectRef.current = select
   const onPick = useCallback((id: string) => selectRef.current(id, false), [])
+  const flyPick = useCallback((id: string) => selectRef.current(id), [])
 
   useEffect(() => {
     const island = ISLANDS.find((i) => i.sector === filters.sector)
@@ -189,6 +193,7 @@ export default function App() {
     ...(selected.founded ? [{ key: 'year' as const, value: String(selected.founded), text: `est. ${selected.founded}` }] : []),
     ...(funded ? [{ key: 'funded' as const, value: 'funded', text: 'funded' }] : []),
   ]
+  const bridge = BRIDGES.find((b) => b.from === tile)
   const copyLink = () => { navigator.clipboard?.writeText(location.href); setCopied(true); setTimeout(() => setCopied(false), 1500) }
 
   return (
@@ -258,6 +263,7 @@ export default function App() {
       <main className="map">
         <div className="map-canvas">
           <MapView tile={tile} visible={visible} hideSeen={hideSeen} discovered={discoveredSet} gems={gemSet} fly={fly} onPick={onPick} />
+          <AskBox current={selectedId} onAnswer={setSpotlight} onPick={flyPick} />
           <button className="chip recenter" title="Back to the selected startup (r)" onClick={() => flyTo(tile.x, tile.y)}><Icon name="target" /> recenter</button>
 
           {drawer !== 'none' && (
@@ -286,6 +292,7 @@ export default function App() {
             <div className="filter-tools">
               <button className={`chip ${showFilters ? 'active' : ''}`} onClick={() => setShowFilters(!showFilters)}><Icon name="down" size={10} /> filters</button>
               <button className={`chip ${hideSeen ? 'active' : ''}`} title="Dim the startups you have already opened" onClick={() => setHideSeen(!hideSeen)}><Icon name="dots" /> dim seen</button>
+              {spotlight.length > 0 && <button className="chip active" title="Show all startups again" onClick={() => setSpotlight([])}><Icon name="spark" /> {spotlight.length} from Gemini ✕</button>}
               {filtering && <span className="chip count">{visible.size} startups</span>}
               {filtering && <button className="chip" onClick={() => setFilters(NO_FILTERS)}>clear ✕</button>}
               {filtering && <button className="chip" title="Save these filters" onClick={() => setSavedFilters([...savedFilters, filters])}><Icon name="save" /> save</button>}
@@ -335,6 +342,9 @@ export default function App() {
           <div className="cover-text">
             <h2>{selected.name}</h2>
             <div className="facts">
+              {bridge && (
+                <button className="tag bridge" title={`Also ${bridge.to.sector}: sail across the bridge`} onClick={() => flyTo(bridge.to.x, bridge.to.y)}>⇄ also {bridge.to.sector}</button>
+              )}
               {facts.map((f) => (
                 <button key={f.key} className={`tag ${filters[f.key] === f.value ? 'on' : ''}`} title={filters[f.key] === f.value ? 'Remove this filter' : `Show only ${f.text} on the map`} onClick={() => toggleFilter(f.key, f.value)}>{f.text}</button>
               ))}

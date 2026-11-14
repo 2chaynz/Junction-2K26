@@ -71,75 +71,115 @@ function islandCells(area: number, shape: Shape, noise: (x: number, y: number) =
 
 const key = (x: number, y: number) => (x + 5000) * 10000 + (y + 5000)
 
-// Drops an island at the free spot nearest the centre along random bearings: a scattered
+// Startup that also belongs to another sector; the map joins the two islands through it.
+export interface BridgeLink { id: string; to: string }
+export interface Bridge { from: Tile; to: Tile }
+
+// Drops an island at the free spot nearest `anchor` along random bearings: a scattered
 // archipelago with uneven straits instead of rows and columns.
-function place(cells: { x: number; y: number }[], blocked: Set<number>, r: () => number) {
+function place(cells: { x: number; y: number }[], blocked: Set<number>, r: () => number, anchor: [number, number]) {
   for (let ring = 0; ; ring++) {
     for (let k = 0; k < 10; k++) {
       const a = r() * Math.PI * 2
       // Wider than tall, to suit landscape screens.
-      const ox = Math.round(Math.cos(a) * ring * 2.4)
-      const oy = Math.round(Math.sin(a) * ring * 1.5)
+      const ox = Math.round(anchor[0] + Math.cos(a) * ring * 2.4)
+      const oy = Math.round(anchor[1] + Math.sin(a) * ring * 1.5)
       if (cells.every((c) => !blocked.has(key(c.x + ox, c.y + oy)))) return { ox, oy }
     }
   }
 }
 
-export function layoutIslands(startups: Startup[], sectors: string[], positions: Positions = {}) {
+export function layoutIslands(startups: Startup[], sectors: string[], positions: Positions = {}, links: BridgeLink[] = []) {
   const r = rng(23)
   const noise = perlin(11)
-  const tiles: Tile[] = []
-  const islands: Island[] = []
   const blocked = new Set<number>()
-  const groups = sectors
-    .map((sector, i) => ({ sector, color: PALETTE[i % PALETTE.length], members: startups.filter((s) => s.sector === sector) }))
-    // Biggest first: small islands then fill the gaps around the large ones.
-    .sort((a, b) => b.members.length - a.members.length)
+  const sectorOf = new Map(startups.map((s) => [s.id, s.sector]))
+  const weight = new Map<string, number>()
+  const pairKey = (a: string, b: string) => [a, b].sort().join('|')
+  for (const l of links) {
+    const from = sectorOf.get(l.id)
+    if (from) weight.set(pairKey(from, l.to), (weight.get(pairKey(from, l.to)) ?? 0) + 1)
+  }
+  const pending = sectors.map((sector, i) => ({ sector, color: PALETTE[i % PALETTE.length], members: startups.filter((s) => s.sector === sector) }))
+  const placed: { sector: string; color: Tile['color']; members: Startup[]; cells: { x: number; y: number }[]; cx: number; cy: number }[] = []
 
-  groups.forEach(({ sector, color, members }, i) => {
-    const local = islandCells(Math.ceil(members.length * LAND_PER_STARTUP), randomShape(r), noise, i * 7.3)
-    const { ox, oy } = place(local, blocked, r)
+  // Biggest island first, then always the one most bridged to what is already placed, dropped
+  // next to its partners: shared themes become neighbouring shores.
+  while (pending.length) {
+    const ties = (g: (typeof pending)[number]) => placed.reduce((a, p) => a + (weight.get(pairKey(g.sector, p.sector)) ?? 0), 0)
+    pending.sort((a, b) => ties(b) - ties(a) || b.members.length - a.members.length)
+    const g = pending.shift()!
+    const partners = placed.map((p) => ({ p, w: weight.get(pairKey(g.sector, p.sector)) ?? 0 })).filter((x) => x.w)
+    const total = partners.reduce((a, x) => a + x.w, 0)
+    const anchor: [number, number] = total
+      ? [partners.reduce((a, x) => a + x.p.cx * x.w, 0) / total, partners.reduce((a, x) => a + x.p.cy * x.w, 0) / total]
+      : [0, 0]
+    const local = islandCells(Math.ceil(g.members.length * LAND_PER_STARTUP), randomShape(r), noise, placed.length * 7.3)
+    const { ox, oy } = place(local, blocked, r, anchor)
     const cells = local.map((c) => ({ x: c.x + ox, y: c.y + oy }))
-    const strait = 3 + Math.floor(r() * 5)
+    const strait = 5 + Math.floor(r() * 6)
     for (const c of cells) {
       for (let dx = -strait; dx <= strait; dx++) for (let dy = -strait; dy <= strait; dy++) blocked.add(key(c.x + dx, c.y + dy))
     }
-    const startupAt = assign(members, cells, positions, r)
+    placed.push({ ...g, cells, cx: cells.reduce((a, c) => a + c.x, 0) / cells.length, cy: cells.reduce((a, c) => a + c.y, 0) / cells.length })
+  }
+
+  const tiles: Tile[] = []
+  const islands: Island[] = []
+  const centre = new Map(placed.map((p) => [p.sector, [p.cx, p.cy] as const]))
+  const linkOf = new Map(links.map((l) => [l.id, l.to]))
+  for (const { sector, color, members, cells, cx, cy } of placed) {
+    const startupAt = assign(members, cells, positions, r, (id) => centre.get(linkOf.get(id) ?? ''))
     for (const c of cells) {
       const s = startupAt.get(`${c.x},${c.y}`)
       const jitter = (r() - 0.5) * 36
       const shade = color.map((v) => Math.max(0, Math.min(255, v + jitter))) as [number, number, number]
       tiles.push({ x: c.x, y: c.y, sector, startup: s, color: s ? shade : (shade.map((v) => v * 0.55) as [number, number, number]) })
     }
-    islands.push({
-      sector,
-      cx: cells.reduce((a, c) => a + c.x, 0) / (cells.length || 1),
-      cy: cells.reduce((a, c) => a + c.y, 0) / (cells.length || 1),
-      radius: Math.sqrt(cells.length / Math.PI),
-      color,
-    })
+    islands.push({ sector, cx, cy, radius: Math.sqrt(cells.length / Math.PI), color })
+  }
+
+  // Each bridge lands on the nearest shore of the partner island.
+  const byId = new Map(tiles.filter((t) => t.startup).map((t) => [t.startup!.id, t]))
+  const bridges: Bridge[] = links.flatMap((l) => {
+    const from = byId.get(l.id)
+    if (!from) return []
+    const shore = tiles.filter((t) => t.sector === l.to)
+    if (!shore.length) return []
+    const to = shore.reduce((a, b) => (Math.hypot(a.x - from.x, a.y - from.y) <= Math.hypot(b.x - from.x, b.y - from.y) ? a : b))
+    return [{ from, to }]
   })
-  return { tiles, islands }
+  return { tiles, islands, bridges }
 }
 
-// Greedy match of each startup to the free land cell closest to its similarity position.
-function assign(members: Startup[], cells: { x: number; y: number }[], positions: Positions, r: () => number) {
+// Bridge startups take the coast cell facing their partner island; the rest go to the free
+// cell closest to their similarity position.
+function assign(members: Startup[], cells: { x: number; y: number }[], positions: Positions, r: () => number, partner: (id: string) => readonly [number, number] | undefined) {
   const xs = cells.map((c) => c.x)
   const ys = cells.map((c) => c.y)
   const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)]
   const free = cells.map((c) => ({ ...c, u: (c.x - x0) / (x1 - x0 || 1), v: (c.y - y0) / (y1 - y0 || 1) }))
   const out = new Map<string, Startup>()
-  const order = [...members].sort((a, b) => (positions[a.id] ? 0 : 1) - (positions[b.id] ? 0 : 1))
-  for (const s of order) {
-    const [u, v] = positions[s.id] ?? [0.5 + (r() - 0.5) * 0.6, 0.5 + (r() - 0.5) * 0.6]
+  const take = (s: Startup, cost: (c: (typeof free)[number]) => number) => {
     let best = 0
     let bestD = Infinity
     free.forEach((c, k) => {
-      const d = (c.u - u) ** 2 + (c.v - v) ** 2
+      const d = cost(c)
       if (d < bestD) [best, bestD] = [k, d]
     })
     const [c] = free.splice(best, 1)
     if (c) out.set(`${c.x},${c.y}`, s)
+  }
+  const rest: Startup[] = []
+  for (const s of members) {
+    const p = partner(s.id)
+    if (p) take(s, (c) => Math.hypot(c.x - p[0], c.y - p[1]))
+    else rest.push(s)
+  }
+  rest.sort((a, b) => (positions[a.id] ? 0 : 1) - (positions[b.id] ? 0 : 1))
+  for (const s of rest) {
+    const [u, v] = positions[s.id] ?? [0.5 + (r() - 0.5) * 0.6, 0.5 + (r() - 0.5) * 0.6]
+    take(s, (c) => (c.u - u) ** 2 + (c.v - v) ** 2)
   }
   return out
 }

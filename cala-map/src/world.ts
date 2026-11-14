@@ -1,8 +1,8 @@
-import { POSITIONS, SECTORS, STARTUPS } from './data/load'
+import { BRIDGE_LINKS, POSITIONS, SECTORS, STARTUPS } from './data/load'
 import { layoutIslands } from './layout'
 
 // The archipelago is computed once; every component reads the same tiles.
-export const { tiles: TILES, islands: ISLANDS } = layoutIslands(STARTUPS, SECTORS, POSITIONS)
+export const { tiles: TILES, islands: ISLANDS, bridges: BRIDGES } = layoutIslands(STARTUPS, SECTORS, POSITIONS, BRIDGE_LINKS)
 export const BY_ID = new Map(TILES.filter((t) => t.startup).map((t) => [t.startup!.id, t]))
 export const LAND = new Map(TILES.map((t) => [`${t.x},${t.y}`, t]))
 

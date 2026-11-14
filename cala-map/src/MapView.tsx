@@ -1,12 +1,12 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { DeckGL } from '@deck.gl/react'
 import { LinearInterpolator, OrthographicView } from '@deck.gl/core'
-import { IconLayer, PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
-import type { Tile } from './layout'
+import { IconLayer, PathLayer, PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
+import type { Bridge, Tile } from './layout'
 import { useClock, useVoyage } from './anim'
 import { iconUrl } from './icons'
 import { sigilUrl } from './Logo'
-import { BOUNDS, ISLANDS, SEA, TILES } from './world'
+import { BOUNDS, BRIDGES, ISLANDS, SEA, TILES } from './world'
 
 const MAX_ZOOM = 7.5
 // Above this zoom every visible tile shows its startup's emblem, like zig-zag's covers.
@@ -28,6 +28,17 @@ const SPRITE = {
 }
 const STARTUP_TILES = TILES.filter((t) => t.startup)
 const square = (t: Tile, h = 0.47) => [[t.x - h, t.y - h], [t.x + h, t.y - h], [t.x + h, t.y + h], [t.x - h, t.y + h]]
+// Planks across each bridge, one every 0.4 tiles.
+const PLANKS = BRIDGES.flatMap((b) => {
+  const [dx, dy] = [b.to.x - b.from.x, b.to.y - b.from.y]
+  const len = Math.hypot(dx, dy) || 1
+  const [nx, ny] = [(-dy / len) * 0.24, (dx / len) * 0.24]
+  return Array.from({ length: Math.floor(len / 0.4) }, (_, i) => {
+    const k = (i + 0.5) * 0.4 / len
+    const [x, y] = [b.from.x + dx * k, b.from.y + dy * k]
+    return [[x - nx, y - ny], [x + nx, y + ny]] as [number, number][]
+  })
+})
 const emblem = (t: Tile) => ({ url: sigilUrl(t.startup!.name, t.color), width: 70, height: 70, id: `s-${t.startup!.id}` })
 
 type View = { target: [number, number, number]; zoom: number } & Partial<typeof FLY>
@@ -106,6 +117,36 @@ export const MapView = memo(function MapView({ tile, visible, hideSeen, discover
     onClick: ({ object }) => object && onPick(object.startup!.id),
   }), [visible, hideSeen, discovered, tile, onPick])
 
+  // Rails under a lighter deck read as a wooden walkway at any zoom.
+  const bridgeOn = (b: Bridge) => b.from === tile || b.to === tile
+  const bridgeLayers = useMemo(() => [
+    new PathLayer<Bridge>({
+      id: 'bridge-rails',
+      data: BRIDGES,
+      getPath: (b) => [[b.from.x, b.from.y], [b.to.x, b.to.y]],
+      getColor: (b) => (bridgeOn(b) ? [235, 200, 120, 255] : [92, 64, 40, 200]),
+      getWidth: 0.5,
+      widthUnits: 'common',
+      widthMinPixels: 1.5,
+      capRounded: false,
+      pickable: true,
+      autoHighlight: true,
+      highlightColor: [235, 200, 120, 200],
+      updateTriggers: { getColor: tile },
+      onClick: ({ object }) => object && onPick(object.from.startup!.id),
+    }),
+    new PathLayer<[number, number][]>({
+      id: 'bridge-planks',
+      data: PLANKS,
+      getPath: (p) => p,
+      getColor: [168, 124, 78, 255],
+      getWidth: 0.2,
+      widthUnits: 'common',
+      widthMinPixels: 1,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [tile, onPick])
+
   const selectionLayer = useMemo(() => new PolygonLayer<Tile>({
     id: 'selection',
     data: [tile],
@@ -174,6 +215,7 @@ export const MapView = memo(function MapView({ tile, visible, hideSeen, discover
       getFillColor: (d) => [120, 170, 200, 25 + 70 * Math.sin(clock * d.speed + d.phase) ** 8],
       updateTriggers: { getFillColor: Math.floor(clock * 8) },
     }),
+    ...bridgeLayers,
     tilesLayer,
     selectionLayer,
     emblemsLayer,
@@ -215,6 +257,8 @@ export const MapView = memo(function MapView({ tile, visible, hideSeen, discover
         layers={layers}
         getCursor={({ isHovering, isDragging }) => (isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab')}
         getTooltip={({ object }) => {
+          const b = object as Bridge
+          if (b?.from && b.to) return { html: `<b>${b.from.startup!.name}</b><div>bridges ${b.from.sector} and ${b.to.sector}</div>`, className: 'map-tip', style: {} }
           const s = (object as Tile)?.startup
           return s ? { html: `<b>${s.name}</b><div>${s.sector} · ${s.country}${s.founded ? ` · ${s.founded}` : ''}</div>`, className: 'map-tip', style: {} } : null
         }}

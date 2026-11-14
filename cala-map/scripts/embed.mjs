@@ -1,15 +1,64 @@
-// Writes src/data/positions.json: a 2D position per startup inside its island,
-// so similar companies end up next to each other.
-// embed() is TF-IDF for now; swap it for Gemini (or Gemma) embeddings without touching the rest.
-import { readFileSync, writeFileSync } from 'node:fs'
+// Writes src/data/positions.json (2D spot per startup inside its island, similar = near)
+// and src/data/bridges.json (startups that also belong to another sector, so the map can
+// join islands with bridges). Uses Gemini embeddings when GEMINI_API_KEY is set, cached in
+// .cache/embeddings.json (also read by the ask endpoint); falls back to TF-IDF otherwise.
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 
-const startups = JSON.parse(readFileSync(new URL('../src/data/startups.json', import.meta.url), 'utf8'))
-const OUT = new URL('../src/data/positions.json', import.meta.url)
+for (const line of existsSync(new URL('../.env', import.meta.url)) ? readFileSync(new URL('../.env', import.meta.url), 'utf8').split('\n') : []) {
+  const m = line.match(/^(\w+)=(.*)$/)
+  if (m && !process.env[m[1]]) process.env[m[1]] = m[2]
+}
+const KEY = process.env.GEMINI_API_KEY
+const EMBED_MODEL = 'gemini-embedding-001'
+const EMBED_DIM = 768
+// A startup bridges to another sector when that sector's centroid is nearly as close as its own.
+const BRIDGE_MARGIN = 0.012
+const MAX_BRIDGES_PER_PAIR = 2
+const MAX_PAIRS = 14
+
+const data = (f) => new URL(`../src/data/${f}`, import.meta.url)
+const seen = new Set()
+const startups = JSON.parse(readFileSync(data('startups.json'), 'utf8')).filter((s) => !seen.has(s.id) && seen.add(s.id))
+const summaries = existsSync(data('summaries.json')) ? JSON.parse(readFileSync(data('summaries.json'), 'utf8')) : {}
+const CACHE = new URL('../.cache/embeddings.json', import.meta.url)
+
+const text = (s) => `${s.name}. ${s.description}. ${summaries[s.id]?.summary ?? ''}`.trim()
+const hash = (t) => createHash('sha1').update(t).digest('hex').slice(0, 12)
+const normalise = (v) => { const n = Math.hypot(...v) || 1; return v.map((x) => x / n) }
+
+async function geminiEmbed(texts) {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${EMBED_MODEL}:batchEmbedContents`, {
+    method: 'POST',
+    headers: { 'x-goog-api-key': KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      requests: texts.map((t) => ({ model: `models/${EMBED_MODEL}`, content: { parts: [{ text: t }] }, taskType: 'RETRIEVAL_DOCUMENT', outputDimensionality: EMBED_DIM })),
+    }),
+  })
+  const body = await res.json()
+  if (!res.ok) throw new Error(`embed: ${res.status} ${body.error?.message}`)
+  return body.embeddings.map((e) => normalise(e.values))
+}
+
+async function embedAll() {
+  if (!KEY) return null
+  const cache = existsSync(CACHE) ? JSON.parse(readFileSync(CACHE, 'utf8')) : {}
+  const todo = startups.filter((s) => cache[s.id]?.h !== hash(text(s)))
+  for (let i = 0; i < todo.length; i += 100) {
+    const batch = todo.slice(i, i + 100)
+    const vecs = await geminiEmbed(batch.map(text))
+    batch.forEach((s, k) => { cache[s.id] = { h: hash(text(s)), v: vecs[k].map((x) => Math.round(x * 1e5) / 1e5) } })
+    console.log(`embedded ${Math.min(i + 100, todo.length)}/${todo.length}`)
+  }
+  mkdirSync(new URL('../.cache/', import.meta.url), { recursive: true })
+  writeFileSync(CACHE, JSON.stringify(cache))
+  return new Map(startups.map((s) => [s.id, cache[s.id].v]))
+}
+
 const STOP = new Set('a an and the of for in on to with by from its is are as at or that this based company startup platform'.split(' '))
-
 const tokens = (s) => s.toLowerCase().match(/[a-z]{3,}/g)?.filter((w) => !STOP.has(w)) ?? []
 
-function embed(texts) {
+function tfidf(texts) {
   const docs = texts.map(tokens)
   const df = new Map()
   for (const d of docs) for (const w of new Set(d)) df.set(w, (df.get(w) ?? 0) + 1)
@@ -18,8 +67,7 @@ function embed(texts) {
   return docs.map((d) => {
     const v = new Float64Array(vocab.length)
     for (const w of d) if (index.has(w)) v[index.get(w)] += Math.log(docs.length / df.get(w))
-    const n = Math.hypot(...v) || 1
-    return v.map((x) => x / n)
+    return normalise([...v])
   })
 }
 
@@ -36,14 +84,14 @@ function pca2(vectors) {
     for (let it = 0; it < 50; it++) {
       const next = new Float64Array(dim)
       for (const x of X) {
-        let dot = 0
-        for (let i = 0; i < dim; i++) dot += x[i] * w[i]
-        for (let i = 0; i < dim; i++) next[i] += dot * x[i]
+        let d = 0
+        for (let i = 0; i < dim; i++) d += x[i] * w[i]
+        for (let i = 0; i < dim; i++) next[i] += d * x[i]
       }
       for (const prev of comps) {
-        let dot = 0
-        for (let i = 0; i < dim; i++) dot += next[i] * prev[i]
-        for (let i = 0; i < dim; i++) next[i] -= dot * prev[i]
+        let d = 0
+        for (let i = 0; i < dim; i++) d += next[i] * prev[i]
+        for (let i = 0; i < dim; i++) next[i] -= d * prev[i]
       }
       const n = Math.hypot(...next) || 1
       w = next.map((x) => x / n)
@@ -59,11 +107,48 @@ function pca2(vectors) {
   }, proj.map(() => [0.5, 0.5]))
 }
 
+const dot = (a, b) => a.reduce((acc, x, i) => acc + x * b[i], 0)
+
+function findBridges(vec) {
+  const sectors = [...new Set(startups.map((s) => s.sector))]
+  const centroid = new Map(sectors.map((sec) => {
+    const members = startups.filter((s) => s.sector === sec).map((s) => vec.get(s.id))
+    return [sec, normalise(members[0].map((_, i) => members.reduce((a, v) => a + v[i], 0)))]
+  }))
+  const candidates = []
+  for (const s of startups) {
+    const v = vec.get(s.id)
+    const own = dot(v, centroid.get(s.sector))
+    const [best] = sectors.filter((sec) => sec !== s.sector)
+      .map((sec) => ({ sec, gap: dot(v, centroid.get(sec)) - own }))
+      .sort((a, b) => b.gap - a.gap)
+    if (best.gap > -BRIDGE_MARGIN) candidates.push({ id: s.id, from: s.sector, to: best.sec, gap: best.gap, pair: [s.sector, best.sec].sort().join('|') })
+  }
+  // Only the most shared island pairs get bridges, plus each island's best pair so none is cut off;
+  // otherwise the sea fills with spaghetti.
+  const pairs = new Map()
+  for (const c of candidates.sort((a, b) => b.gap - a.gap)) pairs.set(c.pair, [...(pairs.get(c.pair) ?? []), c])
+  const ranked = [...pairs.entries()].sort((a, b) => b[1].length - a[1].length || b[1][0].gap - a[1][0].gap)
+  const keep = new Set(ranked.slice(0, MAX_PAIRS).map(([p]) => p))
+  for (const sec of sectors) {
+    const own = ranked.find(([p]) => p.split('|').includes(sec))
+    if (own) keep.add(own[0])
+  }
+  return [...keep].flatMap((p) => pairs.get(p).slice(0, MAX_BRIDGES_PER_PAIR))
+    .map(({ id, to, gap }) => ({ id, to, gap: Math.round(gap * 1e4) / 1e4 }))
+}
+
+const gemini = await embedAll()
+const fallback = gemini ? null : tfidf(startups.map(text))
+const vec = gemini ?? new Map(startups.map((s, i) => [s.id, fallback[i]]))
+
 const positions = {}
 for (const sector of new Set(startups.map((s) => s.sector))) {
   const group = startups.filter((s) => s.sector === sector)
-  const xy = pca2(embed(group.map((s) => `${s.name} ${s.description}`)))
+  const xy = pca2(group.map((s) => vec.get(s.id)))
   group.forEach((s, i) => { positions[s.id] = xy[i].map((v) => Math.round(v * 1000) / 1000) })
 }
-writeFileSync(OUT, JSON.stringify(positions))
-console.log(`wrote positions for ${Object.keys(positions).length} startups`)
+writeFileSync(data('positions.json'), JSON.stringify(positions))
+const bridges = findBridges(vec)
+writeFileSync(data('bridges.json'), JSON.stringify(bridges))
+console.log(`${gemini ? 'gemini' : 'tf-idf'}: positions for ${Object.keys(positions).length}, ${bridges.length} bridges`)
