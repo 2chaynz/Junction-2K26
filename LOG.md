@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 17:28 · ccolver · plan: industry feedback -> T31 What changed UI, T32 takeoff list (IFC + schedules, CSV), T33 plan vs schedule cross-check
 - 2026-11-14 15:37 · johanseneuson · johanseneuson: dead ends for cubicasa windows (44% on rest, the biggest gap): inference at 1536/1792 px (worse), flip-TTA (worse), per-drawing-style thresholds (488 vs 490 dev). Misses are low-confidence detections on coloured/low-res plans -> needs a retrain at higher res (GPU)
 - 2026-11-14 15:35 · johanseneuson · johanseneuson: PR #43 T12: raster counts now carry a real confidence (recount at cut ±0.1). Dev: 89% correct when confident, 53% on the 18% flagged 'please check' (UI already shows it <0.6). Pitch line: sure -> right 9/10, unsure -> says so
 - 2026-11-14 15:34 · 2chaynz · T28 PR #42: explorer sidebar with folders + thumbnails, sheet info strip, How it works + Benchmark tabs (T10/T17 numbers)
