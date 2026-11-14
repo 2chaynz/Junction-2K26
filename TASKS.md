@@ -65,4 +65,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T58 Deploy the demo to a public URL | setup |  | johanseneuson | done | johanseneuson/T58-deploy |  |  |
 | T59 Zoom the Building view with the mouse wheel | app |  | ccolver | done | ccolver/T59-stack-zoom |  |  |
 | T60 Link drawings and BIM and group tools | app |  | ccolver | done | ccolver/T60-sheet-tools |  |  |
-| T61 Projects workspace: picker, scoped sheets, saved sessions | app | T50 |  | todo |  |  |  |
+| T61 Projects workspace: picker, scoped sheets, saved sessions | app | T50 | Asif | doing | asif/T61-projects |  |  |
