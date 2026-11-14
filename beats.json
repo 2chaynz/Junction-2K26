@@ -358,5 +358,11 @@
   "branch": "asif/T70-app-shell",
   "text": "v2 built locally: 2-row header, sheet bar, overview; awaiting user review, no PR",
   "at": "2026-11-14T19:26:21.110Z"
+ },
+ "T71": {
+  "who": "ccolver",
+  "branch": "ccolver/T63-english-questions",
+  "text": "claimed",
+  "at": "2026-11-14T19:35:47.071Z"
  }
 }
