@@ -83,6 +83,8 @@ def _associate(objects, words, specs):
         x0, y0, x1, y1 = ev.bbox
         for token, box in words:
             token = token.upper()
+            if token.isdecimal():
+                continue
             x, y = measure._centre(box)
             gap = min(12, max(x1 - x0, y1 - y0) * 0.35)
             if not (x0 - gap <= x <= x1 + gap and y0 - gap <= y <= y1 + gap):
@@ -360,15 +362,14 @@ def takeoff(path):
     source = data_root() / path
     weights = detector._weights()
     pages, truncated, page_tables = _sheet(path, data_root().resolve(), source.stat().st_mtime_ns, weights.stat().st_mtime_ns if weights.exists() else 0)
-    if page_tables and not any(objects for _, objects, _, _ in pages):
-        from .takeoff import _schedule
+    from .takeoff import _schedule
 
-        schedule = _schedule(path, page_tables)
-        if schedule:
-            schedule["notes"].append("No placements were identified outside the schedule table.")
-            if truncated:
-                schedule["notes"].append(f"Only the first {MAX_PAGES} PDF pages were reviewed.")
-            return schedule
+    schedule = _schedule(path, page_tables) if page_tables else None
+    if schedule and not any(objects for _, objects, _, _ in pages):
+        schedule["notes"].append("No placements were identified outside the schedule table.")
+        if truncated:
+            schedule["notes"].append(f"Only the first {MAX_PAGES} PDF pages were reviewed.")
+        return schedule
     specs, inspected, limited, failed = _specs(path, page_tables)
     rows = []
     for page, objects, words, bars in pages:
@@ -384,6 +385,16 @@ def takeoff(path):
         "Wall counts are rectangular DXF segments, where available. Column, beam, slab and full wall quantities "
         "cannot be inferred from symbol detections.",
     ]
+    if schedule:
+        counted = {row["category"] for row in rows}
+        entries = [row for row in schedule["rows"] if row["category"] not in counted]
+        for row in entries:
+            row["category"] += " (schedule)"
+            row["reason"] = ["Count of schedule entries. No placements were identified for this category."]
+            row["dimension_evidence"] = row["evidence"]
+        rows.extend(entries)
+    if specs:
+        notes.append("Numeric-only labels cannot be distinguished from dimensions and are not matched to schedules.")
     if not weights.exists():
         notes.append("Symbol detector weights are unavailable; only supported drawing geometry can be counted.")
     if not rows:
