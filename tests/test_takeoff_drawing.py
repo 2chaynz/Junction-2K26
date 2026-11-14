@@ -68,6 +68,7 @@ class DrawingTakeoff(unittest.TestCase):
                 with pymupdf.open() as doc:
                     page = doc.new_page()
                     if layout == "later schedule":
+                        page.insert_text((100, 380), "GROUND FLOOR PLAN")
                         page.insert_text((110, 405), "101.A")
                         page = doc.new_page()
                     page.insert_text((100, 80), "DOOR SCHEDULE")
@@ -81,6 +82,8 @@ class DrawingTakeoff(unittest.TestCase):
                         page.set_rotation(270)
                     if layout == "later page":
                         page = doc.new_page()
+                    if layout in ("same page", "later page", "numeric label", "unrelated placement"):
+                        page.insert_text((100, 380), "GROUND FLOOR PLAN")
                     if layout in ("same page", "later page", "numeric label"):
                         page.insert_text((110, 405), "900" if layout == "numeric label" else "101.A")
                     if layout in ("schedule only", "rotated"):
@@ -93,6 +96,8 @@ class DrawingTakeoff(unittest.TestCase):
                     boxes = []
                     if page.number == int(layout == "later schedule"):
                         boxes.append([100, 122, 150, 132])
+                    if layout in ("schedule only", "rotated"):
+                        boxes.append([330, 122, 370, 155])
                     if (layout in ("same page", "later schedule", "unrelated placement", "numeric label") and page.number == 0) or (
                         layout == "later page" and page.number == 1
                     ):
@@ -101,9 +106,10 @@ class DrawingTakeoff(unittest.TestCase):
                                                page=page.number), "Detected symbol", None) for box in boxes]
 
                 with patch.dict(os.environ, {"STOA_DATA": d, "SITELENS_STORE": d}), \
-                     patch.object(takeoff_2d, "_detected", side_effect=detected):
+                     patch.object(takeoff_2d, "_detected", side_effect=detected) as detector:
                     result = takeoff.takeoff(path)
                 if layout in ("schedule only", "rotated"):
+                    detector.assert_not_called()
                     self.assertEqual(result["source"], "schedule")
                     self.assertEqual(sum(r["count"] for r in result["rows"]), 3)
                 elif layout == "unrelated placement":

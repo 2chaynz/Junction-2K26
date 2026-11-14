@@ -118,6 +118,11 @@ NON_PLAN_VIEW = re.compile(
     r"(?:elevations?|sections?|details?|legends?|reflected ceiling plans?)"
     r"(?:[ \t]+[A-Z0-9-]+)?[ \t]*$"
 )
+PLAN_TITLE = re.compile(
+    r"(?im)^[ \t]*(?:[\w-]+[ \t]+){0,5}"
+    r"(?:floor plans?|level plans?|ground plans?|grundriss|pohjapiirustus)"
+    r"(?:[ \t]+[\w-]+){0,3}[ \t]*$"
+)
 NOT_TO_SCALE = re.compile(r"\b(?:not[ \t]+to[ \t]+scale|N\.?[ \t]*T\.?[ \t]*S\.?)\b", re.I)
 
 
@@ -353,9 +358,11 @@ def _sheet(path, root, mtime, weights_mtime):
     pages, page_tables = [], []
     excluded = 0
     with pymupdf.open(data_root() / path) as doc:
-        for page in doc:
+        reviewed = min(len(doc), MAX_PAGES)
+        tables_by_page = [_page_schedules(page) for page in doc.pages(0, reviewed)]
+        has_schedules = any(tables_by_page)
+        for page, tables in zip(doc.pages(0, reviewed), tables_by_page):
             words = _words(page)
-            tables = _page_schedules(page, words)
             page_tables.extend((page.number, t) for t in tables)
             regions = [measure._union(t.boxes) for t in tables if t.boxes]
             words = [(token, box) for token, box in words if _outside_schedule(box, regions)]
@@ -363,15 +370,13 @@ def _sheet(path, root, mtime, weights_mtime):
             text = page.get_text()
             objects = _vector(path) if page.number == 0 else []
             if not objects:
-                if NON_PLAN_VIEW.search(text):
+                if NON_PLAN_VIEW.search(text) or (has_schedules and not PLAN_TITLE.search(text)):
                     excluded += 1
                 else:
                     objects = _detected(path, page)
             objects = [obj for obj in objects if _outside_schedule(obj[1].bbox, regions)]
             pages.append((page.number, objects, words, bars, bool(NOT_TO_SCALE.search(text))))
-            if len(pages) == MAX_PAGES:
-                break
-        return pages, len(doc) > len(pages), page_tables, excluded
+        return pages, len(doc) > reviewed, page_tables, excluded
 
 
 def takeoff(path):
@@ -388,7 +393,7 @@ def takeoff(path):
         if truncated:
             schedule["notes"].append(f"Only the first {MAX_PAGES} PDF pages were reviewed.")
         if excluded:
-            schedule["notes"].append(f"Skipped symbol counts on {excluded} page(s) labeled with non-plan views.")
+            schedule["notes"].append(f"Skipped symbol counts on {excluded} page(s) without sufficient evidence of a floor plan.")
         return schedule
     specs, inspected, limited, failed = _specs(path, page_tables)
     rows = []
@@ -416,7 +421,7 @@ def takeoff(path):
     if specs:
         notes.append("Numeric-only labels cannot be distinguished from dimensions and are not matched to schedules.")
     if excluded:
-        notes.append(f"Skipped symbol counts on {excluded} page(s) labeled with non-plan views, including mixed views.")
+        notes.append(f"Skipped symbol counts on {excluded} page(s) with non-plan labels or without a plan title in a PDF containing schedules.")
     if not weights.exists():
         notes.append("Symbol detector weights are unavailable; only supported drawing geometry can be counted.")
     if not rows:
