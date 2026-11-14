@@ -14,7 +14,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T7 VLM path: frontier baseline + fallback | ai | T1 | johanseneuson | done | johanseneuson/T7-vlm-pr |  |  |
 | T8 Demo server + UI | app | T1 | 2chaynz | done | 2chaynz/T8-polish |  |  |
 | T9 Architecture diagram for README and pitch | pitch |  | 2chaynz | done | 2chaynz/T9-diagram-clarify |  |  |
-| T10 Comparable scores: full preview + official split | eval |  | ccolver | doing | ccolver/T10-scores |  |  |
+| T10 Comparable scores: full preview + official split | eval |  | ccolver | review | ccolver/T10-scores |  |  |
 | T11 opening_design: read schedule tables | ai |  | johanseneuson | review | johanseneuson/T11-schedules |  |  |
 | T12 Two methods agree: confidence + please check | ai | T6 |  | todo |  |  |  |
 | T13 Crop renderer for the VLM path | ai | T7 |  | todo |  |  |  |
