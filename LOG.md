@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 19:39 · ccolver · T49: merged PR #72 with continuous stroke coverage, highlighted crops, and page-aware evidence.
 - 2026-11-14 19:34 · Asif · T56 PR #75: dev.mjs reinstalls web deps when package-lock.json changes (T34 added three/web-ifc and broke the build)
 - 2026-11-14 19:34 · johanseneuson · johanseneuson: honest retrain result: YOLO11l from COCO at 1600px on 74% of plans (held out: all dev-hash + 387 official test plans) = 77.7% on the preview dev plans vs 81.9% for the current model trained on ~95% of plans (same thresholds method, same plans). Keeping the current detector for the demo; scoring the 74% model on the 387 test plans now for a number that never saw those plans (full-dataset 'test 80.4%' in eval/report.md was from the model that trained on them). H100 still running until Verda sign-in
 - 2026-11-14 19:32 · ccolver · T50: merged Building view PR #68 with Measure compatibility and IFC plan sheet grouping.
