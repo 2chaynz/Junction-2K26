@@ -400,22 +400,22 @@ def _scan_views(image, labels):
     return regions, len(regions) != len(titles)
 
 
-def _scan_metadata(labels, load_image):
-    text = "\n".join(label for label, _ in labels)
+def _scan_metadata(labels, load_image, native_text="", has_schedule=False):
+    text = "\n".join(dict.fromkeys([*(label for label, _ in labels), *native_text.splitlines()]))
     has_plan = bool(PLAN_TITLE.search(text))
     has_other = bool(NON_PLAN_VIEW.search(text))
     regions, unbounded = [], has_other
     if has_plan and has_other:
         regions, unbounded = _scan_views(load_image(), labels)
     schedule_heading = re.search(r"\b(?:doors?|windows?)[ \t]+schedules?\b", text, re.I)
-    excluded = unbounded or bool(schedule_heading and not has_plan)
+    excluded = unbounded or bool((schedule_heading or has_schedule) and not has_plan)
     issue = UNKNOWN_VIEW_SCALE if NOT_TO_SCALE.search(text) else ""
     if not issue and (has_other or len(list(PLAN_TITLE.finditer(text))) > 1):
         issue = "This sheet has multiple views; the applicable scale is unknown."
     return regions, excluded, issue
 
 
-def _pdf_scan_words(page, native_text):
+def _pdf_scan_words(page, native_text, has_schedule):
     import numpy as np
     import pymupdf
 
@@ -429,7 +429,7 @@ def _pdf_scan_words(page, native_text):
     labels = [(text, [min(p[0] for p in quad), min(p[1] for p in quad),
                       max(p[0] for p in quad), max(p[1] for p in quad)])
               for quad, text, confidence in result or [] if confidence >= .8]
-    regions, excluded, issue = _scan_metadata(labels, lambda: gray)
+    regions, excluded, issue = _scan_metadata(labels, lambda: gray, native_text, has_schedule)
     native_non_plan = {line.strip().casefold() for line in native_text.splitlines() if NON_PLAN_VIEW.fullmatch(line)}
     recognized = {label.strip().casefold() for label, _ in labels if NON_PLAN_VIEW.fullmatch(label)}
     if native_non_plan - recognized:
@@ -472,7 +472,7 @@ def _sheet(path, root, mtime, weights_mtime):
             raster_view = any(pymupdf.Rect(image["bbox"]).get_area() >= .2 * page.rect.get_area()
                               for image in image_info)
             if image_info and (not words or raster_view):
-                labels, scan_regions, skip, scale_issue = _pdf_scan_words(page, page.get_text())
+                labels, scan_regions, skip, scale_issue = _pdf_scan_words(page, page.get_text(), bool(tables))
                 labels = [(token, box) for token, box in labels if not any(
                     token.casefold() == native.casefold() and not _outside_schedule(box, [native_box])
                     for native, native_box in words)]

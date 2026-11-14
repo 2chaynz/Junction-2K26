@@ -263,6 +263,10 @@ class DrawingTakeoff(unittest.TestCase):
         self.assertTrue(takeoff_2d._outside_schedule([90, 100, 120, 105], regions))
         self.assertFalse(takeoff_2d._outside_schedule([420, 100, 450, 105], regions))
         self.assertIn("multiple views", issue)
+        _, excluded, _ = takeoff_2d._scan_metadata([], lambda: image, "A-101", has_schedule=True)
+        self.assertTrue(excluded)
+        _, excluded, _ = takeoff_2d._scan_metadata([plan], lambda: image, "A-101", has_schedule=True)
+        self.assertFalse(excluded)
         _, excluded, _ = takeoff_2d._scan_metadata([legend], lambda: image)
         self.assertTrue(excluded)
 
