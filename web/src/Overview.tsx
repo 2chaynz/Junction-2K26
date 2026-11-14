@@ -32,7 +32,7 @@ function Thumb({ d }: { d: Drawing }) {
   return <span className="ov-mini">{v ? <img src={fileUrl(v, isImage(v) ? 0.06 : 0.09)} loading="lazy" alt="" /> : <span className="mono dim">IFC</span>}</span>;
 }
 
-const n = (v: number, unit: string) => `${v.toLocaleString(undefined, { maximumFractionDigits: v < 10 ? 1 : 0 })} ${unit}`;
+const n = (v: number, unit: string) => `${v.toLocaleString("en", { maximumFractionDigits: v < 10 ? 1 : 0 })} ${unit}`;
 
 /** Category totals from takeoff rows: count, plus the one measure that category has. */
 function totals(rows: Row[]): Qty[] {
@@ -85,7 +85,7 @@ export default function Overview(props: Props) {
   }, [sessions]);
 
   const facts = [
-    p.plans ? `${p.plans.toLocaleString()} sheet${p.plans === 1 ? "" : "s"}` : "",
+    p.plans ? `${p.plans.toLocaleString("en")} sheet${p.plans === 1 ? "" : "s"}` : "",
     model ? "BIM model linked" : "",
     `${p.folders.length} folder${p.folders.length === 1 ? "" : "s"}`,
     revisions.length ? `${revisions.length} revised` : "",
@@ -179,7 +179,7 @@ export default function Overview(props: Props) {
                       {qty.rows.map((r) => (
                         <tr key={r.category}>
                           <td>{r.category}</td>
-                          <td className="mono">{r.count.toLocaleString()}</td>
+                          <td className="mono">{r.count.toLocaleString("en")}</td>
                           <td className="mono dim">{r.measure}</td>
                         </tr>
                       ))}
@@ -208,7 +208,7 @@ function FolderRows({ label, code, items, allPaths, asked, last, onOpen }: {
     <>
       <tr className="ov-fold">
         <td colSpan={4}>
-          <span className="fcode mono">{code}</span> {label} <span className="mono dim">{items.length.toLocaleString()}</span>
+          <span className="fcode mono">{code}</span> {label} <span className="mono dim">{items.length.toLocaleString("en")}</span>
         </td>
       </tr>
       {shown.map((d) => (
@@ -228,7 +228,7 @@ function FolderRows({ label, code, items, allPaths, asked, last, onOpen }: {
         <tr className="ov-showmore">
           <td colSpan={4}>
             {items.length - shown.length > 200 ? (
-              <span className="dim small">{(items.length - shown.length).toLocaleString()} more · search them from the Drawings sidebar</span>
+              <span className="dim small">{(items.length - shown.length).toLocaleString("en")} more · search them from the Drawings sidebar</span>
             ) : (
               <button onClick={() => setAll(true)}>Show {items.length - shown.length} more</button>
             )}

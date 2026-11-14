@@ -64,9 +64,9 @@ function Thumb({ p }: { p: Proj }) {
 
 function counts(p: Proj) {
   const out: string[] = [];
-  if (p.plans) out.push(`${p.plans.toLocaleString()} sheet${p.plans === 1 ? "" : "s"}`);
+  if (p.plans) out.push(`${p.plans.toLocaleString("en")} sheet${p.plans === 1 ? "" : "s"}`);
   if (p.models) out.push(`${p.models} model${p.models === 1 ? "" : "s"}`);
-  out.push(`${p.questions.toLocaleString()} Q`);
+  out.push(`${p.questions.toLocaleString("en")} Q`);
   return out.join(" · ");
 }
 
