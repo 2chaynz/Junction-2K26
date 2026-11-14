@@ -11,7 +11,7 @@ read -r STATE DRAFT MERGEABLE HEAD < <(gh pr view "$PR" --json state,isDraft,mer
   --jq '"\(.state) \(.isDraft) \(.mergeable) \(.headRefOid)"')
 [ "$STATE" = OPEN ] || fail "state is $STATE"
 [ "$DRAFT" = false ] || fail "draft"
-[ "$MERGEABLE" != CONFLICTING ] || fail "conflicts with main: rebase on origin/main and push"
+[ "$MERGEABLE" != CONFLICTING ] || fail "conflicts with main: git merge origin/main, resolve, push, re-run xreview.sh"
 
 # A review of an older commit doesn't count: re-run xreview.sh after every push.
 REVIEW="$(gh pr view "$PR" --json comments \

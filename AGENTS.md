@@ -64,7 +64,8 @@ node scripts/status.mjs close-merged                # review tickets with a merg
 - A `[team] main changed` notice → read the changed files from `origin/main`. Decision, contract or rules changed → rebase before continuing.
 - All agents (Claude Code and Codex): before each new step run `node scripts/status.mjs watch --force`. It prints `[team] main changed` if main moved since you last looked. Silent means nothing new.
 - Claude Code does this by hook after every prompt and tool call, so it needs no manual run. Codex has no hooks, so it must run it.
-- A clean local `main` fast-forwards inside `watch`. Feature branches never do: rebase them yourself.
+- A clean local `main` fast-forwards inside `watch`. Feature branches never do: rebase them yourself before the PR exists, merge `origin/main` after.
+- `[team] PR #n ... has merge conflicts` → fix it before anything else, steps in the notice. Only sent when main moves, so never poll PRs yourself.
 - Heartbeat: `status.mjs beat "<what you're doing now>"` whenever your focus changes (one line, ≤140 chars). The board flags a `doing` ticket silent for 15 min as stale.
 - Claude Code also beats by hook every 5 min (keeps your last text). Codex must beat by hand at least every 10 min.
 
@@ -99,7 +100,7 @@ One agent, run by one human, keeps the queue full. It edits tickets only, never 
 3. `status.mjs log "plan: N tickets, areas …"`. A human glances at the board.
 
 ## Pull requests
-1. Commit on your branch. `git fetch origin && git rebase origin/main`.
+1. Commit on your branch. `git fetch origin && git rebase origin/main` (only before the first push; after that `git merge origin/main`: force-push is blocked).
 2. `bash scripts/check.sh` must pass.
 3. `git push -u origin HEAD`. Fill `.github/pull_request_template.md` into `pr.md`, then `gh pr create --title "T<n>: <summary>" --body-file pr.md` and delete `pr.md`.
 4. Cross-review by the *other* tool: `bash scripts/xreview.sh <n>` (Claude author) or `bash scripts/xreview.sh <n> --author codex`. It posts the comment.
