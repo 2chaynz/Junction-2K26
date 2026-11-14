@@ -18,7 +18,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T11 opening_design: read schedule tables | ai |  | johanseneuson | done | johanseneuson/T11-schedules |  |  |
 | T12 Two methods agree: confidence + please check | ai | T6 | johanseneuson | done | johanseneuson/T12-agree |  |  |
 | T13 Crop renderer for the VLM path | ai | T7 | ccolver | done | ccolver/T13-vlm-crops |  |  |
-| T14 Cache per-drawing extraction (Index) | ai |  | ccolver | doing | ccolver/T14-drawing-cache |  |  |
+| T14 Cache per-drawing extraction (Index) | ai |  | ccolver | done | ccolver/T14-drawing-cache |  |  |
 | T15 Revision diff: what changed between two sheet issues | ai |  | ccolver | done | ccolver/T15-revision-diff |  |  |
 | T16 Agent heartbeat, stale flag, needs-human lane, worker loop | setup |  | Asif | done | asif/T16-autobeat-fix |  |  |
 | T17 Detector on AECV-Bench: outside benchmark vs VLMs | eval | T6 | ccolver | done | ccolver/T17-aecv-bench |  |  |
