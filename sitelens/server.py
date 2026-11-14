@@ -65,10 +65,13 @@ def drawings():
 
 
 @app.get("/api/file")
-def file(path: str, page: int = 0, scale: float = 1.0):
-    """PNG of a drawing page. scale=1 → 1 px per PDF point (bbox coords); images: 1 px per pixel."""
+def file(path: str, page: int = 0, scale: float = 1.0, clip: str | None = None, pad: float = 0.5):
+    """PNG of a drawing page. scale=1 → 1 px per PDF point (bbox coords); images: 1 px per pixel.
+    clip=x0,y0,x1,y1 (evidence bbox coords) → only that region, padded by `pad` × its size (T43 proof strip)."""
     p = _safe(path)
     scale = max(0.05, min(scale, 4.0))
+    if clip:
+        return _crop(p, page, scale, clip, pad)
     if p.suffix.lower() in IMAGE_EXT:
         if scale == 1.0:
             return FileResponse(p)
@@ -88,6 +91,35 @@ def file(path: str, page: int = 0, scale: float = 1.0):
     if p.suffix.lower() == ".svg":
         return FileResponse(p, media_type="image/svg+xml")
     raise HTTPException(415, f"no preview for {p.suffix}")
+
+
+def _crop(p: Path, page: int, scale: float, clip: str, pad: float):
+    try:
+        x0, y0, x1, y1 = (float(v) for v in clip.split(","))
+    except ValueError:
+        raise HTTPException(400, "clip must be x0,y0,x1,y1")
+    w, h = max(x1 - x0, 8), max(y1 - y0, 8)
+    pad = max(0.0, min(pad, 3.0))
+    r = (x0 - w * pad, y0 - h * pad, x1 + w * pad, y1 + h * pad)
+    if p.suffix.lower() in IMAGE_EXT:
+        from PIL import Image
+        im = Image.open(p).convert("RGB")
+        box = (max(0, int(r[0])), max(0, int(r[1])), min(im.width, int(r[2]) + 1), min(im.height, int(r[3]) + 1))
+        im = im.crop(box)
+        if scale != 1.0:
+            im = im.resize((max(1, int(im.width * scale)), max(1, int(im.height * scale))))
+        buf = io.BytesIO()
+        im.save(buf, "PNG")
+        return Response(buf.getvalue(), media_type="image/png")
+    if p.suffix.lower() == ".pdf":
+        with fitz.open(p) as doc:
+            if not 0 <= page < len(doc):
+                raise HTTPException(404, "no such page")
+            pg = doc[page]
+            rr = fitz.Rect(r) & pg.rect   # render clip uses the displayed (rotated) page space, like our bboxes
+            pix = pg.get_pixmap(matrix=fitz.Matrix(scale, scale), clip=rr, alpha=False)
+            return Response(pix.tobytes("png"), media_type="image/png")
+    raise HTTPException(415, f"no crop for {p.suffix}")
 
 
 @app.get("/api/ifc")

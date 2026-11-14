@@ -50,6 +50,7 @@ POST /api/ask   {"path": "data/…", "question": "…"}  → Answer
 POST /api/ask/stream  (same body)                     → NDJSON: {"step": {...}} lines live, then {"answer": Answer} (or {"error"})
 POST /api/export {"path", "question", "answer"?: Answer} → application/pdf: the sheet with the evidence as PDF annotations (Bluebeam/Acrobat comments); 400 for IFC
 GET  /api/file?path=data/…&page=0                     → PNG render of the drawing page (same coords as bbox, 72 dpi for PDFs)
+GET  /api/file?path=…&clip=x0,y0,x1,y1&pad=0.5&scale=2 → PNG crop around one evidence bbox (same coords as bbox; pad × box size of margin). For the proof strip (T43)
 GET  /api/drawings                                    → [{"path", "source", "view", "questions": [...]}]
 GET  /api/ifc?path=data/…ifc                          → raw IFC bytes (3D viewer)
 GET  /api/random                                      → {"path", "question"} from questions.jsonl
