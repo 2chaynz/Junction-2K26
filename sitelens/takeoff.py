@@ -142,7 +142,7 @@ def takeoff(path: str) -> dict:
     t = _cached(path)
     if t is None and (data_root() / path).is_file():
         if path.lower().endswith(".pdf"):
-            t = _schedule(path) or drawing_takeoff(path)
+            t = drawing_takeoff(path)
         elif path.lower().endswith((".png", ".jpg", ".jpeg")):
             t = drawing_takeoff(path)
     if t is None:

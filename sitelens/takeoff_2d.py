@@ -298,23 +298,36 @@ def _rows(objects, words, specs, scale, scanned=False):
     return list(rows.values())
 
 
+def _outside_schedule(box, regions):
+    x, y = measure._centre(box)
+    return not any(x0 <= x <= x1 and y0 <= y <= y1 for x0, y0, x1, y1 in regions)
+
+
+def _schedule_regions(path):
+    from .paths.schedule import extract
+
+    return [measure._union(t.boxes) for t in extract(path) if t.boxes]
+
+
 @lru_cache(maxsize=16)
 def _sheet(path, root, mtime, weights_mtime):
     if measure.is_image(path):
         bars = [b for b in measure.bar(path) if b.confidence >= .75]
-        return [(0, _detected(path), [(t, list(b)) for t, c, b in measure._ocr(path) if c >= .8], bars)], False
+        return [(0, _detected(path), [(t, list(b)) for t, c, b in measure._ocr(path) if c >= .8], bars)], False, False
     import pymupdf
 
     pages = []
     with pymupdf.open(data_root() / path) as doc:
         for page in doc:
-            words = _words(page)
+            regions = _schedule_regions(path) if page.number == 0 else []
+            words = [(token, box) for token, box in _words(page) if _outside_schedule(box, regions)]
             bars = _pdf_bars(path, page, words)
             objects = (_vector(path) if page.number == 0 else []) or _detected(path, page)
+            objects = [obj for obj in objects if _outside_schedule(obj[1].bbox, regions)]
             pages.append((page.number, objects, words, bars))
             if len(pages) == 12:
                 break
-        return pages, len(doc) > len(pages)
+        return pages, len(doc) > len(pages), len(doc) == 1
 
 
 def takeoff(path):
@@ -322,7 +335,14 @@ def takeoff(path):
 
     source = data_root() / path
     weights = detector._weights()
-    pages, truncated = _sheet(path, data_root().resolve(), source.stat().st_mtime_ns, weights.stat().st_mtime_ns if weights.exists() else 0)
+    pages, truncated, single_pdf_page = _sheet(path, data_root().resolve(), source.stat().st_mtime_ns, weights.stat().st_mtime_ns if weights.exists() else 0)
+    if single_pdf_page and not pages[0][1] and not pages[0][3]:
+        from .takeoff import _schedule
+
+        schedule = _schedule(path)
+        if schedule:
+            schedule["notes"].append("No placements were identified outside the schedule table.")
+            return schedule
     specs, inspected, limited, failed = _specs(path)
     rows = []
     for page, objects, words, bars in pages:

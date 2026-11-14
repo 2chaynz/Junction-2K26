@@ -53,6 +53,51 @@ class DrawingTakeoff(unittest.TestCase):
             self.assertEqual(unknown["size"], "")
             self.assertIn("Dimensions could not be inferred.", unknown["reason"])
 
+    def test_schedule_does_not_replace_same_or_later_page_counts(self):
+        for layout in ("schedule only", "same page", "later page"):
+            with self.subTest(layout=layout), tempfile.TemporaryDirectory() as d:
+                path = "Mixed.pdf"
+                with pymupdf.open() as doc:
+                    page = doc.new_page()
+                    page.insert_text((100, 80), "DOOR SCHEDULE")
+                    for y, row in [(110, ("MARK", "TYPE", "WIDTH", "HEIGHT")),
+                                   (130, ("101.A", "A1", "900mm", "2100mm")),
+                                   (144, ("102.A", "A1", "900mm", "2100mm")),
+                                   (158, ("103.A", "B2", "1200mm", "2200mm"))]:
+                        for x, label in zip((100, 165, 230, 305), row):
+                            page.insert_text((x, y), label, fontsize=8)
+                    if layout == "later page":
+                        page = doc.new_page()
+                    if layout != "schedule only":
+                        page.insert_text((110, 405), "101.A")
+                    doc.save(Path(d) / path)
+
+                def detected(path, page):
+                    boxes = []
+                    if page.number == 0:
+                        boxes.append([100, 122, 150, 132])
+                    if (layout == "same page" and page.number == 0) or (
+                        layout == "later page" and page.number == 1
+                    ):
+                        boxes.append([102, 390, 145, 414])
+                    return [("Doors", Evidence(path, box, page=page.number), "Detected symbol", None)
+                            for box in boxes]
+
+                with patch.dict(os.environ, {"STOA_DATA": d, "SITELENS_STORE": d}), \
+                     patch.object(takeoff_2d, "_detected", side_effect=detected):
+                    result = takeoff.takeoff(path)
+                if layout == "schedule only":
+                    self.assertEqual(result["source"], "schedule")
+                    self.assertEqual(sum(r["count"] for r in result["rows"]), 3)
+                else:
+                    self.assertEqual(result["source"], "drawing")
+                    row, = result["rows"]
+                    self.assertEqual(row["count"], 1)
+                    self.assertEqual(row["type"], "A1")
+                    self.assertIn("900mm", row["size"])
+                    self.assertEqual(row["evidence"][0]["page"], int(layout == "later page"))
+                    self.assertEqual(row["dimension_evidence"][-1]["page"], 0)
+
     def test_disagreeing_scale_bars_do_not_produce_dimensions(self):
         from sitelens.measure import Scale
 
