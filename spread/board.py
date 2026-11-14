@@ -1,7 +1,7 @@
 import json, os, sys, time
 os.environ["SPREAD_QUIET"]="1"
 os.environ["SPREAD_PARAMS"]=sys.argv[1]
-import dispatch
+import dispatch_asif as dispatch
 from spread.client import Client, SpreadError
 c=Client(); tot=0; n=0
 for i in range(5):

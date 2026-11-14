@@ -10,10 +10,13 @@
 //   node scripts/status.mjs log "<text>"
 //   node scripts/status.mjs publish <paths...>           push ideas/, context/, tickets/ files to main
 //   node scripts/status.mjs watch [--force]              hook: notice when shared files change on main
+//   node scripts/status.mjs beat [T3] "<doing now>"      heartbeat: what this agent is doing (claimed ticket)
+//   node scripts/status.mjs close-merged                 set review tickets whose PR merged to done (Action + show)
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, rmSync, existsSync, cpSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const env = { ...process.env, GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "never" };
 const sh = (cmd, args, opts = {}) =>
@@ -109,25 +112,119 @@ const readState = () => { try { return JSON.parse(readFileSync(stateFile, "utf8"
 const writeState = (s) => { try { writeFileSync(stateFile, JSON.stringify(s)); } catch {} };
 const mainHash = () => { try { return git(["rev-parse", "origin/main"], { cwd: root }); } catch { return ""; } };
 
+// --- Heartbeats ---------------------------------------------------------------
+// Kept on their own branch so beats never add history to main or trigger watch notices.
+const BEATS = "beats";
+const STALE_MIN = 15;
+const AUTO_BEAT_MS = 5 * 60000;
+const RETRY_MS = 60000;
+const fetchBeats = (timeout = 15000) => {
+  try { git(["fetch", "--quiet", "origin", `+refs/heads/${BEATS}:refs/remotes/origin/${BEATS}`], { cwd: root, timeout }); return true; }
+  catch { return false; }
+};
+const readBeats = () => { try { return JSON.parse(git(["show", `origin/${BEATS}:beats.json`], { cwd: root })); } catch { return {}; } };
+const branchTicket = () => {
+  try { return (git(["branch", "--show-current"], { cwd: root }).match(/(?:^|\/)(T\d+)(?:-|$)/i) || [])[1]?.toUpperCase() || ""; }
+  catch { return ""; }
+};
+// Agents often work on a branch not named after the ticket they claimed; beat the claimed one.
+// Reads the last fetched origin/main only, so the hook stays fast.
+const beatTicket = () => {
+  const fromName = branchTicket();
+  try {
+    const branch = git(["branch", "--show-current"], { cwd: root });
+    const me = git(["config", "user.name"], { cwd: root });
+    const md = showFile("TASKS.md");
+    // parseTable exits the process on a missing table; the hook must never fail.
+    if (!/^\|\s*Ticket\s*\|/im.test(md)) return fromName;
+    const doing = parseTable(md).rows.filter((r) => r.status === "doing");
+    const hit = doing.find((r) => branch && r.branch === branch) || doing.find((r) => idOf(r) === fromName);
+    if (hit) return idOf(hit);
+    const mine = doing.filter((r) => r.owner === me);
+    if (mine.length === 1) return idOf(mine[0]);
+  } catch {}
+  return fromName;
+};
+const minsAgo = (iso) => Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+function pushBeat(id, text, { tries = 4, timeout = 20000 } = {}) {
+  let who = "agent", branch = "";
+  try { who = git(["config", "user.name"], { cwd: root }); } catch {}
+  try { branch = git(["branch", "--show-current"], { cwd: root }); } catch {}
+  const pipe = { cwd: root, stdio: ["pipe", "pipe", "pipe"] };
+  for (let attempt = 1; attempt <= tries; attempt++) {
+    fetchBeats(timeout);
+    let parent = "";
+    try { parent = git(["rev-parse", "--verify", "--quiet", `origin/${BEATS}`], { cwd: root }); } catch {}
+    const beats = parent ? readBeats() : {};
+    // Auto beats only prove liveness; keep the last text the agent wrote.
+    beats[id] = { who, branch, text: text || beats[id]?.text || "", at: new Date().toISOString() };
+    const blob = sh("git", ["hash-object", "-w", "--stdin"], { ...pipe, input: JSON.stringify(beats, null, 1) + "\n" });
+    const tree = sh("git", ["mktree"], { ...pipe, input: `100644 blob ${blob}\tbeats.json\n` });
+    const commit = git(["commit-tree", tree, ...(parent ? ["-p", parent] : []), "-m", `beat ${id}`], { cwd: root });
+    try { git(["push", "--quiet", "origin", `${commit}:refs/heads/${BEATS}`], { cwd: root, timeout }); return true; }
+    catch (e) { if (!/non-fast-forward|fetch first|rejected|cannot lock ref/.test(String(e.stderr || e.message))) return false; }
+  }
+  return false;
+}
+
+// A follow-up PR on the same branch keeps the ticket open until it merges too.
+const mergedPr = (branch) => {
+  try {
+    const prs = JSON.parse(sh("gh", ["pr", "list", "--head", branch, "--state", "all", "--json", "number,state"], { cwd: root, timeout: 15000 }));
+    if (prs.some((p) => p.state === "OPEN")) return "";
+    return String(prs.find((p) => p.state === "MERGED")?.number || "");
+  } catch { return ""; }
+};
+
 // --- Commands -----------------------------------------------------------------
 const commands = {
+  "close-merged"() {
+    if (!fetchMain()) fail("Can't reach origin. Check network and `gh auth status`.");
+    const hits = parseTable(showFile("TASKS.md")).rows
+      .filter((r) => r.status === "review" && r.branch)
+      .map((r) => ({ id: idOf(r), branch: r.branch, pr: mergedPr(r.branch) }))
+      .filter((h) => h.pr);
+    if (!hits.length) return console.log("No merged review tickets.");
+    let closed = [];
+    onMain(`chore: set ${hits.map((h) => h.id).join(", ")} to done (merged)`, (dir) => editTasks(dir, (t) => {
+      // Re-check on the fresh table: someone may have reopened or moved the ticket meanwhile.
+      closed = hits.filter((h) => { const r = findRow(t, h.id); return r.status === "review" && r.branch === h.branch; });
+      for (const h of closed) Object.assign(findRow(t, h.id), { status: "done", question: "" });
+    }));
+    if (closed.length) console.log(closed.map((h) => `${h.id} done (PR #${h.pr} merged)`).join("\n"));
+  },
+
   show() {
     const online = fetchMain();
+    // Fallback for the close-merged Action. Child process: onMain exits on failure and must not kill show.
+    if (online) try {
+      const out = sh(process.execPath, [fileURLToPath(import.meta.url), "close-merged"], { cwd: root, timeout: 40000 });
+      const closed = out.split("\n").filter((l) => / done \(PR #/.test(l));
+      if (closed.length) { console.log(closed.map((l) => `auto-closed ${l}`).join("\n")); fetchMain(); }
+    } catch {}
     const hash = mainHash();
     writeState({ ...readState(), seen: hash, last: Date.now() });
     const md = showFile("TASKS.md");
     if (!/^\|\s*Ticket\s*\|/im.test(md)) return console.log(`main @ ${hash.slice(0, 7) || "?"}: no ticket table on origin/main yet. Push the repo setup first.`);
     const t = parseTable(md);
+    if (online) fetchBeats();
+    const beats = readBeats();
     console.log(`main @ ${hash.slice(0, 7)}${online ? "" : " (offline, last fetched)"}`);
     for (const r of t.rows) {
       const bits = [r.owner, r.branch, r.device].filter(Boolean).join(" · ");
       console.log(`${idOf(r).padEnd(4)} ${(r.status || "todo").padEnd(7)} ${titleOf(r)}${r.area ? ` [${r.area}]` : ""}${bits ? ` — ${bits}` : ""}`);
       if (r.question) console.log(`     Q: ${r.question}`);
+      if (r.status === "doing") {
+        const b = beats[idOf(r)];
+        if (!b) console.log(`     no heartbeat yet`);
+        else {
+          const m = minsAgo(b.at);
+          console.log(`     ${m > STALE_MIN ? "STALE " : ""}beat ${m}m ago${b.text ? `: ${b.text}` : ""}`);
+        }
+      }
       if (r.status === "review" && r.branch && online) {
-        try {
-          const merged = sh("gh", ["pr", "list", "--head", r.branch, "--state", "merged", "--json", "number", "--jq", ".[0].number"], { cwd: root, timeout: 15000 });
-          if (merged) console.log(`     PR #${merged} merged → node scripts/status.mjs set ${idOf(r)} done`);
-        } catch {}
+        const merged = mergedPr(r.branch);
+        if (merged) console.log(`     PR #${merged} merged → node scripts/status.mjs set ${idOf(r)} done`);
       }
     }
     const log = showFile("LOG.md").split("\n").filter((l) => l.startsWith("- ")).slice(0, 8);
@@ -152,6 +249,7 @@ const commands = {
       if (!needsMet(t, r) && !flags.force) fail(`${idOf(r)} needs ${r.needs}, not done yet.`);
       Object.assign(r, { owner, status: "doing", branch: branch || r.branch });
     }));
+    try { pushBeat(id.toUpperCase(), "claimed"); } catch {}
   },
 
   set() {
@@ -222,25 +320,64 @@ const commands = {
   },
 
   watch() {
-    // Runs on every prompt: must be quiet, fast and never fail.
+    // Runs on every prompt and after every tool call: must be quiet, fast and never fail.
+    // --post: emit PostToolUse JSON so the notice reaches the agent mid-run.
     try {
-      const s = readState();
+      let sid = "default";
+      // Only hooks pipe JSON on stdin. Reading it otherwise would hang a manual or Codex run.
+      if (flags.hook) try { sid = JSON.parse(readFileSync(0, "utf8")).session_id || sid; } catch {}
+      const all = readState();
+      const s = all[sid] || {};
+      const save = (v) => writeState({ ...readState(), [sid]: v });
+      const say = (text) => console.log(flags.post ? JSON.stringify({ hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: text } }) : text);
       if (!flags.force && Date.now() - (s.last || 0) < 60000) return;
-      writeState({ ...s, last: Date.now() });
+      save({ ...s, last: Date.now() });
       if (!fetchMain(8000)) return;
       const now = mainHash();
-      if (!s.seen || s.seen === now) return writeState({ ...s, seen: now, last: Date.now() });
+      // Safe auto-pull: only a clean local main fast-forwards. Feature branches are left to the agent.
+      try {
+        if (git(["branch", "--show-current"], { cwd: root }) === "main" && !git(["status", "--porcelain"], { cwd: root }))
+          git(["merge", "--ff-only", "--quiet", "origin/main"], { cwd: root });
+      } catch {}
+      if (!s.seen || s.seen === now) return save({ ...s, seen: now, last: Date.now() });
       const files = git(["diff", "--name-only", s.seen, now], { cwd: root }).split("\n").filter((f) => SHARED.test(f));
-      writeState({ ...s, seen: now, last: Date.now() });
+      save({ ...s, seen: now, last: Date.now() });
       if (!files.length) return;
       const subjects = git(["log", "--format=%s (%an)", "-5", `${s.seen}..${now}`], { cwd: root });
-      console.log(`[team] main changed: ${files.join(", ")}\n${subjects}`);
+      const out = [`[team] main changed: ${files.join(", ")}\n${subjects}`];
       if (files.some((f) => /^(DECISION|CONTRACT|AGENTS)\.md$/.test(f)))
-        console.log("[team] Decision, contract or rules changed. Read them from origin/main and rebase your branch before continuing.");
-      else console.log("[team] Run `node scripts/status.mjs show` if it affects your ticket.");
+        out.push("[team] Decision, contract or rules changed. Read them from origin/main and rebase your branch before continuing.");
+      else out.push("[team] Run `node scripts/status.mjs show` if it affects your ticket.");
+      say(out.join("\n"));
     } catch {}
+  },
+
+  beat() {
+    const id = /^T\d+$/i.test(pos[0] || "") ? pos.shift().toUpperCase() : beatTicket();
+    if (flags.hook) {
+      // Runs after every tool call: throttled, silent, never fails. Inline, not detached:
+      // Claude Code on Windows kills a hook's child processes when the hook exits.
+      try {
+        if (!id) return;
+        const s = readState();
+        if (Date.now() - (s.beats?.[id] || 0) < AUTO_BEAT_MS) return;
+        // Claim the slot first so parallel tool calls don't all push.
+        writeState({ ...s, beats: { ...s.beats, [id]: Date.now() } });
+        // GitHub fetch/push can take 4-6s each; one try at 8s fits the 20s hook timeout.
+        const ok = pushBeat(id, "", { tries: 1, timeout: 8000 });
+        // Failed: retry in ~1 min instead of waiting a full interval.
+        if (!ok) { const s2 = readState(); writeState({ ...s2, beats: { ...s2.beats, [id]: Date.now() - AUTO_BEAT_MS + RETRY_MS } }); }
+      } catch {}
+      return;
+    }
+    if (!id) fail('Usage: beat [T3] "<doing now>" (or run with one doing ticket / on its branch)');
+    const text = pos.join(" ").slice(0, 140);
+    if (!pushBeat(id, text)) fail("Beat not pushed. Check network and `gh auth status`.");
+    const s = readState();
+    writeState({ ...s, beats: { ...s.beats, [id]: Date.now() } });
+    console.log(`Beat ${id}${text ? `: ${text}` : ""}`);
   },
 };
 
-if (!commands[cmd]) fail(readFileSync(new URL(import.meta.url), "utf8").split("\n").slice(1, 13).map((l) => l.replace(/^\/\/ ?/, "")).join("\n"));
+if (!commands[cmd]) fail(readFileSync(new URL(import.meta.url), "utf8").split("\n").slice(1, 14).map((l) => l.replace(/^\/\/ ?/, "")).join("\n"));
 commands[cmd]();

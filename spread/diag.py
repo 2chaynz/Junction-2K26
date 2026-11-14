@@ -1,6 +1,6 @@
 import json, os, sys, collections
 os.environ["SPREAD_QUIET"]="1"
-import dispatch
+import dispatch_asif as dispatch
 from spread.client import Client
 c=Client(); seed=sys.argv[1]; level=int(sys.argv[2]) if len(sys.argv)>2 else 8
 w=c.create(level=level, seed=seed)

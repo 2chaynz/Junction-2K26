@@ -8,7 +8,7 @@ if "--dump" in args:
     i = args.index("--dump"); dump = args[i + 1]; del args[i:i + 2]
 os.environ["SPREAD_PARAMS"] = args[0]
 os.environ["SPREAD_QUIET"] = "1"
-import dispatch
+import dispatch_asif as dispatch
 from spread.client import Client
 
 def run(seed):

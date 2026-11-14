@@ -1,6 +1,6 @@
 # Agent instructions
 
-Shared by Claude Code (via CLAUDE.md) and Codex. Changes to this file go through a PR.
+Shared by Claude Code (via CLAUDE.md) and Codex. Every rule here binds both equally. Hooks and permissions in `.claude/` are only a convenience for Claude Code: Codex follows the same rules by hand. Changes to this file go through a PR.
 
 ## How to talk to us
 - Short, concise, direct. Answer first.
@@ -48,22 +48,43 @@ node scripts/status.mjs set T3 <status> [--q "..."] [--branch b] [--device d]
 node scripts/status.mjs add "<title>" --area a --needs T1 --details path.md
 node scripts/status.mjs log "<one line>"
 node scripts/status.mjs publish ideas/<name>.md context/...
+node scripts/status.mjs beat [T3] "<doing now>"     # heartbeat; ticket defaults to your branch's Tn
+node scripts/status.mjs close-merged                # review tickets with a merged PR → done (also automatic)
 ```
 `<person>` = the human you work for (their git user name).
 
 ## Every session
 **Start**
 1. `node scripts/status.mjs show` (Claude Code runs it automatically).
-2. A ticket of yours shows `PR #n merged` → `set Tn done`.
+2. Merged PRs close their `review` ticket automatically (GitHub Action on merge; `show` as fallback). Still shows `PR #n merged` → `set Tn done`.
 3. Read `DECISION.md`, `CONTRACT.md` and your `tickets/Tn.md`. Read `context/` if the ticket touches the challenge or partner tech.
 4. No ticket → `next <area>` → `claim`. State in one line what you're on.
 
 **During**
 - A `[team] main changed` notice → read the changed files from `origin/main`. Decision, contract or rules changed → rebase before continuing.
-- Codex: run `show` before each new step; you get no automatic notices.
+- All agents (Claude Code and Codex): before each new step run `node scripts/status.mjs watch --force`. It prints `[team] main changed` if main moved since you last looked. Silent means nothing new.
+- Claude Code does this by hook after every prompt and tool call, so it needs no manual run. Codex has no hooks, so it must run it.
+- A clean local `main` fast-forwards inside `watch`. Feature branches never do: rebase them yourself.
+- Heartbeat: `status.mjs beat "<what you're doing now>"` whenever your focus changes (one line, ≤140 chars). The board flags a `doing` ticket silent for 15 min as stale.
+- Claude Code also beats by hook every 5 min (keeps your last text). Codex must beat by hand at least every 10 min.
 
 **End** (or after any meaningful step)
 - `status.mjs set` your ticket. `status.mjs log` anything you decided, learned or abandoned.
+
+## Worker loop
+Default mode for every agent: keep pulling work until the queue is empty. Claude Code: `/work`, or `/loop /work` to repeat.
+1. `show` (it closes merged `review` tickets itself).
+2. Own a `doing` ticket → continue it. Else `next <area>` → `claim` → create the branch (worktree if you're the second agent).
+3. Work inside the ticket's **Files**. `beat` as you go.
+4. Pull requests steps 1–6 → `set Tn review`, `log` the outcome in one line.
+5. Back to 1. Nothing claimable → `log "idle: <area> queue empty"` and stop. A human or the planner adds tickets.
+- Stale ticket (silent >30 min, owner not answering) → ask that person before taking it over. Never take over a ticket with an open PR.
+
+## Planner
+One agent, run by one human, keeps the queue full. It edits tickets only, never code.
+- After each merge (or about every hour): read `DECISION.md`, `show`, open PRs.
+- Keep 2–3 claimable `todo` tickets per active area, with `--needs` and disjoint **Files**.
+- Answer `blocked` questions it can from the repo; leave the rest for humans.
 
 ## Tickets
 - Only work on a claimed ticket. Stay inside its **Files**. Need something outside → add a ticket or ask.
@@ -97,7 +118,21 @@ network_access = true
 ```
 
 ## Run
-_TBD once medium and stack are chosen: setup, build, flash/deploy, run, test._
+Python 3.11+. Dataset stays outside the repo.
+```
+# once
+python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # (Linux/mac: .venv/bin/pip)
+curl -LO https://fwjydgxpttajiqpfmqtj.supabase.co/storage/v1/object/public/stoa-junction-2026/junction-dataset-preview.zip
+unzip junction-dataset-preview.zip -d ../junction-data/preview
+export STOA_DATA=../junction-data/preview/junction-dataset-preview
+
+# use
+python -m sitelens.router data/ifc_models/bsc-esplanades_1807-ep-ar-v18.ifc "What is the net floor area of the room 'KORIDOR (119)' on '1.korrus', in m²?"
+python -m eval.score                      # dev split, prints accuracy / evidence / €-per-answer
+python -m eval.score --source swiss_dwellings --split all
+bash scripts/check.sh                     # merge gate (PYTHON=.venv/Scripts/python on Windows)
+```
+New solver path: add `sitelens/paths/<name>.py` with `answer(path, question) -> Answer | None` (see `CONTRACT.md`).
 
 ## Commits
 - Format: `type: summary` — types: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`.

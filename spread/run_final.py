@@ -1,6 +1,6 @@
 """Runs the bot on the final (or a test final) and restarts it on any crash. Ctrl-C to stop; the world keeps running."""
 import sys, time, traceback
-import dispatch
+import dispatch_asif as dispatch
 from spread.client import Client, SpreadError, Unreachable
 
 def main():

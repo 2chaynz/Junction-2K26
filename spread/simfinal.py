@@ -1,7 +1,7 @@
 """Plays a practice world with a moving clock (speed factor S x the final's pace) through play_final."""
 import json, os, sys, threading, time
 os.environ["SPREAD_PARAMS"] = open("best_params.json").read() if len(sys.argv) < 3 else sys.argv[2]
-import dispatch
+import dispatch_asif as dispatch
 from spread.client import Client
 speed = float(sys.argv[1]) if len(sys.argv) > 1 else 2.0
 seed = sys.argv[3] if len(sys.argv) > 3 else "simf1"

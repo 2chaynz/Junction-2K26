@@ -1,7 +1,7 @@
 import json, os, sys, concurrent.futures as cf
 os.environ["SPREAD_QUIET"]="1"
 os.environ["SPREAD_PARAMS"]=json.dumps({"opt":"nosame","rq":1,"trust":0,"minslack":300,"f0":0.7,"fstep":0.2,"fn":3,"fint":60,"offer":1,"onear":10,"omax":12,"suplo":15,"supmult":1.3})
-import dispatch
+import dispatch_asif as dispatch
 from spread.client import Client
 def run(seed):
     c=Client(); w=c.create(level=8, seed=seed)

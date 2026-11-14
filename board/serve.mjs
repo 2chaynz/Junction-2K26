@@ -52,20 +52,23 @@ async function state() {
   const hasRemote = (await tryGit("rev-parse", "--verify", "--quiet", "origin/main")).trim();
   const ref = local || !hasRemote ? "HEAD" : "origin/main";
   const file = (p) => tryGit("show", `${ref}:${p}`);
-  const [tasks, log, decision, commits, branches] = await Promise.all([
+  const [tasks, log, decision, beatsRaw, commits, branches] = await Promise.all([
     file("TASKS.md"),
     file("LOG.md"),
     file("DECISION.md"),
+    tryGit("show", "origin/beats:beats.json"),
     tryGit("log", ref, "-12", `--format=%h${SEP}%an${SEP}%aI${SEP}%s`),
     tryGit("for-each-ref", "--sort=-committerdate", "--count=12",
       `--format=%(refname:short)${SEP}%(authorname)${SEP}%(committerdate:iso-strict)${SEP}%(subject)`, "refs/remotes/origin"),
   ]);
   const rows = (s) => s.split("\n").filter(Boolean).map((l) => l.split(SEP));
+  let beats = {};
+  try { beats = JSON.parse(beatsRaw || "{}"); } catch {}
   return {
-    ref, fetchedAt: lastFetch, fetchError, tasks, log, decision, prs, prError,
+    ref, fetchedAt: lastFetch, fetchError, tasks, log, decision, beats, prs, prError,
     commits: rows(commits).map(([hash, author, date, subject]) => ({ hash, author, date, subject })),
     branches: rows(branches)
-      .filter(([name]) => name !== "origin/HEAD" && name !== "origin")
+      .filter(([name]) => !["origin/HEAD", "origin", "origin/beats"].includes(name))
       .map(([name, author, date, subject]) => ({ name: name.replace(/^origin\//, ""), author, date, subject })),
   };
 }
