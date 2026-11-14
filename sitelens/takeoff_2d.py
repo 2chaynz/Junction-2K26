@@ -114,7 +114,7 @@ def _words(page):
 
 
 NON_PLAN_VIEW = re.compile(
-    r"(?im)^\s*(?:[A-Z]?[0-9]+\s+)?(?:[\w-]+[ \t]+){0,4}"
+    r"(?im)^[ \t]*(?!(?:see|refer|consult|verify|check|note)\b)(?:[A-Z]?[0-9]+[ \t]+)?(?:[\w-]+[ \t]+){0,4}"
     r"(?:elevations?|sections?|details?|legends?|reflected ceiling plans?)"
     r"(?:[ \t]+[A-Z0-9-]+)?[ \t]*$"
 )

@@ -148,6 +148,7 @@ class DrawingTakeoff(unittest.TestCase):
                 plan.insert_text((50, 50), "GROUND FLOOR PLAN")
                 plan.insert_text((50, 70), "Scale 1:100")
                 plan.insert_text((50, 90), "Inset: N.T.S.")
+                plan.insert_text((50, 110), "SEE DETAILS")
                 elevation = doc.new_page()
                 elevation.insert_text((50, 50), "NORTH ELEVATION")
                 doc.save(Path(d) / path)
