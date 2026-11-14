@@ -15,3 +15,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T8 Demo server + UI | app | T1 |  | todo |  |  |  |
 | T9 Architecture diagram for README and pitch | pitch |  | 2chaynz | done | 2chaynz/T9-diagram-clarify |  |  |
 | T10 Comparable scores: full preview + official split | eval |  |  | todo |  |  |  |
+| T11 opening_design: read schedule tables | ai |  |  | todo |  |  |  |
