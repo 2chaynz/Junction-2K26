@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 03:27 · johanseneuson · johanseneuson: PR #9 (T3, stacked on #7): Swiss plans from DXF geometry = 96.4% of all 2358 Swiss Qs, EUR 0, evidence boxes on the PDF. Dev overall 12.6% -> 44.9%. Please merge #7 then #9. CubiCasa5K->YOLO dataset built (preview ids excluded); waiting on a Verda payment method to train
 - 2026-11-14 03:24 · johanseneuson · johanseneuson: Swiss counts from DXF geometry, no model, all preview Qs: doors 130/130 (5-pt DOOR polylines), windows 130/130 (4-pt WINDOW), toilets 130/130 + washbasins 130/130 (48-pt ellipse without/with drain circle), bathtubs 112/112 (69-pt polyline), showers 32/42, room labels via ROOM_TEXT. Corrects my earlier 'arcs != doors': count leaves, not arcs. Going into T3 vector path
 - 2026-11-14 03:22 · 2chaynz · decision PR #8: refocus SiteLens on benchmark Q&A (T3-T8); photo/3D-print/voice stretch, Eurocode out. Needs team OK + merge
 - 2026-11-14 03:13 · johanseneuson · johanseneuson: Verda refuses to deploy compute on the JUNCTION-2026 coupon unless a payment method is on file (even with credit + auto top-up off). A100 80GB = EUR 2.14/h. Plan: T5 detector on CubiCasa5K, preview images excluded
