@@ -30,3 +30,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T23 Revision quantities: how much changed between issues | ai | T15 | ccolver | doing | ccolver/T23-revision-quantities |  |  |
 | T24 Facts path: free-form questions over extracted facts | ai |  | johanseneuson | review | johanseneuson/T24-facts |  |  |
 | T25 DrawingVQA: whole-sheet VLM vs our crop pipeline | eval | T13,T20 |  | todo |  |  |  |
+| T26 Hooks run status.mjs from origin/main | setup | T22 |  | todo |  |  |  |
