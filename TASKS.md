@@ -23,7 +23,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T16 Agent heartbeat, stale flag, needs-human lane, worker loop | setup |  | Asif | done | asif/T16-autobeat-fix |  |  |
 | T17 Detector on AECV-Bench: outside benchmark vs VLMs | eval | T6 | ccolver | done | ccolver/T17-aecv-bench |  |  |
 | T18 Auto-close tickets when their PR merges | setup |  | Asif | done | asif/T18-close-merged |  |  |
-| T19 Room-label OCR: bedrooms, baths, WCs, room counts | ai | T6 | ccolver | doing | ccolver/T19-room-ocr |  |  |
+| T19 Room-label OCR: bedrooms, baths, WCs, room counts | ai | T6 | ccolver | review | ccolver/T19-room-ocr |  |  |
 | T20 Hot-swappable VLM backends: Gemini, Gemma, Nemotron | ai | T7 | Asif | doing | asif/T20-vlm-backends |  |  |
 | T21 UI v2: drawing + chat redesign | app | T8 | 2chaynz | review | 2chaynz/T21-ui-v2 |  |  |
 | T22 Reliable heartbeats: retry on failure, beat the claimed ticket | setup | T16 | Asif | doing | asif/T22-reliable-beats |  |  |
