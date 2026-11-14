@@ -1,59 +1,69 @@
-# Junction-2K26
+# SiteLens
 
-Our entry for Junction 2026 (Espoo, 13–15 Nov). Agents do the building; humans steer.
+The one tool every project role opens the drawings in: ask, measure, take off, compare revisions, with the exact spot highlighted, for a fraction of a cent.
 
-![SiteLens architecture](docs/architecture.svg)
+Junction 2026 · Stoa challenge "Make Blueprints Talk".
 
-## Setup (once, 5 min)
-1. Clone, then run: `bash scripts/setup.sh`. Fix anything marked `FIX`.
-   - Turns on the git hook that guards `main`. Checks `node`, `gh auth`, git name, `claude`/`codex`.
-2. Codex users: allow network in `~/.codex/config.toml` (see `AGENTS.md` → Codex setup).
-3. Run the demo: `node scripts/dev.mjs` → http://localhost:8000. First run installs deps and builds the UI. Unzip the dataset and drop the folder into `../junction-data/` (the script prints the full path if it is missing). Put keys (e.g. `GEMINI_API_KEY`) in `.env`.
-4. Open your agent in the repo and ask: "What's the workflow here?" It should describe `AGENTS.md`.
+## The problem
+- A site team juggles a PDF viewer, Bluebeam, a BIM viewer, takeoff software, Excel and emails to the designer. Hours a week go into looking things up and measuring.
+- General AI chat reads a drawing as a picture. It guesses counts and areas and cannot show where the answer came from.
 
-## Deploy the demo (public URL)
-Vercel and Lovable cannot host it (Python, torch, ifcopenshell and the dataset preview in one process), so it runs on a small VM:
-```
-bash scripts/deploy-remote.sh root@<ip> --ssh-key ~/.ssh/<key>      # fresh Ubuntu 24.04 (Python 3.12), ~5 min, re-runnable
-```
-It builds the web, uploads code + weights + dataset preview, sets up a venv (CPU torch) and a systemd service on port 8000,
-and takes `GEMINI_API_KEY` from your environment or `../junction-data/.env` over ssh stdin. Visitors are rate limited
-(`SITELENS_RATE`, default 30 questions/min per IP) so a public URL cannot burn the key. Keep the dataset credits (see
-`data/<source>/LICENSE.md`) if you share it.
+## What it does
+Ask in any language. You get the answer, the evidence highlighted on the sheet, the steps taken, and the cost of that answer in €.
+
+| Role | SiteLens feature |
+|---|---|
+| Project engineer | ask in plain language, answer + highlighted evidence |
+| Site manager | what changed between issues, plan vs schedule cross-check, 3D floors |
+| Project manager | revision quantities, confidence + "please check" flags |
+| Estimator / QS | takeoff list with CSV download, measure tool (area, length, scale), Bluebeam PDF markup export |
+
+Formats: vector PDF, DXF, IFC, scanned plans (PNG/JPEG), door and finish schedules.
 
 ## How it works
-- **The repo is the team's shared memory.** Agents read and write a few files; nobody re-explains anything.
-- **Code → PR → a human merges.** Agents can't push code to `main` (git hook + Claude deny rules).
-- **Status → straight to `main`.** Tickets, log, ideas and context go through `node scripts/status.mjs`, so everyone sees changes within a minute.
-- **Agents review each other.** Claude PRs are reviewed by Codex and vice versa; the verdict lands as a PR comment.
+![SiteLens architecture](docs/architecture.svg)
 
-| File | What it is |
-|---|---|
-| `AGENTS.md` | The agents' rulebook. Read it once. |
-| `DECISION.md` | The chosen idea and scope. |
-| `CONTRACT.md` | How the parts connect (APIs, protocols, pins). |
-| `TASKS.md` + `tickets/` | Ticket queue and details. |
-| `LOG.md` | Decisions and dead ends, newest first. |
-| `context/` | Challenge briefs and partner docs. Paste them here. |
-| `ideas/` | Each person's ideas, for picking one. |
+- **Cheapest reader first.** A router tries exact readers before anything else: IFC models (ifcopenshell), vector PDF and DXF text + geometry, schedule tables.
+- **Scans:** a symbol detector trained on floor plans + room-label OCR. Runs on a laptop CPU. One box per counted object.
+- **VLM only as fallback** (Gemini), on crops, when no exact reader can answer.
+- **Evidence on every answer:** sheet, region and steps, so a person can check it in seconds.
+- **Why newer frontier models won't make this obsolete:** the answer is often in the file. Reading geometry and text exactly beats guessing from pixels, and small local models keep the cost near zero.
 
-## Your job as a human
-- **Watch the board:** `node board/serve.mjs` → http://localhost:8787. Tickets, deadlines, open PRs, review verdicts, questions.
-- **Answer questions:** blocked tickets show a question on the board. Tell your agent the answer.
-- **Merge PRs:** check the cross-review comment and the verify steps, then merge on GitHub or `gh pr merge <n> --squash --delete-branch`.
-- **Hardware:** do the human steps written in the PR and confirm.
-- **Steer:** tell your agent what area to work on, e.g. "take the next fw ticket".
+## Results
+Held-out numbers (`eval/report.md`), Stoa's own questions and answer key, preview dataset, dev split.
 
-## The weekend
-1. **Opening (Fri 18:00):** paste every challenge brief into `context/challenges/`. Ask your agent: "Publish to context."
-2. **Ideas:** each agent writes 3–5 ideas to `ideas/<name>.md` from the template, then critiques a teammate's file and scores them.
-3. **Fri 21:00:** humans vote. An agent writes `DECISION.md` (PR, merge it).
-4. **Planning:** one agent fills `CONTRACT.md` (PR), then splits the work into tickets.
-5. **Fri 23:55:** preliminary submission.
-6. **Build:** each person's agents claim tickets in their area and open PRs. Humans merge.
-7. **Sat 22:00:** feature freeze. **Sun 10:00:** final submission.
+| Set | Accuracy | €/answer |
+|---|---|---|
+| All sources | **91.9%** | 0.00001 (rules) |
+| Scanned plans (CubiCasa5K) | 83.6% | 0.00001 |
+| Swiss vector plans | 97.4% | 0 |
+| BIM / IFC | 100% | 0 |
+| Schedules (opening_design) | 94.1% | ~0.004 (Gemini) |
 
-## Rules that matter
-- Never commit secrets. Share `.env` values directly with teammates.
-- Commits: `type: summary`, author only, no AI co-author lines.
-- Repo setup pushes by a human only: `ALLOW_MAIN_PUSH=1 git push`.
+Same 40 dev questions per source vs Gemini 3.8 Flash on the full sheet (`web/src/benchData.ts`):
+
+| Source | SiteLens | Gemini 3.8 Flash |
+|---|---|---|
+| Swiss vector plans | 100% · €0 | 60% · €0.021 |
+| Scanned plans | 95% · €0.00001 | 85% · €0.0045 |
+
+## Run it
+Python 3.11+, Node 18+.
+```
+node scripts/dev.mjs                     # sets up venv + web build, serves http://localhost:8000
+```
+- Dataset: unzip Stoa's dataset into `../junction-data/` (outside the repo). `node scripts/dev.mjs --check` lists what is missing.
+- `GEMINI_API_KEY` in `.env`: schedules and the VLM fallback need it.
+- Score on the answer key: `python -m eval.score --split dev`
+
+## Team
+johanseneuson (detector, vector, schedules) · 2chaynz (UI, design) · ccolver (scores, room OCR, revision diff) · Asif (VLM backends, IFC fixes, team tooling).
+
+## Credits
+Drawings and models come from Stoa's Junction dataset. Each source keeps its own licence and credit in `data/<source>/LICENSE.md` inside the dataset:
+- CubiCasa5K, © 2019 CubiCasa, CC BY-NC-SA 4.0 (Kalervo et al., SCIA 2019).
+- Swiss Dwellings v3.0.0 (Archilyse AG), CC BY 4.0.
+- Open IFC models and IFC-Bench v2 (Sylvain Hellin, TU Munich), per-model licences.
+- OpeningDesign drawings, per-file licences.
+
+How we built it (agent workflow, setup, board, deploy): [docs/workflow.md](docs/workflow.md).
