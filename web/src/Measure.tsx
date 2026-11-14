@@ -84,7 +84,7 @@ export default function Measure({ path, tool, setTool, drawn, clearDrawn, hot, s
   }, [drawn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const items = useMemo(() => st?.auto.items ?? [], [st]);
-  const manual = st?.measurements ?? [];
+  const manual = useMemo(() => st?.measurements ?? [], [st]);
 
   useEffect(() => {
     const shapes: Shape[] = [
