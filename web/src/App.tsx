@@ -4,9 +4,10 @@ import Benchmark from "./Benchmark";
 import Changes, { CHANGE_Q, PAIRS, onNewSheet } from "./Changes";
 import Chat from "./Chat";
 import Explorer from "./Explorer";
-import { DEMO, SOURCE_LABEL, TYPE, fmtSize, pickChips, sheetCode, shortName } from "./format";
+import { DEMO, SOURCE_LABEL, TYPE, floorsOf, fmtSize, pickChips, sheetCode, shortName } from "./format";
 import HowItWorks from "./HowItWorks";
 import type { Answer, Drawing, Msg, Step } from "./types";
+import Stack from "./Stack";
 import Viewer from "./Viewer";
 import VlmBadge from "./VlmBadge";
 
@@ -66,7 +67,7 @@ export default function App() {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
   const [size, setSize] = useState<[number, number] | null>(null);
-  const [mode, setMode] = useState<"plan" | "3d">("plan");
+  const [mode, setMode] = useState<"plan" | "3d" | "stack">("plan");
   const search = useRef<HTMLInputElement>(null);
   const [chOn, setChOn] = useState(false);
   const [chData, setChData] = useState<Record<string, { answer?: Answer; error?: string }>>({});
@@ -182,6 +183,8 @@ export default function App() {
   const isIfc = path.endsWith(".ifc");
   const hasPlan = isIfc && !view.endsWith(".ifc");
   const show3d = isIfc && (mode === "3d" || !hasPlan);
+  const floors = useMemo(() => floorsOf(drawings, path), [drawings, path]);
+  const showStack = floors.length > 1 && mode === "stack" && !showCh;
   const ch = chData[path];
   const chAnswer = useMemo(() => (ch?.answer ? onNewSheet(ch.answer, view) : null), [ch, view]);
 
@@ -214,7 +217,17 @@ export default function App() {
                 <button className={show3d ? "on" : ""} onClick={() => setMode("3d")}>3D</button>
               </div>
             )}
-            {show3d ? (
+            {floors.length > 1 && (
+              <div className="modes">
+                <button className={showStack ? "" : "on"} onClick={() => setMode("plan")}>Plan</button>
+                <button className={showStack ? "on" : ""} onClick={() => (setChOn(false), setMode("stack"))}>
+                  Building · {floors.length}
+                </button>
+              </div>
+            )}
+            {showStack ? (
+              <Stack floors={floors} selected={path} onPick={(p) => (select(p), setMode("plan"))} />
+            ) : show3d ? (
               <Suspense fallback={<div className="empty">Loading 3D viewer…</div>}>
               <Model3D
                 path={path}
@@ -241,7 +254,7 @@ export default function App() {
             ) : (
               <div className="empty">{error || "Loading drawings…"}</div>
             )}
-            {hasPair && !view.endsWith(".ifc") && (
+            {hasPair && !view.endsWith(".ifc") && !showStack && (
               <button className={`ch-toggle ${showCh ? "on" : ""}`} onClick={() => setChOn((v) => !v)}>
                 {showCh ? "Hide changes" : "What changed"}
               </button>

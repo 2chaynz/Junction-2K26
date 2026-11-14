@@ -92,3 +92,35 @@ export function fmtSize(path: string, w: number, h: number): string {
   const fit = PAPER.find(([, pw, ph]) => Math.abs(pw - a) < 6 && Math.abs(ph - b) < 6);
   return `${Math.round(mw)} × ${Math.round(mh)} mm${fit ? ` · ${fit[0]} ${mw > mh ? "landscape" : "portrait"}` : ""}`;
 }
+
+export type Project = { key: string; label: string; floor: number | null };
+
+const titleCase = (s: string) => s.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+/** Which project (building, model, sheet set) a drawing belongs to. null = a stand-alone plan. */
+export function projectOf(d: Drawing): Project | null {
+  const name = shortName(d.path);
+  if (d.source === "swiss_dwellings") {
+    const m = name.match(/^site(\d+)_bldg(\d+)_floor(\d+)/);
+    return m ? { key: `sw/${m[1]}/${m[2]}`, label: `Site ${m[1]} · Building ${m[2]}`, floor: Number(m[3]) } : null;
+  }
+  if (d.source === "ifc_models" || d.source === "ifc_bench") {
+    const model = name.replace(/_plan-.*$/, "");
+    return { key: `ifc/${model}`, label: model.replace(/^bsc-/, ""), floor: null };
+  }
+  if (d.source === "opening_design") {
+    const dir = d.path.split("/")[2];
+    return dir ? { key: `od/${dir}`, label: titleCase(dir), floor: null } : null;
+  }
+  return null;
+}
+
+/** 2D floors of the same building, lowest first. Only for non-BIM projects: BIM has its own storeys. */
+export function floorsOf(drawings: Drawing[], path: string): Drawing[] {
+  const d = drawings.find((x) => x.path === path);
+  const p = d && projectOf(d);
+  if (!p || p.floor === null) return [];
+  // File names carry no level number; floor id order is the best guess at bottom-up.
+  const same = drawings.filter((x) => projectOf(x)?.key === p.key);
+  return same.length > 1 ? same.sort((a, b) => projectOf(a)!.floor! - projectOf(b)!.floor!) : [];
+}
