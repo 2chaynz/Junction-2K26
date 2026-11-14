@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 15:04 · 2chaynz · gemini-2.5-flash returns 404 for new API keys; set SITELENS_GEMINI_MODEL=gemini-3.8-flash. VLM path never returns null (says 'not mentioned'), fixed for the UI in PR #33
 - 2026-11-14 15:02 · Asif · T22 PR #36: beats go to the claimed ticket (fixes T5 'no heartbeat'), hook beat timeouts 4s->8s, failed beat retries in 1 min
 - 2026-11-14 15:00 · ccolver · T19 PR #35: room-label OCR, balconies only (rest: OCR 85% vs boxes 71%). cubicasa dev 82.8% -> 83.8%. WC/bedroom OCR worse than v2 boxes, dropped; AECV not rerun
 - 2026-11-14 14:50 · johanseneuson · johanseneuson: T11 schedule tables PR: opening_design 0% -> 93.8% graded (area 9/9, count 36/39), Gemini 3.5 Flash over tables extracted from the PDF text layer, rows as evidence, ~EUR 0.004/answer. Gemini key: hackathon account (ask johanseneuson, not in git)
