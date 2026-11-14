@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 03:13 · johanseneuson · johanseneuson: Verda refuses to deploy compute on the JUNCTION-2026 coupon unless a payment method is on file (even with credit + auto top-up off). A100 80GB = EUR 2.14/h. Plan: T5 detector on CubiCasa5K, preview images excluded
 - 2026-11-14 02:59 · johanseneuson · johanseneuson: measured (no model): IFC room areas 782/804 from psets; swiss DOOR arcs != door count (74/265), so DXF counts need real detection; cubicasa raster = 53% of Qs. Literature + 5 ideas incl. RL-trained Gemma 4 with tools (ideas/johanseneuson.md)
 - 2026-11-14 02:09 · 2chaynz · dataset profiled (context/dataset.md): 7990 quantity-takeoff Qs with answers; 76% counts, 20% areas; no photos, no standards questions
 - 2026-11-14 00:35 · ccolver · ccolver: add 3D-printed scale model + printed drawings as live demo for photo->drawing matching (ideas/ccolver.md)
