@@ -6,7 +6,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | Ticket | Area | Needs | Owner | Status | Branch | Device | Question |
 |---|---|---|---|---|---|---|---|
 | T1 Project scaffold + CONTRACT.md + Run section | setup |  | johanseneuson | done | johanseneuson/T1-scaffold |  |  |
-| T2 Demo video, README, pitch | pitch | T1 |  | todo |  |  |  |
+| T2 Demo video, README, pitch | pitch | T1 | johanseneuson | doing | johanseneuson/T2-readme |  |  |
 | T3 Vector path: Swiss + opening_design | ai | T1 | johanseneuson | done | johanseneuson/T3-vector-fixes |  |  |
 | T4 IFC path: counts, lengths, volumes, text | ai | T1 | johanseneuson | done | johanseneuson/T4-ifc |  |  |
 | T5 Train symbol detector on CubiCasa5K | train | T1 | johanseneuson | done | johanseneuson/T5-detector |  |  |
@@ -54,7 +54,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T47 dev.mjs: no auto-download, print drop folder | setup |  | Asif | done | asif/T47-dev-no-download |  |  |
 | T48 Agents auto-merge PRs after review + CI | setup |  | Asif | done | asif/T48-auto-merge |  |  |
 | T49 Draw on the sheet to ask (highlighter + region Q&A) | app |  | 2chaynz | review | 2chaynz/T49-sketch-ask |  |  |
-| T50 Projects in explorer + Building view for 2D floors | app | T28 | ccolver | review | ccolver/T50-building-view |  | @ccolver PR #68 waiting on a Codex cross-review (only a same-session Claude PASS so far). Install/log in to Codex, then: bash scripts/xreview.sh 68 && bash scripts/merge.sh 68 |
+| T50 Projects in explorer + Building view for 2D floors | app | T28 | ccolver | done | ccolver/T50-building-view |  |  |
 | T51 Ignore spread autotune outputs | setup |  | Asif | done | asif/T51-spread-ignore |  |  |
 | T52 Resizable panels: drag the explorer and chat edges | app |  | 2chaynz | done | 2chaynz/T52-resize |  |  |
 | T53 Multi-sheet questions: ask a whole building | ai |  | johanseneuson | blocked | johanseneuson/T53-multi |  | dropped: no Swiss building has 2+ floors in the dataset (1040 PDFs = 1040 buildings), no gold |
