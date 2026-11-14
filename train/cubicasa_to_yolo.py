@@ -76,6 +76,9 @@ def _class_of(el) -> str | None:
     if c.startswith("Door") and not c.startswith("Doors"):
         return "door"
     if c.startswith("FixedFurniture "):
+        kind = c.split()[1]
+        if kind.endswith("Sink"):  # Sink, DoubleSink, RoundSink, SideSink, CornerSink, DoubleSinkRight
+            return "sink"
         return OBJECTS.get(" ".join(c.split()[:2]))
     if c.startswith("Space "):
         return SPACES.get(c.split()[1])
@@ -142,6 +145,13 @@ def boxes(svg: Path) -> list[tuple[str, np.ndarray]]:
             walk(ch, m)
 
     walk(ET.parse(svg).getroot(), np.eye(3))
+    # CubiCasa has no WC-room class: a bath space with a toilet but no shower/bathtub is a separate WC
+    ctr = lambda b: ((b[0] + b[2]) / 2, (b[1] + b[3]) / 2)  # noqa: E731
+    inside = lambda b, r: r[0] <= ctr(b)[0] <= r[2] and r[1] <= ctr(b)[1] <= r[3]  # noqa: E731
+    toilets = [b for c, b in out if c == "toilet"]
+    wet = [b for c, b in out if c in ("shower", "bathtub")]
+    out = [("room_wc" if c == "room_bath" and any(inside(t, b) for t in toilets) and not any(inside(w, b) for w in wet)
+            else c, b) for c, b in out]
     return out
 
 
