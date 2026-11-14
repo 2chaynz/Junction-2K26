@@ -56,6 +56,6 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T49 Draw on the sheet to ask (highlighter + region Q&A) | app |  | 2chaynz | doing | 2chaynz/T49-sketch-ask |  |  |
 | T50 Projects in explorer + Building view for 2D floors | app | T28 | ccolver | review | ccolver/T50-building-view |  | @ccolver PR #68 waiting on a Codex cross-review (only a same-session Claude PASS so far). Install/log in to Codex, then: bash scripts/xreview.sh 68 && bash scripts/merge.sh 68 |
 | T51 Ignore spread autotune outputs | setup |  | Asif | done | asif/T51-spread-ignore |  |  |
-| T52 Resizable panels: drag the explorer and chat edges | app |  | 2chaynz | doing | 2chaynz/T52-resize |  |  |
+| T52 Resizable panels: drag the explorer and chat edges | app |  | 2chaynz | review | 2chaynz/T52-resize |  |  |
 | T53 Multi-sheet questions: ask a whole building | ai |  | johanseneuson | doing | johanseneuson/T53-multi |  |  |
 | T54 Multi-sheet benchmark with free gold answers | eval |  |  | todo |  |  |  |
