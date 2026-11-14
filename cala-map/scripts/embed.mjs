@@ -1,4 +1,5 @@
-// Writes src/data/positions.json (2D spot per startup inside its island, similar = near)
+// Assigns an island to startups imported without a sector (nearest labelled neighbours),
+// then writes src/data/positions.json (2D spot per startup inside its island, similar = near)
 // and src/data/bridges.json (startups that also belong to another sector, so the map can
 // join islands with bridges). Uses Gemini embeddings when GEMINI_API_KEY is set, cached in
 // .cache/embeddings.json (also read by the ask endpoint); falls back to TF-IDF otherwise.
@@ -142,6 +143,21 @@ function findBridges(vec) {
 const gemini = await embedAll()
 const fallback = gemini ? null : tfidf(startups.map(text))
 const vec = gemini ?? new Map(startups.map((s, i) => [s.id, fallback[i]]))
+
+// Sector by vote of the 15 most similar labelled startups, weighted by similarity.
+const labelled = startups.filter((s) => s.sector)
+const unlabelled = startups.filter((s) => !s.sector)
+for (const s of unlabelled) {
+  const v = vec.get(s.id)
+  const near = labelled.map((o) => ({ o, sim: dot(v, vec.get(o.id)) })).sort((a, b) => b.sim - a.sim).slice(0, 15)
+  const votes = new Map()
+  for (const { o, sim } of near) votes.set(o.sector, (votes.get(o.sector) ?? 0) + sim)
+  s.sector = [...votes.entries()].sort((a, b) => b[1] - a[1])[0][0]
+}
+if (unlabelled.length) {
+  writeFileSync(data('startups.json'), JSON.stringify(startups))
+  console.log(`assigned sectors to ${unlabelled.length} startups`)
+}
 
 const positions = {}
 for (const sector of new Set(startups.map((s) => s.sector))) {
