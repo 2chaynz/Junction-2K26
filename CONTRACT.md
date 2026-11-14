@@ -55,6 +55,11 @@ GET  /api/file?path=…&clip=x0,y0,x1,y1&pad=0.5&scale=2 → PNG crop around one
 GET  /api/drawings                                    → [{"path", "source", "view", "questions": [...]}]
 GET  /api/ifc?path=data/…ifc                          → raw IFC bytes (3D viewer)
 GET  /api/random                                      → {"path", "question"} from questions.jsonl
+GET  /api/measure?path=…&page=0                       → {scale, candidates, ask, options, known, project, calibrations, measurements, auto}
+POST /api/measure {"path","kind":length|area|count,"points":[[x,y]…],"label"} → stored takeoff (uses the scale nearest the shape)
+DELETE /api/measure?path=…&id=…                       → {"deleted"}
+POST /api/measure/calibrate {"path","points","length":"12'-6\"" | "3.5 m" | "15.9 m2","known_id"?} → stored scale
+POST /api/measure/scale {"path","scale_id"}           → pick a candidate (answer to `ask`); no scale_id = reset
 GET  /api/takeoff?path=data/…[&format=csv]           → {"path", "source": ifc|schedule|detector|none, "rows": [{category, type, size, count, levels, by_level, length_m, area_m2, volume_m3, evidence}], "notes"}; csv = download
 GET  /api/vlm                                         → {"backend", "current", "latest", "available": [...]}: latest = newer model of the same family, else null
 POST /api/vlm   {"model": "…"}                        → same shape; switches the VLM model for this server process (no .env write); 400 if unknown
@@ -64,6 +69,7 @@ POST /api/vlm   {"model": "…"}                        → same shape; switches
 - Vague question (not one of Stoa's) → `method: "clarify"`, `value: null`, `clarify: {"ask": "Which floor?", "options": [full reformulated questions]}`, no evidence. UI shows the options; picking one asks it. Rules first, then Gemini (`sitelens/clarify.py`).
 - Step: `{"kind": understand|try|skip|fail|found|trace|general|check|clarify, "path": "ifc"|"", "text": "plain words", "t": seconds}`. `trace` steps are the winning path's trace lines. Python: `router.answer(path, q, on_step)`.
 - `/api/file` takes optional `scale` (default 1 = bbox coords).
+- Measure (`sitelens/measure.py`): points in bbox units. Scale = `m_per_unit` + `source` (dxf | sibling | note | bar | sheet_size | manual) + `refs: [{file, page, bbox, text, kind}]` (file may be another sheet of the project). `scale: null` → `ask` + `options`. Stored per drawing in `SITELENS_STORE`.
 - Run: `STOA_DATA=… python -m sitelens.server` (serves `web/dist` after `cd web && npm ci && npm run build`). Dev: `npm run dev` in `web/` proxies `/api` to :8000.
 
 ## Hardware
@@ -82,4 +88,5 @@ POST /api/vlm   {"model": "…"}                        → same shape; switches
 | `NVIDIA_API_KEY` | vlm path (nemotron) | build.nvidia.com key. Default model `nvidia/nemotron-3.5-super-vl-120b-a12b`; `SITELENS_VLM_THINKING=1` turns reasoning on |
 | `SITELENS_VLM_URL` / `_MODEL` / `_KEY` | vlm path (nemotron, vllm) | OpenAI-compatible server, e.g. `http://localhost:8001/v1`. Required for `vllm`; model defaults to the served one |
 | `SITELENS_VLM_EUR_MTOK` | vlm path (nemotron, vllm) | `"in,out"` EUR per Mtok. Unset on `vllm` → cost = wall time × `SITELENS_GPU_EUR_H` |
+| `SITELENS_STORE` | measure | calibrations + manual takeoffs, one JSON per drawing (default `.sitelens/measure/`, self-gitignored) |
 | `SITELENS_MODELS` | detector path | folder with detector weights (default `models/`, gitignored) |

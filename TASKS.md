@@ -17,8 +17,8 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T10 Comparable scores: full preview + official split | eval |  | ccolver | done | ccolver/T10-scores |  |  |
 | T11 opening_design: read schedule tables | ai |  | johanseneuson | done | johanseneuson/T11-schedules |  |  |
 | T12 Two methods agree: confidence + please check | ai | T6 | johanseneuson | done | johanseneuson/T12-agree |  |  |
-| T13 Crop renderer for the VLM path | ai | T7 | ccolver | doing | ccolver/T13-vlm-crops |  |  |
-| T14 Cache per-drawing extraction (Index) | ai |  | ccolver | doing | ccolver/T14-drawing-cache |  |  |
+| T13 Crop renderer for the VLM path | ai | T7 | ccolver | done | ccolver/T13-vlm-crops |  |  |
+| T14 Cache per-drawing extraction (Index) | ai |  | ccolver | done | ccolver/T14-drawing-cache |  |  |
 | T15 Revision diff: what changed between two sheet issues | ai |  | ccolver | done | ccolver/T15-revision-diff |  |  |
 | T16 Agent heartbeat, stale flag, needs-human lane, worker loop | setup |  | Asif | done | asif/T16-autobeat-fix |  |  |
 | T17 Detector on AECV-Bench: outside benchmark vs VLMs | eval | T6 | ccolver | done | ccolver/T17-aecv-bench |  |  |
@@ -50,12 +50,13 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T43 Proof strip + arithmetic receipt under answers | app |  | johanseneuson | done | johanseneuson/T43-proof |  |  |
 | T44 Us vs frontier model side by side (Benchmark) | app |  | johanseneuson | done | johanseneuson/T44-versus |  |  |
 | T45 Gitignore dataset and zips | setup |  | Asif | done | asif/T45-gitignore-dataset |  |  |
-| T46 Measure: area/length takeoffs, scale + references | app |  | ccolver | blocked | ccolver/T46-measure |  | @ccolver PR #66 ready; xreview can't run: no Codex binary and claude CLI login expired. Run 'claude' to log in (or install Codex), then: bash scripts/xreview.sh 66 && bash scripts/merge.sh 66 |
+| T46 Measure: area/length takeoffs, scale + references | app |  | ccolver | done | ccolver/T46-measure |  |  |
 | T47 dev.mjs: no auto-download, print drop folder | setup |  | Asif | done | asif/T47-dev-no-download |  |  |
 | T48 Agents auto-merge PRs after review + CI | setup |  | Asif | done | asif/T48-auto-merge |  |  |
 | T49 Draw on the sheet to ask (highlighter + region Q&A) | app |  | 2chaynz | review | 2chaynz/T49-sketch-ask |  |  |
 | T50 Projects in explorer + Building view for 2D floors | app | T28 | ccolver | review | ccolver/T50-building-view |  | @ccolver PR #68 waiting on a Codex cross-review (only a same-session Claude PASS so far). Install/log in to Codex, then: bash scripts/xreview.sh 68 && bash scripts/merge.sh 68 |
 | T51 Ignore spread autotune outputs | setup |  | Asif | done | asif/T51-spread-ignore |  |  |
-| T52 Resizable panels: drag the explorer and chat edges | app |  | 2chaynz | review | 2chaynz/T52-resize |  |  |
-| T53 Multi-sheet questions: ask a whole building | ai |  | johanseneuson | doing | johanseneuson/T53-multi |  |  |
+| T52 Resizable panels: drag the explorer and chat edges | app |  | 2chaynz | done | 2chaynz/T52-resize |  |  |
+| T53 Multi-sheet questions: ask a whole building | ai |  | johanseneuson | blocked | johanseneuson/T53-multi |  | dropped: no Swiss building has 2+ floors in the dataset (1040 PDFs = 1040 buildings), no gold |
 | T54 Multi-sheet benchmark with free gold answers | eval |  |  | blocked |  |  | dropped with T53: no multi-sheet gold exists in the Stoa data |
+| T55 xreview: fall back both ways, login hint | setup |  | Asif | done | asif/T55-xreview-fallback |  |  |

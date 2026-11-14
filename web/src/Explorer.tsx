@@ -76,14 +76,13 @@ function Projects({ items, open, toggle, selected, onSelect }: {
     <>
       {subs.map((s) => {
         const isOpen = open.has(s.key);
-        const floors = s.items.some((d) => projectOf(d)?.floor != null);
         return (
           <section key={s.key} className="proj">
             <button className={`fhead sub ${isOpen ? "open" : ""}`} onClick={() => toggle(s.key)}>
               <span className="chev">{isOpen ? "▾" : "▸"}</span>
               <FolderIcon open={isOpen} />
               <span className="fname ellipsis">{s.label}</span>
-              <span className="dim mono">{s.items.length}{floors ? " fl" : ""}</span>
+              <span className="dim mono">{s.items.length}</span>
             </button>
             {isOpen && <Grid items={s.items} selected={selected} onSelect={onSelect} />}
           </section>

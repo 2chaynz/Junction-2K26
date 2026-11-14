@@ -105,8 +105,9 @@ export function projectOf(d: Drawing): Project | null {
     return m ? { key: `sw/${m[1]}/${m[2]}`, label: `Site ${m[1]} · Building ${m[2]}`, floor: Number(m[3]) } : null;
   }
   if (d.source === "ifc_models" || d.source === "ifc_bench") {
+    const plan = name.match(/^(.+)_plan-(-?\d+)(?:-|$)/);
     const model = name.replace(/_plan-.*$/, "");
-    return { key: `ifc/${model}`, label: model.replace(/^bsc-/, ""), floor: null };
+    return { key: `ifc/${model}`, label: model.replace(/^bsc-/, ""), floor: plan ? Number(plan[2]) : null };
   }
   if (d.source === "opening_design") {
     const dir = d.path.split("/")[2];
@@ -115,7 +116,7 @@ export function projectOf(d: Drawing): Project | null {
   return null;
 }
 
-/** 2D floors of the same building, lowest first. Only for non-BIM projects: BIM has its own storeys. */
+/** 2D floor sheets of the same project, ordered by their floor identifiers. */
 export function floorsOf(drawings: Drawing[], path: string): Drawing[] {
   const d = drawings.find((x) => x.path === path);
   const p = d && projectOf(d);
