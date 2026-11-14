@@ -40,4 +40,20 @@ assert row["evidence"][0]["ifc_guid"] == "2Zimmer"
 assert row["type"] == "Basic wall" and row["evidence"][0]["label"] == "Door 1"
 assert row["levels"] == ["Floor 1"] and row["by_level"] == {"Floor 1": 3}
 assert out["trace"] == ["found room 'Zimmer' (room)"]
+
+# storeys that share an English name add up; a text answer keeps the original
+out = english_obj({"by_level": {"Keller": 2, "Kellergeschoss": 3}, "value": "KORIDOR (119)"})
+assert out["by_level"] == {"Basement": 5}
+assert out["value"] == "KORIDOR (119) · CORRIDOR (119)"
+
+# with a key, only names reach the model; labels, traces and our own symbols never do
+import sitelens.translate as T  # noqa: E402
+sent: list[str] = []
+T._model_on = lambda: True
+T._save = lambda: None
+T._gemini = lambda batch: (sent.extend(batch), {})[1]
+english_obj({"rows": [{"type": "Öffnunsgrichtung", "evidence": [{"label": "room Öffnunsgrichtung · 15.9 m²"}]}],
+             "trace": ["found 'Öffnunsgrichtung'"]})
+assert sent == ["Öffnunsgrichtung"], sent
+assert not T._needs_model("room 2.09 · 15.90 m² 900 × 2100")
 print("translate ok")

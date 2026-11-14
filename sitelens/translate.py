@@ -170,7 +170,7 @@ _AMBIGUOUS = {"die", "kind", "post", "hal", "van", "met", "mit", "con", "hor", "
               "trap", "rund", "material", "garage", "sauna", "rectangular", "loft", "mur", "bad", "gang", "de", "del", "porta", "piano", "scala",
               "tala", "kontor", "saal", "nivel", "trave", "uit", "aan"}
 
-_TOKEN = re.compile(r"[^\W\d_]+", re.U)
+_TOKEN = re.compile(r"[^\W\d_²³¹]+", re.U)   # \w counts superscript digits (m²) as letters
 _CACHE_FILE = Path(os.environ.get("SITELENS_STORE") or Path(__file__).resolve().parent.parent / ".sitelens" / "measure").parent / "translate.json"
 _lock = threading.Lock()
 _cache: dict[str, str] | None = None
@@ -263,7 +263,7 @@ def _needs_model(s: str) -> bool:
     words = _TOKEN.findall(s)
     if not words:
         return False
-    if any(ord(c) > 127 for c in s):
+    if any(ord(c) > 127 for w in words for c in w):   # letters only: our own ·, ², × don't count
         return True
     return any(len(w) >= 4 and w.lower() not in _ENGLISH_HINT for w in words)
 
@@ -348,8 +348,9 @@ def english(text: str, model: bool = True) -> str:
 _KEEP = {"file", "path", "view", "ifc_guid", "guid", "url", "kind", "method", "unit", "tier", "source", "source_path",
          "id", "question", "standalone", "project", "model", "change", "backend", "current", "latest", "expected",
          "check", "followup", "clarify", "t", "n"}
-# Our own English sentences with names inside ("room 'Zimmer' found"): dictionary only, no model call per step.
-_SENTENCE = {"trace", "text", "notes", "reason", "reasoning"}
+# Short names that repeat across a model (types, storeys): the only strings worth a model call, once each, cached.
+# Everything else (labels, traces, table cells) is per element or our own sentence: dictionary only, never a call.
+_NAMES = {"type", "category", "size", "levels", "by_level", "name", "level", "title", "columns"}
 
 
 _QUOTED = re.compile(r"'([^']+)'")
@@ -366,14 +367,22 @@ def sentence(text: str) -> str:
     return "".join(gloss(_QUOTED.match(f"'{p}'")) if i % 2 else dictionary(p) for i, p in enumerate(parts))
 
 
+def _value(s: str) -> str:
+    """A text answer keeps the original next to the English, so it still reads against Stoa's key."""
+    en = dictionary(s)
+    return s if en == s else f"{s} · {en}"
+
+
 def _walk(obj, key: str | None, found: list[str], put):
     if isinstance(obj, str):
         if key in _KEEP:
             return obj
-        if key in _SENTENCE:
-            return sentence(obj) if put is not None else obj
-        found.append(obj)
-        return put[obj] if put is not None else obj
+        if key in _NAMES:
+            found.append(obj)
+            return put[obj] if put is not None else obj
+        if put is None:
+            return obj
+        return _value(obj) if key == "value" else sentence(obj)
     if isinstance(obj, list):
         return [_walk(v, key, found, put) for v in obj]
     if isinstance(obj, dict):
@@ -384,7 +393,9 @@ def _walk(obj, key: str | None, found: list[str], put):
                 continue
             # by_level is {storey name: count}: its keys are display text that matches `levels`
             nk = (put[k] if put is not None else (found.append(k) or k)) if key == "by_level" else k
-            res[nk] = _walk(v, k, found, put)
+            v = _walk(v, k, found, put)
+            # two storeys can share an English name (Keller, Kellergeschoss → Basement): add their counts
+            res[nk] = res[nk] + v if nk in res and isinstance(v, (int, float)) else v
         return res
     return obj
 

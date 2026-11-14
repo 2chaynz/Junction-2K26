@@ -330,7 +330,9 @@ def _ask_region(path: str, question: str, region: dict, on_step, t: float) -> di
 @app.post("/api/ask")
 def ask(req: Ask):
     _safe(req.path)
-    return english_obj(_ask(req.path, req.question, region=req.region, history=req.history, related=req.related))
+    # dictionary only: an answer must not wait on, or pay for, a translation call
+    return english_obj(_ask(req.path, req.question, region=req.region, history=req.history, related=req.related),
+                       model=False)
 
 
 @app.post("/api/ask/stream")
@@ -346,7 +348,7 @@ def ask_stream(req: Ask):
         try:
             a = _ask(req.path, req.question, lambda s: q.put({"step": english_obj(s, model=False)}), req.region,
                      req.history, req.related)
-            q.put({"answer": english_obj(a)})
+            q.put({"answer": english_obj(a, model=False)})
         except Exception as e:
             q.put({"error": repr(e)})
         q.put(END)
