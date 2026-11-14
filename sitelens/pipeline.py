@@ -44,12 +44,15 @@ def _rules(question: str, prev: str) -> str | None:
     rest = FOLLOW.sub("", question).strip(" ?.,")
     new_names = clarify.QUOTED.findall(question)
     old_names = clarify.QUOTED.findall(prev)
-    if new_names and old_names:   # "what about '2.korrus'?"
-        return prev.replace(old_names[0], new_names[0], 1)
     new_noun, old_noun = clarify._noun(rest), clarify._noun(prev)
-    if new_noun and old_noun and new_noun != old_noun and len(rest.split()) <= 3:
-        return re.sub(rf"(?i)\b{old_noun[:-1]}s?\b", new_noun, prev, count=1)
-    return None
+    if new_names and not old_names or len(rest.split()) > 3 and not new_names:
+        return None
+    out = prev.replace(old_names[0], new_names[0], 1) if new_names else prev   # "what about '2.korrus'?"
+    if new_noun and new_noun != old_noun:   # "and windows?" — a new noun must replace the old one, never be dropped
+        if not old_noun:
+            return None
+        out = re.sub(rf"(?i)\b{old_noun[:-1]}s?\b", new_noun, out, count=1)
+    return out if out != prev else None
 
 
 REWRITE = """Rewrite the user's last question about a construction drawing as one standalone question that

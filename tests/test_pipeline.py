@@ -15,6 +15,8 @@ f = pipeline.followup
 h = [{"question": "How many doors are on '1.korrus'?", "answer": "12"}]
 assert f("and windows?", h)[0] == "How many windows are on '1.korrus'?", f("and windows?", h)
 assert f("what about '2.korrus'?", h)[0] == "How many doors are on '2.korrus'?"
+assert f("and how many windows on '2.korrus'?", h)[0] == "How many windows are on '2.korrus'?"
+assert f("and walls?", [{"question": "What is the area of 'KORIDOR'?", "answer": "5"}])[0] == "and walls?"  # no noun to swap
 assert f("How many walls are there?", h)[0] == "How many walls are there?"   # standalone stays
 assert f("and windows?", [])[0] == "and windows?"
 
