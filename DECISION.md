@@ -20,6 +20,33 @@ Updated Sat 14 Nov 2026. Main challenge: **Stoa, Make Blueprints Talk** (`contex
 - **Stretch (one person max, only after the core works):** quantities of 2D-only design changes (gap Stoa named); photo/3D-print demo; ElevenLabs voice.
 - **Out of scope:** Eurocode/ASTM references; scope-of-work analysis; production photogrammetry.
 
+## Plan (Sat 14 Nov, read this first)
+
+**Architecture: keep it.** Other teams converged on the same design (cheapest method first, geometry for vector, detector for scans). Our scores are at or near the top. We improve parts; we don't redesign. Diagram: `docs/architecture.svg`.
+
+| Part | Status | Next |
+|---|---|---|
+| Router | done | nothing |
+| IFC (T4) | 96.6% | small fixes → 99% |
+| Vector / Swiss (T3) | 96.4% | small fixes (showers) → 99% |
+| Detector / scans (T5, T6) | ~85% on 40 dev Qs, training | finish training |
+| Schedule tables / opening_design (T11) | missing, 0% | new path, open ground for every team |
+| Two methods agree (T12) | missing | optional add-on |
+| **UI (T8)** | **not started** | **most urgent: carries verification + creativity (50% of Stoa's score)** |
+
+Competitors and scores: `context/competitors.md`. UI design: `ideas/2chaynz-ui.md`.
+
+**Rule: build in steps; always have something we can show.** If time runs out, we ship what works.
+
+| Step | When | Result |
+|---|---|---|
+| 1. Works end to end | now → 15:00 | pick drawing, ask, see answer + boxes on the plan (ugly is fine). Already submittable |
+| 2. Looks good | 15:00 → 19:00 | blueprint + red-pen style, answer card, Stoa ✓ stamp. In parallel: real scores (T10) |
+| 3. Impresses | 19:00 → 22:00 | 3D build-up, How it works, Benchmark tabs. Not done by 22:00 → dropped |
+| 4. Sells | 22:00 → Sun 09:00 | 2-min video, pitch deck PDF, README (T2) |
+
+**Who:** johanseneuson: detector (T5, T6). 2chaynz: UI (T8) + art direction + demo examples for the video. Open to claim: T11 schedules, T10 scores, T12 agreement, Swiss/IFC fixes, T2 pitch.
+
 ## Constraints
 - Goal: win a partner challenge.
 - Hardware is shared and limited. Confirm a device is ours before committing.
