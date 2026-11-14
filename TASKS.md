@@ -55,4 +55,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T48 Agents auto-merge PRs after review + CI | setup |  | Asif | done | asif/T48-auto-merge |  |  |
 | T49 Draw on the sheet to ask (highlighter + region Q&A) | app |  | 2chaynz | doing | 2chaynz/T49-sketch-ask |  |  |
 | T50 Projects in explorer + Building view for 2D floors | app | T28 | ccolver | review | ccolver/T50-building-view |  |  |
-| T51 Ignore spread autotune outputs | setup |  | Asif | doing | asif/T51-spread-ignore |  |  |
+| T51 Ignore spread autotune outputs | setup |  | Asif | review | asif/T51-spread-ignore |  |  |
