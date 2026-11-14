@@ -74,4 +74,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T67 Highlight on scans: OCR the marked spot before the VLM | ai | T49 | 2chaynz | done | 2chaynz/T67-region-ocr |  |  |
 | T68 Rotation-aware whole-sheet OCR for room counts | ai |  |  | todo |  |  |  |
 | T69 How it works: interactive diagram in site language | app |  | 2chaynz | doing | 2chaynz/T69-how-flow |  |  |
-| T70 App shell: start screen, breadcrumb, project Overview | app | T61 |  | todo |  |  |  |
+| T70 App shell: start screen, breadcrumb, project Overview | app | T61 | Asif | doing | asif/T70-app-shell |  |  |
