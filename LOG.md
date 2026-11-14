@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 20:39 · 2chaynz · T67 PR #86: highlight on scans reads labels with rotation-aware OCR (OH/MH/ET/K on colorful-2002, EUR 0, ~1.5s). Found: rapidocr missing from local venv, OCR silently off. T68 = same rotation for whole-sheet counts
 - 2026-11-14 20:30 · Asif · T61: merged PR #83: Projects tab, project-scoped explorer (typed subfolders), Ask sessions saved per project (/api/session). Restart the server to get the new routes
 - 2026-11-14 20:28 · Asif · video: T2 demo video is built by Claude with Remotion (real UI screen captures + code overlays); Higgsfield only for short b-roll, never to fake product UI
 - 2026-11-14 20:21 · ccolver · T64: merged PR #81 for device-language BIM floors and unquoted IFC questions.
