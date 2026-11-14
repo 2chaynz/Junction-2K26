@@ -65,10 +65,13 @@ def drawings():
 
 
 @app.get("/api/file")
-def file(path: str, page: int = 0, scale: float = 1.0):
-    """PNG of a drawing page. scale=1 → 1 px per PDF point (bbox coords); images: 1 px per pixel."""
+def file(path: str, page: int = 0, scale: float = 1.0, clip: str | None = None, pad: float = 0.5):
+    """PNG of a drawing page. scale=1 → 1 px per PDF point (bbox coords); images: 1 px per pixel.
+    clip=x0,y0,x1,y1 (evidence bbox coords) → only that region, padded by `pad` × its size (T43 proof strip)."""
     p = _safe(path)
     scale = max(0.05, min(scale, 4.0))
+    if clip:
+        return _crop(p, page, scale, clip, pad)
     if p.suffix.lower() in IMAGE_EXT:
         if scale == 1.0:
             return FileResponse(p)
@@ -88,6 +91,35 @@ def file(path: str, page: int = 0, scale: float = 1.0):
     if p.suffix.lower() == ".svg":
         return FileResponse(p, media_type="image/svg+xml")
     raise HTTPException(415, f"no preview for {p.suffix}")
+
+
+def _crop(p: Path, page: int, scale: float, clip: str, pad: float):
+    try:
+        x0, y0, x1, y1 = (float(v) for v in clip.split(","))
+    except ValueError:
+        raise HTTPException(400, "clip must be x0,y0,x1,y1")
+    w, h = max(x1 - x0, 8), max(y1 - y0, 8)
+    pad = max(0.0, min(pad, 3.0))
+    r = (x0 - w * pad, y0 - h * pad, x1 + w * pad, y1 + h * pad)
+    if p.suffix.lower() in IMAGE_EXT:
+        from PIL import Image
+        im = Image.open(p).convert("RGB")
+        box = (max(0, int(r[0])), max(0, int(r[1])), min(im.width, int(r[2]) + 1), min(im.height, int(r[3]) + 1))
+        im = im.crop(box)
+        if scale != 1.0:
+            im = im.resize((max(1, int(im.width * scale)), max(1, int(im.height * scale))))
+        buf = io.BytesIO()
+        im.save(buf, "PNG")
+        return Response(buf.getvalue(), media_type="image/png")
+    if p.suffix.lower() == ".pdf":
+        with fitz.open(p) as doc:
+            if not 0 <= page < len(doc):
+                raise HTTPException(404, "no such page")
+            pg = doc[page]
+            rr = fitz.Rect(r) & pg.rect   # render clip uses the displayed (rotated) page space, like our bboxes
+            pix = pg.get_pixmap(matrix=fitz.Matrix(scale, scale), clip=rr, alpha=False)
+            return Response(pix.tobytes("png"), media_type="image/png")
+    raise HTTPException(415, f"no crop for {p.suffix}")
 
 
 @app.get("/api/ifc")
@@ -128,6 +160,9 @@ Question: {q}
 Reply with JSON only: {{"general": true or false, "text": "..."}}"""
 
 
+GENERAL_EUR_PER_MTOK = (0.30, 2.50)  # Gemini flash, EUR per Mtok in / out
+
+
 def _general(path: str, question: str) -> dict | None:
     """Questions no path answers and that aren't about the drawing (e.g. 'how does this work?')."""
     import os
@@ -148,10 +183,9 @@ def _general(path: str, question: str) -> dict | None:
         return None
     if not d.get("general") or not d.get("text"):
         return None
-    from .paths.vlm import GEMINI_EUR_PER_MTOK
     u = r.get("usageMetadata", {})
-    cost = (u.get("promptTokenCount", 0) * GEMINI_EUR_PER_MTOK[0]
-            + (u.get("candidatesTokenCount", 0) + u.get("thoughtsTokenCount", 0)) * GEMINI_EUR_PER_MTOK[1]) / 1e6
+    cost = (u.get("promptTokenCount", 0) * GENERAL_EUR_PER_MTOK[0]
+            + (u.get("candidatesTokenCount", 0) + u.get("thoughtsTokenCount", 0)) * GENERAL_EUR_PER_MTOK[1]) / 1e6
     return {"value": d["text"], "unit": None, "method": "general", "confidence": 0.0, "cost_eur": round(cost, 6),
             "evidence": [], "trace": [f"no path answered; {model} answered as a general question"]}
 
@@ -163,6 +197,24 @@ def _ask(path: str, question: str, on_step=None) -> dict:
         if on_step:
             on_step({"kind": kind, "path": "", "text": text, "t": round(time.time() - t, 3)})
 
+    from . import clarify
+    # When the question is one of Stoa's, show their answer next to ours (and never ask back).
+    key = next((q for q in _questions().get(path, []) if q["question"].strip() == question.strip()), None)
+    step("understand", clarify.understand(question))
+    c = None if key else clarify.check(path, question)
+    if c and c.get("general"):
+        g = _general(path, question)
+        if g:
+            step("general", "This isn't about the drawing itself. I'll answer it as a general question, without citations.")
+            g["cost_eur"] = round(g["cost_eur"] + c["cost_eur"], 6)
+            g["time_s"], g["view"] = round(time.time() - t, 3), _view_of(path)
+            return g
+        c = None
+    if c:
+        step("clarify", f"{c['why']} Rather than guess, I'll ask.")
+        return {"value": None, "unit": None, "method": "clarify", "confidence": 0.0, "cost_eur": c["cost_eur"],
+                "evidence": [], "trace": [c["why"]], "clarify": {"ask": c["ask"], "options": c["options"]},
+                "time_s": round(time.time() - t, 3), "view": _view_of(path)}
     a = answer(path, question, on_step).to_dict()
     # The VLM never returns null: it answers "not mentioned" etc. Text from it may be a general question.
     if a["method"] == "vlm" and isinstance(a["value"], str):
@@ -180,8 +232,6 @@ def _ask(path: str, question: str, on_step=None) -> dict:
             a = g
     a["time_s"] = round(time.time() - t, 3)
     a["view"] = _view_of(path)
-    # When the question is one of Stoa's, show their answer next to ours.
-    key = next((q for q in _questions().get(path, []) if q["question"].strip() == question.strip()), None)
     if key and a["method"] != "general":
         from eval.score import grade
         a["check"] = {"expected": key["answer"], "unit": key["unit"], "match": grade(key, a["value"])}
@@ -240,6 +290,31 @@ def export(req: Export):
     name = req.path.rsplit("/", 1)[-1].rsplit(".", 1)[0] + "-sitelens-markup.pdf"
     return Response(pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+class VlmModel(BaseModel):
+    model: str
+
+
+@app.get("/api/vlm")
+def vlm_status():
+    """Active VLM and the newest model of its family (T29). Never fails: a check error means latest=null."""
+    from .vlm_backends import latest
+    try:
+        return latest.status()
+    except Exception as e:
+        backend, model = latest.current()
+        return {"backend": backend, "current": model, "latest": None, "available": [], "error": str(e)}
+
+
+@app.post("/api/vlm")
+def vlm_use(req: VlmModel):
+    """Switch the VLM model for this server process only; .env is untouched (CLI: --upgrade saves it)."""
+    from .vlm_backends import latest
+    try:
+        return latest.use(req.model)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @app.get("/api/random")

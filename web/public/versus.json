@@ -1,0 +1,846 @@
+{
+ "summary": {
+  "ours": {
+   "correct": 11,
+   "n": 11,
+   "eur": 0.00311
+  },
+  "vlm": {
+   "correct": 9,
+   "n": 11,
+   "eur": 0.07369
+  }
+ },
+ "rows": [
+  {
+   "path": "data/cubicasa5k/high_quality_architectural-392.png",
+   "source": "cubicasa5k",
+   "question": "How many showers and bathtubs are drawn on this floor plan in total?",
+   "truth": 2,
+   "unit": "count",
+   "ours": {
+    "value": 2,
+    "unit": "count",
+    "method": "detector",
+    "cost_eur": 1e-05,
+    "seconds": 14.13,
+    "evidence": [
+     [
+      292.4,
+      321.6,
+      352.3,
+      349.3
+     ],
+     [
+      346.3,
+      330.5,
+      352.4,
+      341.0
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "detector classes shower, bathtub",
+     "2 boxes ≥ 0.3",
+     "stable: same count with the cut at 0.20 and 0.40"
+    ]
+   },
+   "vlm": {
+    "value": 2,
+    "unit": null,
+    "method": "vlm",
+    "cost_eur": 0.014071,
+    "seconds": 33.63,
+    "evidence": [
+     [
+      281.48,
+      118.844,
+      296.462,
+      138.38000000000002
+     ],
+     [
+      358.206,
+      261.294,
+      390.44,
+      318.274
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "gemini · gemini-3.8-flash read the whole sheet (454x407 px)",
+     "raw: {\n  \"answer\": 2,\n  \"boxes\": [\n    [620, 292, 653, 340],\n    [789, 642, 860, 782]\n  ]\n}"
+    ]
+   },
+   "vlm_backend": "gemini"
+  },
+  {
+   "path": "data/cubicasa5k/high_quality_architectural-8638.png",
+   "source": "cubicasa5k",
+   "question": "How many toilet bowls (WC seats) are drawn on this floor plan?",
+   "truth": 2,
+   "unit": "count",
+   "ours": {
+    "value": 2,
+    "unit": "count",
+    "method": "detector",
+    "cost_eur": 1e-05,
+    "seconds": 1.37,
+    "evidence": [
+     [
+      606.1,
+      544.8,
+      632.2,
+      586.9
+     ],
+     [
+      180.7,
+      336.2,
+      207.8,
+      379.6
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "detector classes toilet",
+     "2 boxes ≥ 0.4",
+     "stable: same count with the cut at 0.30 and 0.50"
+    ]
+   },
+   "vlm": {
+    "value": 2,
+    "unit": null,
+    "method": "vlm",
+    "cost_eur": 0.00246,
+    "seconds": 7.66,
+    "evidence": [
+     [
+      352.44,
+      172.59199999999998,
+      396.495,
+      200.732
+     ],
+     [
+      566.841,
+      578.746,
+      612.854,
+      607.8240000000001
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "gemini · gemini-3.8-flash read the whole sheet (979x938 px)",
+     "raw: {\"answer\": 2, \"boxes\": [[360, 184, 405, 214], [579, 617, 626, 648]]}"
+    ]
+   },
+   "vlm_backend": "gemini"
+  },
+  {
+   "path": "data/cubicasa5k/high_quality_architectural-4685.png",
+   "source": "cubicasa5k",
+   "question": "How many sinks and wash basins (kitchen and bathroom combined; a double-bowl sink counts as one) are drawn on this floor plan?",
+   "truth": 3,
+   "unit": "count",
+   "ours": {
+    "value": 3,
+    "unit": "count",
+    "method": "detector",
+    "cost_eur": 1e-05,
+    "seconds": 1.24,
+    "evidence": [
+     [
+      652.6,
+      309.3,
+      683.1,
+      349.5
+     ],
+     [
+      183.7,
+      67.7,
+      211.3,
+      99.0
+     ],
+     [
+      345.6,
+      152.4,
+      377.6,
+      179.0
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "detector classes sink",
+     "3 boxes ≥ 0.1",
+     "stable: same count with the cut at 0.01 and 0.20"
+    ]
+   },
+   "vlm": {
+    "value": 3,
+    "unit": null,
+    "method": "vlm",
+    "cost_eur": 0.005937,
+    "seconds": 44.48,
+    "evidence": [
+     [
+      86.558,
+      144.359,
+      127.92200000000001,
+      166.52200000000002
+     ],
+     [
+      193.798,
+      269.55,
+      230.566,
+      296.505
+     ],
+     [
+      395.25600000000003,
+      509.15,
+      448.10999999999996,
+      531.912
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "gemini · gemini-3.8-flash read the whole sheet (766x599 px)",
+     "raw: {\n  \"answer\": 3,\n  \"boxes\": [\n    [113, 241, 167, 278],\n    [253, 450, 301, 495],\n    [516, 850, 585, 888]\n  ]\n}"
+    ]
+   },
+   "vlm_backend": "gemini"
+  },
+  {
+   "path": "data/cubicasa5k/colorful-11400.png",
+   "source": "cubicasa5k",
+   "question": "How many floors (storeys) does this floor plan show?",
+   "truth": 2,
+   "unit": "count",
+   "ours": {
+    "value": 2,
+    "unit": "count",
+    "method": "detector",
+    "cost_eur": 1e-05,
+    "seconds": 1.12,
+    "evidence": [
+     [
+      49.3,
+      207.5,
+      421.1,
+      1127.6
+     ],
+     [
+      477.1,
+      204.4,
+      848.2,
+      1121.2
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "detector classes floor",
+     "2 boxes ≥ 0.25",
+     "stable: same count with the cut at 0.15 and 0.35"
+    ]
+   },
+   "vlm": {
+    "value": 2,
+    "unit": null,
+    "method": "vlm",
+    "cost_eur": 0.003721,
+    "seconds": 9.09,
+    "evidence": [
+     [
+      15.164000000000001,
+      69.44,
+      861.672,
+      586.52
+     ],
+     [
+      70.468,
+      660.9200000000001,
+      809.044,
+      1181.72
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "gemini · gemini-3.8-flash read the whole sheet (892x1240 px)",
+     "raw: {\"answer\": 2, \"boxes\": [[17, 56, 966, 473], [79, 533, 907, 953]]}"
+    ]
+   },
+   "vlm_backend": "gemini"
+  },
+  {
+   "path": "data/cubicasa5k/high_quality-6565.png",
+   "source": "cubicasa5k",
+   "question": "How many floors (storeys) does this floor plan show?",
+   "truth": 2,
+   "unit": "count",
+   "ours": {
+    "value": 2,
+    "unit": "count",
+    "method": "detector",
+    "cost_eur": 1e-05,
+    "seconds": 0.95,
+    "evidence": [
+     [
+      768.7,
+      101.7,
+      1253.1,
+      681.3
+     ],
+     [
+      228.7,
+      61.4,
+      730.3,
+      674.9
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "detector classes floor",
+     "2 boxes ≥ 0.25",
+     "stable: same count with the cut at 0.15 and 0.35"
+    ]
+   },
+   "vlm": {
+    "value": 2,
+    "unit": null,
+    "method": "vlm",
+    "cost_eur": 0.001723,
+    "seconds": 5.09,
+    "evidence": [
+     [
+      109.8,
+      114.884,
+      1339.56,
+      382.69800000000004
+     ],
+     [
+      199.104,
+      387.92,
+      1346.88,
+      642.306
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "gemini · gemini-3.8-flash read the whole sheet (1464x746 px)",
+     "raw: {\n  \"answer\": 2,\n  \"boxes\": [\n    [75, 154, 915, 513],\n    [136, 520, 920, 861]\n  ]\n}"
+    ]
+   },
+   "vlm_backend": "gemini"
+  },
+  {
+   "path": "data/cubicasa5k/high_quality_architectural-3710.png",
+   "source": "cubicasa5k",
+   "question": "How many balconies (parveke, including glazed balconies) are on this floor plan?",
+   "truth": 1,
+   "unit": "count",
+   "ours": {
+    "value": 1,
+    "unit": "count",
+    "method": "detector",
+    "cost_eur": 1e-05,
+    "seconds": 3.99,
+    "evidence": [
+     [
+      467.2,
+      44.4,
+      517.4,
+      309.5
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "detector classes room_outdoor",
+     "1 boxes ≥ 0.9",
+     "uncertain: count is 0–3 depending on the confidence cut, please check the boxes"
+    ]
+   },
+   "vlm": {
+    "value": 1,
+    "unit": null,
+    "method": "vlm",
+    "cost_eur": 0.003199,
+    "seconds": 8.18,
+    "evidence": [
+     [
+      83.86399999999999,
+      276.08,
+      290.665,
+      308.92400000000004
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "gemini · gemini-3.8-flash read the whole sheet (953x476 px)",
+     "raw: {\n  \"answer\": 1,\n  \"boxes\": [\n    [88, 580, 305, 649]\n  ]\n}"
+    ]
+   },
+   "vlm_backend": "gemini"
+  },
+  {
+   "path": "data/swiss_dwellings/site2292_bldg3379_floor15050.pdf",
+   "source": "swiss_dwellings",
+   "question": "How many doors (interior doors and entrance doors together) are drawn on this floor plan?",
+   "truth": 12,
+   "unit": "count",
+   "ours": {
+    "value": 12,
+    "unit": "count",
+    "method": "vector",
+    "cost_eur": 0.0,
+    "seconds": 1.4,
+    "evidence": [
+     [
+      461.97057729928093,
+      336.27447984068294,
+      465.1725921107607,
+      362.4827259128722
+     ],
+     [
+      475.46519070050203,
+      317.8909779158829,
+      499.57278457646623,
+      323.44141049053803
+     ],
+     [
+      509.91194932399736,
+      317.8909779158829,
+      534.0195431999616,
+      323.44141049053803
+     ],
+     [
+      646.3211514265722,
+      375.3443436274041,
+      673.9049501055501,
+      380.89477620205923
+     ],
+     [
+      468.31778690464483,
+      375.344343627404,
+      492.4253807806091,
+      380.8947762020592
+     ],
+     [
+      541.7344648573396,
+      333.3009651853474,
+      545.6780715133898,
+      364.34669542489894
+     ],
+     [
+      496.2596660411514,
+      427.00942841753033,
+      501.8100986158065,
+      454.7154264221905
+     ],
+     [
+      541.7344648573396,
+      333.3009651853474,
+      545.6780715133898,
+      364.34669542489894
+     ],
+     [
+      580.0645364525983,
+      202.21819866319885,
+      582.5228639519422,
+      226.3257925391631
+     ],
+     [
+      586.8703672781493,
+      154.15106811887009,
+      589.3286947774931,
+      172.853254912623
+     ],
+     [
+      646.3211514265722,
+      375.3443436274041,
+      673.9049501055501,
+      380.89477620205923
+     ],
+     [
+      698.9628822291218,
+      335.59469450843545,
+      703.1455775060529,
+      361.63054513884686
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "door: 12 drawn on the DXF layer",
+     "vector path, 1.40s"
+    ]
+   },
+   "vlm": {
+    "value": 9,
+    "unit": null,
+    "method": "vlm",
+    "cost_eur": 0.015089,
+    "seconds": 30.24,
+    "evidence": [
+     [
+      413.12124816894527,
+      336.08365979461666,
+      458.36219177246096,
+      357.141533215332
+     ],
+     [
+      413.12124816894527,
+      360.51079296264646,
+      458.36219177246096,
+      381.5686663833618
+     ],
+     [
+      491.69762390136714,
+      307.4449519424438,
+      516.6991979980469,
+      330.1874552368164
+     ],
+     [
+      471.45825439453125,
+      360.51079296264646,
+      517.8897491455078,
+      384.0956111938476
+     ],
+     [
+      534.5574652099609,
+      329.3451402999878,
+      577.4173065185547,
+      351.2453286575317
+     ],
+     [
+      603.6094317626953,
+      329.3451402999878,
+      645.2787219238281,
+      354.61458840484613
+     ],
+     [
+      277.39841735839843,
+      391.6764456253052,
+      323.829912109375,
+      412.73431904602046
+     ],
+     [
+      492.8881750488281,
+      494.43886791839594,
+      515.5086468505859,
+      517.1813712127685
+     ],
+     [
+      534.5574652099609,
+      454.85006588745114,
+      580.9889599609374,
+      477.59256918182365
+     ]
+    ],
+    "correct": false,
+    "trace": [
+     "gemini · gemini-3.8-flash read the whole sheet (1600x1132 px)",
+     "raw: {\n  \"answer\": 9,\n  \"boxes\": [\n    [347, 399, 385, 424],\n    [347, 428, 385, 453],\n    [413, 365, 434, 392],\n    [396, 428, 435, 456],\n    [449, 391, 485, 417],\n    [507, 391, 542, 421],\n    [233, 465,"
+    ]
+   },
+   "vlm_backend": "gemini"
+  },
+  {
+   "path": "data/swiss_dwellings/site65_bldg3_floor5.pdf",
+   "source": "swiss_dwellings",
+   "question": "How many bathtubs are drawn on this floor plan?",
+   "truth": 3,
+   "unit": "count",
+   "ours": {
+    "value": 3,
+    "unit": "count",
+    "method": "vector",
+    "cost_eur": 0.0,
+    "seconds": 0.21,
+    "evidence": [
+     [
+      459.7677708390919,
+      353.9731682716166,
+      476.20881802105174,
+      394.2253872343407
+     ],
+     [
+      402.8578674387598,
+      378.4533394912238,
+      443.3935527322072,
+      394.3274540117368
+     ],
+     [
+      755.4775657005863,
+      376.9746155095382,
+      794.8793856711402,
+      393.6991290222214
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "tub: 3 drawn on the DXF layer",
+     "vector path, 0.21s"
+    ]
+   },
+   "vlm": {
+    "value": 3,
+    "unit": null,
+    "method": "vlm",
+    "cost_eur": 0.013993,
+    "seconds": 32.58,
+    "evidence": [
+     [
+      402.4062878417969,
+      352.0876435943603,
+      423.8362084960937,
+      393.3610754989624
+     ],
+     [
+      458.36219177246096,
+      352.0876435943603,
+      478.6015612792969,
+      393.3610754989624
+     ],
+     [
+      757.1905297851563,
+      368.9339423309326,
+      800.0503710937501,
+      381.5686663833618
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "gemini · gemini-3.8-flash read the whole sheet (1600x1132 px)",
+     "raw: {\"answer\": 3, \"boxes\": [[338, 418, 356, 467], [385, 418, 402, 467], [636, 438, 672, 453]]}"
+    ]
+   },
+   "vlm_backend": "gemini"
+  },
+  {
+   "path": "data/swiss_dwellings/site285_bldg527_floor51568.pdf",
+   "source": "swiss_dwellings",
+   "question": "What is the net floor area of apartment C in m², summing all its rooms except balconies, loggias, terraces and other outdoor spaces?",
+   "truth": 64.42,
+   "unit": "m2",
+   "ours": {
+    "value": 64.42,
+    "unit": "m2",
+    "method": "vector",
+    "cost_eur": 0.0,
+    "seconds": 0.22,
+    "evidence": [
+     [
+      856.3256643096917,
+      236.58863935948148,
+      912.1591662982141,
+      328.79089814165275
+     ],
+     [
+      914.4811804861899,
+      236.59013087433652,
+      956.7324185695895,
+      328.7920413121079
+     ],
+     [
+      991.1885552129686,
+      274.88534017770303,
+      1095.1768830746516,
+      356.56281478448335
+     ],
+     [
+      856.3242381564696,
+      331.1138451032023,
+      988.2979072103833,
+      385.8016935744958
+     ],
+     [
+      991.1852955867187,
+      358.8845267107231,
+      1095.174728746789,
+      483.65841793963034
+     ],
+     [
+      874.1999593841954,
+      386.14127861711194,
+      988.2964666613375,
+      512.740519321695
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "rooms inside apartment C, excluding balconies/loggias/terraces: 6 room(s)",
+     "6.41 + 4.66 + 10.57 + 8.79 + 16.15 + 17.84 = 64.42 m²",
+     "vector path, 0.22s"
+    ]
+   },
+   "vlm": {
+    "value": 64.42,
+    "unit": null,
+    "method": "vlm",
+    "cost_eur": 0.004586,
+    "seconds": 10.01,
+    "evidence": [
+     [
+      323.829912109375,
+      602.2551798324585,
+      467.88660095214846,
+      648.5825013580322
+     ],
+     [
+      326.2110144042969,
+      645.2132416107178,
+      467.88660095214846,
+      681.4327838943482
+     ],
+     [
+      363.11809997558595,
+      697.4367676940917,
+      508.3653399658203,
+      781.6682613769531
+     ],
+     [
+      467.88660095214846,
+      605.6244395797729,
+      545.2724255371094,
+      700.8060274414062
+     ],
+     [
+      545.2724255371094,
+      616.5745337585448,
+      729.8078533935546,
+      702.4906573150633
+     ],
+     [
+      504.7936865234375,
+      698.2790826309204,
+      696.4724212646483,
+      781.6682613769531
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "gemini · gemini-3.8-flash read the whole sheet (1600x1132 px)",
+     "raw: {\n  \"answer\": 64.42,\n  \"boxes\": [\n    [272, 715, 393, 770],\n    [274, 766, 393, 809],\n    [305, 828, 427, 928],\n    [393, 719, 458, 832],\n    [458, 732, 613, 834],\n    [424, 829, 585, 928]\n  ]\n}"
+    ]
+   },
+   "vlm_backend": "gemini"
+  },
+  {
+   "path": "data/swiss_dwellings/site3764_bldg5789_floor24598.pdf",
+   "source": "swiss_dwellings",
+   "question": "How many rooms labelled 'Balcon' are there on this floor?",
+   "truth": 3,
+   "unit": "count",
+   "ours": {
+    "value": 3,
+    "unit": "count",
+    "method": "vector",
+    "cost_eur": 0.0,
+    "seconds": 0.16,
+    "evidence": [
+     [
+      471.180298364002,
+      90.35440474294023,
+      657.5295774031089,
+      171.4134384360557
+     ],
+     [
+      278.79095897751125,
+      90.35440474294029,
+      469.32811923580255,
+      171.41343843605566
+     ],
+     [
+      659.3817565313084,
+      90.35440474294023,
+      911.8151626054084,
+      171.41343843605569
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "rooms whose label is 'Balcon': 3",
+     "vector path, 0.16s"
+    ]
+   },
+   "vlm": {
+    "value": 3,
+    "unit": null,
+    "method": "vlm",
+    "cost_eur": 0.002423,
+    "seconds": 7.03,
+    "evidence": [
+     [
+      125.00787048339843,
+      195.41706534423827,
+      258.34959899902344,
+      331.8720851104736
+     ],
+     [
+      125.00787048339843,
+      331.8720851104736,
+      259.5401501464844,
+      465.80016006622316
+     ],
+     [
+      125.00787048339843,
+      465.80016006622316,
+      259.5401501464844,
+      646.897871484375
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "gemini · gemini-3.8-flash read the whole sheet (1600x1132 px)",
+     "raw: {\n  \"answer\": 3,\n  \"boxes\": [\n    [105, 232, 217, 394],\n    [105, 394, 218, 553],\n    [105, 553, 218, 768]\n  ]\n}"
+    ]
+   },
+   "vlm_backend": "gemini"
+  },
+  {
+   "path": "data/opening_design/CTR/Most Current Set/Full size sheets/A700 - SCHEDULES.pdf",
+   "source": "opening_design",
+   "question": "On sheet A700 of the Cannery Trail Residences drawings (1750 N Oxford Ave, Eau Claire, WI), how many doors with an acoustical seal (type U41) are scheduled?",
+   "truth": 52,
+   "unit": "count",
+   "ours": {
+    "value": 52,
+    "unit": "count",
+    "method": "vector+llm",
+    "cost_eur": 0.00305,
+    "seconds": 4.29,
+    "evidence": [
+     [
+      132.955322265625,
+      1203.4228515625,
+      1152.4490966796875,
+      1212.6890869140625
+     ]
+    ],
+    "correct": true,
+    "trace": [
+     "crosscheck path failed: NameError(\"name 'STRONG' is not defined\")",
+     "3 tables extracted from the sheet's text layer",
+     "gemini-3.5-flash read table 'DOOR SCHEDULE - TYPE'"
+    ]
+   },
+   "vlm": {
+    "value": 32,
+    "unit": null,
+    "method": "vlm",
+    "cost_eur": 0.006483,
+    "seconds": 21.71,
+    "evidence": [
+     [
+      1666.2240000000002,
+      88.57107,
+      1714.608,
+      393.16913999999997
+     ]
+    ],
+    "correct": false,
+    "trace": [
+     "gemini · gemini-3.8-flash read the whole sheet (1600x1143 px)",
+     "raw: {\"answer\": \"32\", \"boxes\": [[551, 41, 567, 182]]}"
+    ]
+   },
+   "vlm_backend": "gemini"
+  }
+ ]
+}

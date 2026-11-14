@@ -50,14 +50,18 @@ POST /api/ask   {"path": "data/…", "question": "…"}  → Answer
 POST /api/ask/stream  (same body)                     → NDJSON: {"step": {...}} lines live, then {"answer": Answer} (or {"error"})
 POST /api/export {"path", "question", "answer"?: Answer} → application/pdf: the sheet with the evidence as PDF annotations (Bluebeam/Acrobat comments); 400 for IFC
 GET  /api/file?path=data/…&page=0                     → PNG render of the drawing page (same coords as bbox, 72 dpi for PDFs)
+GET  /api/file?path=…&clip=x0,y0,x1,y1&pad=0.5&scale=2 → PNG crop around one evidence bbox (same coords as bbox; pad × box size of margin). For the proof strip (T43)
 GET  /api/drawings                                    → [{"path", "source", "view", "questions": [...]}]
 GET  /api/ifc?path=data/…ifc                          → raw IFC bytes (3D viewer)
 GET  /api/random                                      → {"path", "question"} from questions.jsonl
 GET  /api/takeoff?path=data/…[&format=csv]           → {"path", "source": ifc|schedule|detector|none, "rows": [{category, type, size, count, levels, by_level, length_m, area_m2, volume_m3, evidence}], "notes"}; csv = download
+GET  /api/vlm                                         → {"backend", "current", "latest", "available": [...]}: latest = newer model of the same family, else null
+POST /api/vlm   {"model": "…"}                        → same shape; switches the VLM model for this server process (no .env write); 400 if unknown
 ```
 - `/api/ask` adds `time_s`, `view` (file the UI shows; IFC → its rendered plan) and, when the question is Stoa's, `check: {expected, unit, match}`.
 - No path answers → `/api/ask` adds `tried: [path names]`. With `GEMINI_API_KEY` set, a question that isn't about the drawing gets `method: "general"`, text `value`, no evidence, no `check`.
-- Step: `{"kind": try|skip|fail|found|trace|general|check, "path": "ifc"|"", "text": "plain words", "t": seconds}`. `trace` steps are the winning path's trace lines. Python: `router.answer(path, q, on_step)`.
+- Vague question (not one of Stoa's) → `method: "clarify"`, `value: null`, `clarify: {"ask": "Which floor?", "options": [full reformulated questions]}`, no evidence. UI shows the options; picking one asks it. Rules first, then Gemini (`sitelens/clarify.py`).
+- Step: `{"kind": understand|try|skip|fail|found|trace|general|check|clarify, "path": "ifc"|"", "text": "plain words", "t": seconds}`. `trace` steps are the winning path's trace lines. Python: `router.answer(path, q, on_step)`.
 - `/api/file` takes optional `scale` (default 1 = bbox coords).
 - Run: `STOA_DATA=… python -m sitelens.server` (serves `web/dist` after `cd web && npm ci && npm run build`). Dev: `npm run dev` in `web/` proxies `/api` to :8000.
 
@@ -70,7 +74,7 @@ GET  /api/takeoff?path=data/…[&format=csv]           → {"path", "source": if
 | Name | Used by | Notes |
 |---|---|---|
 | `STOA_DATA` | everything | unzipped dataset folder (contains `questions.jsonl`). Keep it outside the repo |
-| `SITELENS_VLM` | vlm path | backend: `gemini` \| `gemma` \| `gemma-api` \| `nemotron` \| `nemotron-verda` \| `vllm`. Unset = path off. Per call: `vlm.use_backend(name)` |
+| `SITELENS_VLM` | vlm path | backend: `gemini` \| `gemma` \| `gemma-api` \| `nemotron` \| `nemotron-verda` \| `vllm`. Unset = path off. Per call: `vlm.use_backend(name)`. Newer model check / switch: `python -m sitelens.vlm_backends [--upgrade \| --use MODEL]` (gemini, gemma-api) |
 | `GEMINI_API_KEY` | vlm path (gemini) | share directly, never commit. Model: `SITELENS_GEMINI_MODEL` (default `gemini-3.8-flash`) |
 | `SITELENS_GEMMA` | vlm path (gemma) | local Gemma weights dir, CUDA GPU. `gemma-api`: Gemma 4 on the Gemini API (`SITELENS_GEMMA_API_MODEL`, default `gemma-4-31b-it`) |
 | `VERDA_INFERENCE_KEY` | vlm path (nemotron-verda) | Verda's Junction Nemotron 3.5 Super VL endpoint |

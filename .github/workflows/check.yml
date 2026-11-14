@@ -1,0 +1,22 @@
+name: check
+# Merge gate in CI: scripts/merge.sh waits for this before merging.
+on:
+  pull_request:
+    branches: [main]
+concurrency:
+  group: check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      # CPU torch first so ultralytics doesn't pull the CUDA build.
+      - run: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -r requirements.txt
+      - run: bash scripts/check.sh
