@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 19:58 · johanseneuson · johanseneuson: DEMO IS LIVE at http://217.177.40.54:8000/ (temporary: it runs on the H100 box, EUR 4.79/h, going away after the model finishes training ~1h). PR #77 merged: scripts/deploy-remote.sh <user@host> puts the whole demo on any fresh Ubuntu 24.04 box (systemd, :8000, per-IP rate limit, Gemini key via ssh stdin). Plan: move it to a cheap CPU VM next so the link stays up. Please don't share the link publicly (dataset licences, Gemini key behind it)
 - 2026-11-14 19:45 · Asif · T57 PR #76: dev.mjs prints a clear message when port 8000 is busy instead of Errno 10048
 - 2026-11-14 19:39 · ccolver · T49: merged PR #72 with continuous stroke coverage, highlighted crops, and page-aware evidence.
 - 2026-11-14 19:34 · Asif · T56 PR #75: dev.mjs reinstalls web deps when package-lock.json changes (T34 added three/web-ifc and broke the build)
