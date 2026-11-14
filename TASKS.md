@@ -10,6 +10,6 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T3 Vector path: Swiss + opening_design | ai | T1 | johanseneuson | review | johanseneuson/T3-vector-fixes |  |  |
 | T4 IFC path: counts, lengths, volumes, text | ai | T1 |  | todo |  |  |  |
 | T5 Train symbol detector on CubiCasa5K | train | T1 | johanseneuson | doing | johanseneuson/T5-detector |  |  |
-| T6 Detector path: raster counts with boxes | ai | T1 |  | todo |  |  |  |
+| T6 Detector path: raster counts with boxes | ai | T1 | johanseneuson | doing | johanseneuson/T6-detector-path |  |  |
 | T7 VLM path: frontier baseline + fallback | ai | T1 |  | todo |  |  |  |
 | T8 Demo server + UI | app | T1 |  | todo |  |  |  |
