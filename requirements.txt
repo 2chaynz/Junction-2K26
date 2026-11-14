@@ -5,3 +5,4 @@ pymupdf
 fastapi
 uvicorn[standard]
 pillow
+ultralytics
