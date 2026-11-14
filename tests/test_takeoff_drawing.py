@@ -367,6 +367,8 @@ class DrawingTakeoff(unittest.TestCase):
              patch.object(takeoff_2d.measure, "load", return_value={}):
             value, _, _ = takeoff_2d._scale("scan.pdf", 0, [], scanned_pdf=True)
             self.assertEqual(value, .04)
+            value, _, _ = takeoff_2d._scale("scan.png", 0, [], takeoff_2d.UNLABELED_SCALE)
+            self.assertEqual(value, .04)
             value, _, _ = takeoff_2d._scale("scan.pdf", 0, [], takeoff_2d.UNKNOWN_VIEW_SCALE, scanned_pdf=True)
             self.assertIsNone(value)
 

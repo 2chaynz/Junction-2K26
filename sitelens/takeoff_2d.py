@@ -128,6 +128,7 @@ PLAN_TITLE = re.compile(
     r"(?:floor plans?|level plans?|ground plans?|basement plans?|roof plans?|grundriss|pohjapiirustus|storeys?|stories|story|floors?|levels?|(?:level|floor|storey|story)[ \t]+-?\d+[A-Z]?)"
     r"(?:[ \t]+(?:[-??][ \t]+)?[\w-]+){0,4}[ \t]*$"
 )
+UNLABELED_SCALE = "No plan heading was identified; the applicable scale is unknown."
 UNKNOWN_VIEW_SCALE = "This sheet has a not-to-scale label; the applicable scale is unknown."
 NOT_TO_SCALE = re.compile(r"\b(?:not[ \t]+to[ \t]+scale|N\.?[ \t]*T\.?[ \t]*S\.?)\b", re.I)
 
@@ -193,12 +194,14 @@ def _pdf_bars(path, page, words):
 
 
 def _scale(path, page, bars, ambiguous_view="", scanned_pdf=False):
-    if ambiguous_view:
+    if ambiguous_view and ambiguous_view != UNLABELED_SCALE:
         refs = [ref for bar in bars for ref in bar.refs]
         return None, ambiguous_view, refs
     stored = measure._active(measure.load(path), page)
     if stored and stored["source"] == "manual":
         return stored["m_per_unit"], stored["text"], [measure.Ref(**r) for r in stored["refs"]]
+    if ambiguous_view == UNLABELED_SCALE and not bars:
+        return None, ambiguous_view, []
     if scanned_pdf:
         return None, "The scale could not be verified for the scanned view.", []
     notes = measure.notes(path, page)
@@ -456,7 +459,7 @@ def _scan_metadata(labels, load_image, native_text="", has_schedule=False, bound
     if not issue and (has_other or plan_count > 1):
         issue = "This sheet has multiple views; the applicable scale is unknown."
     if not issue and not has_plan and allow_unlabeled:
-        issue = "No plan heading was identified; the applicable scale is unknown."
+        issue = UNLABELED_SCALE
     return regions, excluded, issue
 
 
