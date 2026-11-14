@@ -36,11 +36,11 @@ out="$(mktemp)"
 trap 'rm -f "$out"' EXIT
 if [ "$AUTHOR" = claude ] && CODEX="$(find_codex)"; then
   echo "reviewer: codex ($CODEX)"
-  gh pr diff "$PR" | "$CODEX" exec "$PROMPT" -o "$out" >/dev/null
+  { echo "$PROMPT"; echo; gh pr diff "$PR"; } | "$CODEX" exec - -o "$out" >/dev/null
 elif command -v claude >/dev/null 2>&1; then
   [ "$AUTHOR" = claude ] && echo "no codex binary found; reviewing with a fresh claude session" >&2
   echo "reviewer: claude"
-  gh pr diff "$PR" | claude -p "$PROMPT" > "$out"
+  { echo "$PROMPT"; echo; gh pr diff "$PR"; } | claude -p > "$out"
 else
   echo "neither codex nor claude found" >&2
   exit 1
