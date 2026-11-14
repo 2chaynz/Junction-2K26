@@ -145,7 +145,7 @@ export function useRevisionDemo(enabled: boolean, entered: boolean, onOpen: () =
       if (!automatic.current) return;
       n = reduced ? prompt.length : n + 1;
       setDraft(prompt.slice(0, n));
-      timer = n < prompt.length ? setTimeout(type, 35) : setTimeout(() => submit.current(prompt), 300);
+      timer = n < prompt.length ? setTimeout(type, 35) : setTimeout(() => { if (automatic.current) submit.current(prompt); }, 300);
     }
     timer = setTimeout(type, step === 0 ? 350 : 2200);
     return () => clearTimeout(timer);

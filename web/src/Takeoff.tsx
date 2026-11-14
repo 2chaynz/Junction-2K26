@@ -122,8 +122,8 @@ export default function Takeoff({ path, name, language, onShow }: {
   const total = counts.get(selected) ?? 0;
   const quantities = [
     { key: "length_m", label: "Length (m)" },
-    { key: "area_m2", label: "Area (m?)" },
-    { key: "volume_m3", label: "Volume (m?)" },
+    { key: "area_m2", label: "Area (m\u00b2)" },
+    { key: "volume_m3", label: "Volume (m\u00b3)" },
   ].filter(({ key }) => rows.some((r) => r[key as "length_m" | "area_m2" | "volume_m3"]));
 
   return (
