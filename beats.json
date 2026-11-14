@@ -316,5 +316,11 @@
   "branch": "ccolver/T62-drawing-takeoff",
   "text": "Build drawing counts, scale evidence, and exact schedule matches.",
   "at": "2026-11-14T18:12:27.661Z"
+ },
+ "T63": {
+  "who": "ccolver",
+  "branch": "ccolver/T62-drawing-takeoff",
+  "text": "claimed",
+  "at": "2026-11-14T18:14:29.808Z"
  }
 }
