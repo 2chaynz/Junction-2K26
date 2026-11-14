@@ -68,3 +68,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T61 Projects workspace: picker, scoped sheets, saved sessions | app | T50 | Asif | doing | asif/T61-projects |  |  |
 | T62 Drawing takeoff with verifiable dimensions | app |  | ccolver | doing | ccolver/T62-drawing-takeoff |  |  |
 | T63 Keep built-in questions in English | app |  | ccolver | doing | ccolver/T63-english-questions |  |  |
+| T64 Localize BIM floors and accept unquoted questions | app |  |  | todo |  |  |  |
