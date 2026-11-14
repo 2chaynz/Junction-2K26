@@ -14,6 +14,7 @@ PATHS = [
     "sitelens.paths.vector",    # vector PDF / DXF text + geometry
     "sitelens.paths.schedule",  # schedule tables on vector sheets (+ Gemini over the extracted table)
     "sitelens.paths.detector",  # raster → trained symbol detector
+    "sitelens.paths.facts",     # free-form questions: LLM over the facts the parsers extracted, cites them
     "sitelens.paths.vlm",       # fallback: vision-language model
 ]
 
