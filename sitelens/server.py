@@ -131,6 +131,20 @@ def ifc(path: str):
     return FileResponse(p, media_type="application/octet-stream")
 
 
+@app.get("/api/takeoff")
+def takeoff_list(path: str, format: str = "json"):
+    """Every door, window, wall, column, beam, slab, stair grouped by type and size. format=csv downloads it."""
+    from .takeoff import takeoff, to_csv
+    _safe(path)
+    t = takeoff(path)
+    if format == "csv":
+        name = (Path(path).stem + "-takeoff.csv").encode("ascii", "ignore").decode().replace('"', "")
+        # BOM so Excel opens UTF-8 (×, umlauts) correctly
+        return Response("﻿" + to_csv(t), media_type="text/csv; charset=utf-8",
+                        headers={"Content-Disposition": f'attachment; filename="{name}"'})
+    return t
+
+
 class Ask(BaseModel):
     path: str
     question: str

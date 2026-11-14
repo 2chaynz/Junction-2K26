@@ -31,6 +31,7 @@ Core = drawing Q&A with evidence, measured by `eval/score.py` on Stoa's answer k
 - `kind: "ifc"` evidence has `bbox: []` and an `ifc_guid` instead (no 2D drawing); the UI shows it as a model element.
 - `bbox` units: PDF points for PDFs (PyMuPDF page coords), pixels for images. `kind`: box | polygon | text | ifc.
 - Counts: one Evidence per counted object, so the UI can show every hit.
+- `table` (optional): `{"title", "columns", "rows"}` for listing answers ("doors in room X and their sizes", `method: "takeoff"`). Row i is cited by `evidence[i]`; the UI shows it under the answer with a CSV download.
 - `candidates` (optional list of Evidence, T42): objects seen but NOT counted (detections just under the confidence cut, label `near-miss <class> <conf>`). Draw dashed; a human can promote them in review mode. Never part of `value`.
 
 ### Path module
@@ -59,6 +60,7 @@ POST /api/measure {"path","kind":length|area|count,"points":[[x,y]…],"label"} 
 DELETE /api/measure?path=…&id=…                       → {"deleted"}
 POST /api/measure/calibrate {"path","points","length":"12'-6\"" | "3.5 m" | "15.9 m2","known_id"?} → stored scale
 POST /api/measure/scale {"path","scale_id"}           → pick a candidate (answer to `ask`); no scale_id = reset
+GET  /api/takeoff?path=data/…[&format=csv]           → {"path", "source": ifc|schedule|detector|none, "rows": [{category, type, size, count, levels, by_level, length_m, area_m2, volume_m3, evidence}], "notes"}; csv = download
 GET  /api/vlm                                         → {"backend", "current", "latest", "available": [...]}: latest = newer model of the same family, else null
 POST /api/vlm   {"model": "…"}                        → same shape; switches the VLM model for this server process (no .env write); 400 if unknown
 ```

@@ -27,7 +27,7 @@ export const fmtTime = (s: number) => (s < 0.1 ? `${Math.max(1, Math.round(s * 1
 
 export const METHOD_NAME: Record<string, string> = {
   ifc: "IFC", vector: "vector", schedule: "schedule", detector: "detector", facts: "facts", diff: "revision diff",
-  vlm: "VLM", general: "general", none: "none",
+  vlm: "VLM", general: "general", none: "none", takeoff: "takeoff", crosscheck: "cross-check",
 };
 
 export const GROUPS: { source: string[]; label: string }[] = [

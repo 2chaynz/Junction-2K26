@@ -22,6 +22,7 @@ export type Answer = {
   view: string;
   check?: Check;
   tried?: string[];
+  table?: Table | null; // listing answers: row i is cited by evidence[i]
   clarify?: { ask: string; options: string[] }; // method "clarify": a question back instead of a guess
 };
 
@@ -100,3 +101,4 @@ export type Shape = {
   label: string;
   tone: "auto" | "manual" | "ref" | "count";
 };
+export type Table = { title: string; columns: string[]; rows: (string | number)[][] };
