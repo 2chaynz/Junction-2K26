@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 22:52 · ccolver · T62/T74: merged cited 2D takeoff and repeated-tag ambiguity fix (PRs #82, #95).
 - 2026-11-14 22:35 · ccolver · T71: workspace demo, PNG and Esplanades takeoff verified in Edge; latest PR head needs cross-review.
 - 2026-11-14 22:31 · 2chaynz · T73 PR #94: Benchmark page rebuilt: model leaderboard with logos (same-40 Qs: Swiss 100% vs Gemini 60%, scans 95 vs 85; AECV per category), side-by-side marks vs Gemini on 11 held-out Qs; overclaim removed
 - 2026-11-14 22:27 · 2chaynz · T72 PR #92: 1.8 s 3D intro (plan stroke → building → red doors → SiteLens), site art direction, once per session, ?intro replays; cross-review PASS
