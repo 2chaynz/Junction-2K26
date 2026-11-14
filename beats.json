@@ -62,7 +62,7 @@
  "T10": {
   "who": "ccolver",
   "branch": "ccolver/T10-scores",
-  "text": "scoring full preview dev split (all sources); no official Stoa split exists",
-  "at": "2026-11-14T12:37:24.222Z"
+  "text": "added --split test (CubiCasa5K test.txt, 387 plans); scoring full dataset test + dev",
+  "at": "2026-11-14T12:39:56.494Z"
  }
 }
