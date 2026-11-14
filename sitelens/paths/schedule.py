@@ -247,11 +247,8 @@ def answer(path: str, question: str) -> Answer | None:
 
 def _qty(t: Table) -> int | None:
     """Column holding a per-row quantity (type schedules list one row per type with a count)."""
-    k = t.col(r"^(count|qty|quantity)$")
-    if k is None or not t.rows:
-        return None
-    # header decides; a few unreadable cells must not turn it back into a row count
-    return k if any(_int(r[k]) is not None for r in t.rows) else None
+    # header alone decides: unreadable cells must not turn it back into a row count
+    return t.col(r"^(count|qty|quantity)$")
 
 
 def _int(s: str) -> int | None:
