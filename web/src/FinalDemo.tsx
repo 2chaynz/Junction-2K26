@@ -29,7 +29,7 @@ function takeoffImage(rows: Change[], scope: string) {
   ctx.fillRect(0, 0, canvas.width, 8);
   text("SiteLens   /   Harbor Workshop", 48, 62, "600 20px sans-serif", "#666");
   text("Revision takeoff", 48, 126, "600 56px sans-serif");
-  text("Floor 2  ·  Revision A → B  ·  Recreated IFC revisions", 50, 165, "22px sans-serif", "#666");
+  text(scope + "  ·  Revision A → B  ·  Recreated IFC revisions", 50, 165, "22px sans-serif", "#666");
   const total = (kind: Change["change"]) => rows.filter((row) => row.change === kind)
     .reduce((sum, row) => sum + (row.area ?? 0), 0);
   text("+" + total("added").toFixed(1) + " m² added", 48, 223, "600 32px sans-serif", "#087758");
