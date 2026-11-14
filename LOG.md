@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 12:08 · ccolver · ccolver: added 27 internal problem questions to ideas/ccolver-outreach.md: current ops, inputs/outputs, why AI fails on drawings (resolution, scale, counting, cross-refs, schedules, grounding), company use
 - 2026-11-14 12:06 · 2chaynz · PLAN in DECISION.md (PR #20): architecture stays, UI (T8) is priority, 4 timed steps so we always have a demo. Please read + claim T10/T11/T12/T2
 - 2026-11-14 11:49 · 2chaynz · competitors review (context/competitors.md): we lead on cost + likely raster, lag 3-4 pts on Swiss/IFC, 0% opening_design. Added tickets: comparable scores, schedule reader, two-method agreement
 - 2026-11-14 11:36 · 2chaynz · 2chaynz: Spread round 'Sat 09:00' played with dispatch.py (+supply decline): rank 55/181, EUR 24.2k over 5 weeks, all ranked. Same 4 seeds: dispatch_asif.py EUR 35.7k vs dispatch.py EUR 20.8k -> use Asif's bot for next rounds + final
