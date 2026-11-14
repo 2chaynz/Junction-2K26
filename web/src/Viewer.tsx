@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fileUrl, viewScale } from "./api";
 import { changeKind } from "./Changes";
 import { fmtAnswer } from "./format";
-import type { Answer } from "./types";
+import Sketch from "./Sketch";
+import type { Answer, Mark } from "./types";
 
 type Props = {
   view: string;
@@ -14,6 +15,10 @@ type Props = {
   onSize?: (w: number, h: number) => void;
   busy: boolean;
   changes?: boolean; // revision diff: colour marks by added / removed / changed, no margin note
+  pen?: boolean; // T49 highlighter: drag paints a mark instead of panning
+  mark?: Mark | null;
+  onPen?: (on: boolean) => void;
+  onMark?: (m: Mark | null) => void;
 };
 
 type T = { s: number; x: number; y: number };
@@ -49,7 +54,7 @@ function penLoop(b: Box, minR: number): string {
   return "M" + pts.join(" L");
 }
 
-export default function Viewer({ view, answer, hover, focus, onHover, onFocus, onSize, busy, changes }: Props) {
+export default function Viewer({ view, answer, hover, focus, onHover, onFocus, onSize, busy, changes, pen, mark, onPen, onMark }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [t, setT] = useState<T>({ s: 1, x: 0, y: 0 });
@@ -63,7 +68,7 @@ export default function Viewer({ view, answer, hover, focus, onHover, onFocus, o
     if (!answer) return [];
     return answer.evidence
       .map((e, i) => ({ e, i }))
-      .filter(({ e }) => e.file === view && e.bbox.length === 4)
+      .filter(({ e }) => e.file === view && e.bbox.length === 4 && e.label !== "your mark")
       .map(({ e, i }) => ({ i, x0: e.bbox[0], y0: e.bbox[1], x1: e.bbox[2], y1: e.bbox[3], label: e.label, poly: e.polygon }));
   }, [answer, view]);
 
@@ -191,13 +196,21 @@ export default function Viewer({ view, answer, hover, focus, onHover, onFocus, o
             )}
           </svg>
         )}
+        {size && onMark && <Sketch w={size.w} h={size.h} s={t.s} pen={!!pen} mark={mark ?? null} onMark={onMark} />}
       </div>
       {busy && <div className="busy" />}
       <div className="viewer-tools" onMouseDown={(e) => e.stopPropagation()}>
         <button onClick={fitAll}>Page</button>
+        {onPen && (
+          <button className={pen ? "pen-on" : ""} onClick={() => onPen(!pen)} title="Paint over a spot, then ask about it">
+            Highlight
+          </button>
+        )}
         {boxes.length > 0 && <button onClick={() => (focus === null ? fitEvidence() : onFocus(null))}>All marks</button>}
       </div>
-      <div className="viewer-hint mono">scroll to zoom · drag to pan · double-click to fit</div>
+      <div className="viewer-hint mono">
+        {pen ? "paint over a spot, then ask about it · Esc to stop" : "scroll to zoom · drag to pan · double-click to fit"}
+      </div>
     </div>
   );
 }
