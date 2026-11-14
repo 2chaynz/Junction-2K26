@@ -1,6 +1,6 @@
 """Detector path: raster floor plans → counts, one evidence box per detected object.
 
-Weights: $SITELENS_MODELS/detector.pt (default models/detector.pt), trained by train/ on public
+Weights: $SITELENS_MODELS/detector.pt (default models/detector.pt; `gh release download detector-v1 -D models`), trained by train/ on public
 CubiCasa5K with every Stoa drawing excluded. Class names come from the weights file and match
 train/cubicasa_to_yolo.py NAMES. Runs on CPU; cost per answer is effectively 0.
 """
@@ -57,10 +57,10 @@ def _weights() -> Path:
 
 @lru_cache(maxsize=1)
 def _model():
-    from ultralytics import YOLO
     w = _weights()
-    if not w.exists():
+    if not w.exists():  # no weights → path quietly declines (get them: gh release download detector-v1 -D models)
         return None
+    from ultralytics import YOLO
     return YOLO(str(w))
 
 
