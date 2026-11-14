@@ -50,6 +50,7 @@ Core = drawing Q&A with evidence, measured by `eval/score.py` on Stoa's answer k
 POST /api/ask   {"path": "data/…", "question": "…"}  → Answer
 POST /api/ask/stream  (same body)                     → NDJSON: {"step": {...}} lines live, then {"answer": Answer} (or {"error"})
 POST /api/export {"path", "question", "answer"?: Answer} → application/pdf: the sheet with the evidence as PDF annotations (Bluebeam/Acrobat comments); 400 for IFC
+GET  /api/original?path=data/?                        ? original file for a drawing listed in the dataset
 GET  /api/file?path=data/…&page=0                     → PNG render of the drawing page (same coords as bbox, 72 dpi for PDFs)
 GET  /api/file?path=…&clip=x0,y0,x1,y1&pad=0.5&scale=2 → PNG crop around one evidence bbox (same coords as bbox; pad × box size of margin). For the proof strip (T43)
 GET  /api/drawings                                    → [{"path", "source", "view", "questions": [...]}]
@@ -69,6 +70,7 @@ POST /api/vlm   {"model": "…"}                        → same shape; switches
 - No path answers → `/api/ask` adds `tried: [path names]`. With `GEMINI_API_KEY` set, a question that isn't about the drawing gets `method: "general"`, text `value`, no evidence, no `check`.
 - Vague question (not one of Stoa's) → `method: "clarify"`, `value: null`, `clarify: {"ask": "Which floor?", "options": [full reformulated questions]}`, no evidence. UI shows the options; picking one asks it. Rules first, then Gemini (`sitelens/clarify.py`).
 - Step: `{"kind": understand|try|skip|fail|found|trace|general|check|clarify, "path": "ifc"|"", "text": "plain words", "t": seconds}`. `trace` steps are the winning path's trace lines. Python: `router.answer(path, q, on_step)`.
+- `/api/drawings` includes `model`, the related IFC path or null.
 - `/api/file` takes optional `scale` (default 1 = bbox coords).
 - Measure (`sitelens/measure.py`): points in bbox units. Scale = `m_per_unit` + `source` (dxf | sibling | note | bar | sheet_size | manual) + `refs: [{file, page, bbox, text, kind}]` (file may be another sheet of the project). `scale: null` → `ask` + `options`. Stored per drawing in `SITELENS_STORE`.
 - Run: `STOA_DATA=… python -m sitelens.server` (serves `web/dist` after `cd web && npm ci && npm run build`). Dev: `npm run dev` in `web/` proxies `/api` to :8000.
