@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import collections
 import io
+import os
 import json
 import random
 import time
@@ -14,7 +15,7 @@ from pathlib import Path
 
 import fitz  # PyMuPDF
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.responses import JSONResponse, FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -25,6 +26,33 @@ WEB = Path(__file__).resolve().parent.parent / "web" / "dist"
 IMAGE_EXT = {".png", ".jpg", ".jpeg"}
 
 app = FastAPI(title="SiteLens")
+
+# A public URL must not be able to burn the Gemini key: per-IP sliding window on the endpoints that can call a
+# paid model. SITELENS_RATE = requests per minute per IP (0 disables; default 30). Static files and /api/file are free.
+_RATE = int(os.environ.get("SITELENS_RATE", "30"))
+_hits: dict[str, collections.deque] = collections.defaultdict(collections.deque)
+_TRUST_PROXY = os.environ.get("SITELENS_TRUST_PROXY") == "1"
+_PAID = ("/api/ask", "/api/export", "/api/takeoff", "/api/clarify")
+
+
+@app.middleware("http")
+async def rate_limit(request, call_next):
+    if _RATE > 0 and request.method == "POST" and request.url.path.startswith(_PAID):
+        # The client controls X-Forwarded-For: only trust it behind our own proxy (SITELENS_TRUST_PROXY=1).
+        ip = request.client.host if request.client else "?"
+        if _TRUST_PROXY and request.headers.get("x-forwarded-for"):
+            ip = request.headers["x-forwarded-for"].split(",")[-1].strip()   # last hop = the one our proxy saw
+        q, now = _hits[ip], time.time()
+        while q and now - q[0] > 60:
+            q.popleft()
+        if len(_hits) > 5000:  # drop idle visitors so the table can't grow without bound
+            for k in [k for k, v in _hits.items() if not v or now - v[-1] > 60]:
+                _hits.pop(k, None)
+        if len(q) >= _RATE:
+            return JSONResponse({"detail": f"rate limit: {_RATE} questions per minute per visitor, try again in a moment"},
+                                status_code=429, headers={"Retry-After": "20"})
+        q.append(now)
+    return await call_next(request)
 
 
 def _safe(rel: str) -> Path:

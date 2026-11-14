@@ -11,6 +11,16 @@ Our entry for Junction 2026 (Espoo, 13–15 Nov). Agents do the building; humans
 3. Run the demo: `node scripts/dev.mjs` → http://localhost:8000. First run installs deps and builds the UI. Unzip the dataset and drop the folder into `../junction-data/` (the script prints the full path if it is missing). Put keys (e.g. `GEMINI_API_KEY`) in `.env`.
 4. Open your agent in the repo and ask: "What's the workflow here?" It should describe `AGENTS.md`.
 
+## Deploy the demo (public URL)
+Vercel and Lovable cannot host it (Python, torch, ifcopenshell and the dataset preview in one process), so it runs on a small VM:
+```
+bash scripts/deploy-remote.sh root@<ip> --ssh-key ~/.ssh/<key>      # fresh Ubuntu 24.04 (Python 3.12), ~5 min, re-runnable
+```
+It builds the web, uploads code + weights + dataset preview, sets up a venv (CPU torch) and a systemd service on port 8000,
+and takes `GEMINI_API_KEY` from your environment or `../junction-data/.env` over ssh stdin. Visitors are rate limited
+(`SITELENS_RATE`, default 30 questions/min per IP) so a public URL cannot burn the key. Keep the dataset credits (see
+`data/<source>/LICENSE.md`) if you share it.
+
 ## How it works
 - **The repo is the team's shared memory.** Agents read and write a few files; nobody re-explains anything.
 - **Code → PR → a human merges.** Agents can't push code to `main` (git hook + Claude deny rules).
