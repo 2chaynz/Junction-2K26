@@ -2,6 +2,8 @@
 // embedding vs .cache/embeddings.json, from scripts/embed.mjs).
 // POST /api/cala {question} -> {answer, sources, entities}: Cala's live, sourced answer. Separate
 // because Cala takes up to a minute; the map answer must not wait for it.
+// POST /api/rounds {id} -> {rounds}: a startup's funding rounds with amount and lead investors,
+// read live from Cala's entity graph when the startup is opened.
 // Both run inside the Vite server so the keys never reach the browser.
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -72,6 +74,51 @@ async function calaSearch(question, key) {
   }
 }
 
+const RANK = ['FILING', 'PRIMARY', 'PRESS', 'AGGREGATOR']
+const ROUND_QUERY = {
+  properties: ['name', 'round_label', 'instrument', 'transaction_value', 'transaction_value_units', 'announcement_date', 'event_date'],
+  relationships: { incoming: { PARTICIPATES_IN_FUNDING_ROUND: { limit: 40 } } },
+}
+
+// One call per round, cached on disk: rounds do not change during the event.
+async function calaRounds(id, key) {
+  if (!key) return { error: 'CALA_API_KEY missing in .env' }
+  const startup = json('src/data/startups.json', []).find((s) => s.id === id)
+  if (!startup?.rounds?.length) return { rounds: [] }
+  mkdirSync(file('.cache/cala-rounds/'), { recursive: true })
+  const rounds = await Promise.all(startup.rounds.map(async (r) => {
+    const cached = file(`.cache/cala-rounds/${r.id}.json`)
+    if (existsSync(cached)) return JSON.parse(readFileSync(cached, 'utf8'))
+    const res = await fetch(`${CALA}/entities/${r.id}`, {
+      method: 'POST',
+      headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify(ROUND_QUERY),
+      signal: AbortSignal.timeout(60000),
+    })
+    const d = await res.json()
+    if (!res.ok || !d.properties) return { id: r.id, name: r.name, date: r.date, error: `Cala ${res.status}` }
+    const v = (k) => d.properties[k]?.value ?? null
+    const sources = Object.values(d.properties).flatMap((p) => p?.sources ?? [])
+      .sort((a, b) => (RANK.indexOf(a.source_rank) + 1 || 9) - (RANK.indexOf(b.source_rank) + 1 || 9))
+    const people = (d.relationships?.incoming?.PARTICIPATES_IN_FUNDING_ROUND ?? []).filter((x) => x.properties?.role !== 'ISSUER')
+    const out = {
+      id: r.id,
+      name: v('name') ?? r.name,
+      label: v('round_label'),
+      instrument: v('instrument'),
+      amount: v('transaction_value'),
+      units: v('transaction_value_units'),
+      date: v('event_date') ?? v('announcement_date') ?? r.date,
+      leads: people.filter((x) => x.properties?.is_lead).map((x) => ({ id: x.id, name: x.name })),
+      others: people.filter((x) => !x.properties?.is_lead).map((x) => ({ id: x.id, name: x.name })),
+      source: sources[0]?.document ? { name: sources[0].name, url: sources[0].document, date: sources[0].date ?? null, rank: sources[0].source_rank ?? null } : null,
+    }
+    writeFileSync(cached, JSON.stringify(out))
+    return out
+  }))
+  return { rounds: rounds.sort((a, b) => String(b.date ?? '').localeCompare(String(a.date ?? ''))) }
+}
+
 export async function ask(question, key) {
   const startups = json('src/data/startups.json', [])
   const summaries = json('src/data/summaries.json', {})
@@ -118,11 +165,17 @@ export async function ask(question, key) {
 // Vite plugin: same endpoints in `vite` and `vite preview`.
 export function askPlugin({ gemini: key, cala: calaKey }) {
   const routes = {
-    '/api/ask': (q) => {
+    '/api/ask': (b) => {
       if (!key) throw new Error('GEMINI_API_KEY missing in .env')
-      return ask(q, key)
+      return ask(question(b), key)
     },
-    '/api/cala': (q) => calaSearch(q, calaKey),
+    '/api/cala': (b) => calaSearch(question(b), calaKey),
+    '/api/rounds': (b) => calaRounds(String(b.id ?? ''), calaKey),
+  }
+  const question = (b) => {
+    const q = String(b.question ?? '').trim().slice(0, 500)
+    if (!q) throw new Error('empty question')
+    return q
   }
   const handler = async (req, res, next) => {
     const route = routes[req.url]
@@ -131,9 +184,7 @@ export function askPlugin({ gemini: key, cala: calaKey }) {
     for await (const chunk of req) raw += chunk
     res.setHeader('Content-Type', 'application/json')
     try {
-      const question = String(JSON.parse(raw || '{}').question ?? '').trim().slice(0, 500)
-      if (!question) throw new Error('empty question')
-      res.end(JSON.stringify(await route(question)))
+      res.end(JSON.stringify(await route(JSON.parse(raw || '{}'))))
     } catch (e) {
       res.statusCode = 500
       res.end(JSON.stringify({ error: e.message }))
