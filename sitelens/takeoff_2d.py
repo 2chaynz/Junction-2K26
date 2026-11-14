@@ -348,14 +348,14 @@ def _page_schedules(page, words=None):
     return []
 
 
-def _non_plan_regions(page):
+def _framed_regions(page, heading):
     """Use drawn view borders when a title alone cannot define the view extent."""
     import pymupdf
 
     non_plan_titles = [pymupdf.Rect(line["bbox"])
                      for block in page.get_text("dict", flags=pymupdf.TEXTFLAGS_TEXT)["blocks"]
                      for line in block.get("lines", [])
-                     if NON_PLAN_VIEW.fullmatch("".join(span["text"] for span in line["spans"]))]
+                     if heading.fullmatch("".join(span["text"] for span in line["spans"]))]
     if not non_plan_titles:
         return []
     borders = [pymupdf.Rect(item[1]) for drawing in page.get_drawings() if drawing.get("color")
@@ -400,27 +400,29 @@ def _scan_views(image, labels):
     return regions, len(regions) != len(titles)
 
 
-def _unbounded_schedule(text, tables, has_plan):
-    heading = re.search(r"\b(?:doors?|windows?)[ \t]+schedules?\b", text, re.I)
-    return bool((heading and not tables) or (tables and not has_plan))
+SCHEDULE_TITLE = re.compile(r"(?im)^[ \t]*(?:doors?|windows?)[ \t]+schedules?[ \t]*$")
 
 
-def _scan_metadata(labels, load_image, native_text="", has_schedule=False):
-    text = "\n".join(dict.fromkeys([*(label for label, _ in labels), *native_text.splitlines()]))
+def _unbounded_schedule(text, tables, has_plan, bounded=False):
+    return bool((SCHEDULE_TITLE.search(text) or tables) and not (bounded and has_plan))
+
+
+def _scan_metadata(labels, load_image, native_text="", has_schedule=False, bounded_schedule=False):
+    text = "\n".join([*(label for label, _ in labels), *native_text.splitlines()])
     has_plan = bool(PLAN_TITLE.search(text))
     has_other = bool(NON_PLAN_VIEW.search(text))
     regions, unbounded = [], has_other
     if has_plan and has_other:
         regions, unbounded = _scan_views(load_image(), labels)
     # OCR headings alone cannot bound a schedule or its illustrations.
-    excluded = unbounded or _unbounded_schedule(text, has_schedule, has_plan)
+    excluded = unbounded or _unbounded_schedule(text, has_schedule, has_plan, bounded_schedule)
     issue = UNKNOWN_VIEW_SCALE if NOT_TO_SCALE.search(text) else ""
     if not issue and (has_other or len(list(PLAN_TITLE.finditer(text))) > 1):
         issue = "This sheet has multiple views; the applicable scale is unknown."
     return regions, excluded, issue
 
 
-def _pdf_scan_words(page, native_text, has_schedule):
+def _pdf_scan_words(page, native_text, has_schedule, bounded_schedule):
     import numpy as np
     import pymupdf
 
@@ -434,7 +436,7 @@ def _pdf_scan_words(page, native_text, has_schedule):
     labels = [(text, [min(p[0] for p in quad), min(p[1] for p in quad),
                       max(p[0] for p in quad), max(p[1] for p in quad)])
               for quad, text, confidence in result or [] if confidence >= .8]
-    regions, excluded, issue = _scan_metadata(labels, lambda: gray, native_text, has_schedule)
+    regions, excluded, issue = _scan_metadata(labels, lambda: gray, native_text, has_schedule, bounded_schedule)
     native_non_plan = {line.strip().casefold() for line in native_text.splitlines() if NON_PLAN_VIEW.fullmatch(line)}
     recognized = {label.strip().casefold() for label, _ in labels if NON_PLAN_VIEW.fullmatch(label)}
     if native_non_plan - recognized:
@@ -473,11 +475,18 @@ def _sheet(path, root, mtime, weights_mtime):
             words = _words(page)
             page_tables.extend((page.number, t) for t in tables)
             regions = [measure._union(t.boxes) for t in tables if t.boxes]
+            schedule_frames = _framed_regions(page, SCHEDULE_TITLE) if tables else []
+            bounded_schedule = bool(regions) and all(
+                any(pymupdf.Rect(frame).contains(pymupdf.Rect(region)) for frame in schedule_frames)
+                for region in regions
+            )
+            if bounded_schedule:
+                regions.extend(schedule_frames)
             image_info = page.get_image_info()
             raster_view = any(pymupdf.Rect(image["bbox"]).get_area() >= .2 * page.rect.get_area()
                               for image in image_info)
             if image_info and (not words or raster_view):
-                labels, scan_regions, skip, scale_issue = _pdf_scan_words(page, page.get_text(), bool(tables))
+                labels, scan_regions, skip, scale_issue = _pdf_scan_words(page, page.get_text(), bool(tables), bounded_schedule)
                 labels = [(token, box) for token, box in labels if not any(
                     token.casefold() == native.casefold() and not _outside_schedule(box, [native_box])
                     for native, native_box in words)]
@@ -491,7 +500,7 @@ def _sheet(path, root, mtime, weights_mtime):
                 continue
             words = [(token, box) for token, box in words if _outside_schedule(box, regions)]
             text = page.get_text()
-            excluded_views = _non_plan_regions(page) if NON_PLAN_VIEW.search(text) else []
+            excluded_views = _framed_regions(page, NON_PLAN_VIEW) if NON_PLAN_VIEW.search(text) else []
             regions.extend(excluded_views)
             words = [(token, box) for token, box in words if _outside_schedule(box, excluded_views)]
             bars = _pdf_bars(path, page, words)
@@ -509,7 +518,7 @@ def _sheet(path, root, mtime, weights_mtime):
             multiple_views = len(plan_titles) > 1 or (has_plan and (has_other or bool(excluded_views)))
             objects = _vector(path) if page.number == 0 else []
             if not objects:
-                if has_other or _unbounded_schedule(text, tables, has_plan):
+                if has_other or _unbounded_schedule(text, tables, has_plan, bounded_schedule):
                     excluded += 1
                 else:
                     objects = _detected(path, page)

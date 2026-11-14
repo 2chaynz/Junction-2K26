@@ -78,6 +78,8 @@ class DrawingTakeoff(unittest.TestCase):
                                    (158, ("103.A", "B2", "1200mm", "2200mm", "STEEL"))]:
                         for x, label in zip((100, 165, 230, 305, 390), row):
                             page.insert_text((x, y), label, fontsize=8)
+                    if layout in ("same page", "unrelated placement", "numeric label"):
+                        page.draw_rect(pymupdf.Rect(90, 65, 480, 195))
                     if layout == "rotated":
                         page.set_rotation(270)
                     if layout == "later page":
@@ -96,6 +98,8 @@ class DrawingTakeoff(unittest.TestCase):
                     boxes = []
                     if page.number == int(layout == "later schedule"):
                         boxes.append([100, 122, 150, 132])
+                    if layout == "same page":
+                        boxes.append([440, 105, 470, 130])
                     if layout in ("schedule only", "rotated"):
                         boxes.append([330, 122, 370, 155])
                     if (layout in ("same page", "later schedule", "unrelated placement", "numeric label") and page.number == 0) or (
@@ -263,12 +267,15 @@ class DrawingTakeoff(unittest.TestCase):
         self.assertTrue(takeoff_2d._outside_schedule([90, 100, 120, 105], regions))
         self.assertFalse(takeoff_2d._outside_schedule([420, 100, 450, 105], regions))
         self.assertIn("multiple views", issue)
+        repeated = (plan[0], [25, 300, 125, 310])
+        _, _, issue = takeoff_2d._scan_metadata([plan, repeated], lambda: image)
+        self.assertIn("multiple views", issue)
         schedule = ("DOOR SCHEDULE", [420, 50, 510, 60])
         _, excluded, _ = takeoff_2d._scan_metadata([plan, schedule], lambda: image)
         self.assertTrue(excluded)
         _, excluded, _ = takeoff_2d._scan_metadata([], lambda: image, "A-101", has_schedule=True)
         self.assertTrue(excluded)
-        _, excluded, _ = takeoff_2d._scan_metadata([plan], lambda: image, "A-101", has_schedule=True)
+        _, excluded, _ = takeoff_2d._scan_metadata([plan], lambda: image, "A-101", has_schedule=True, bounded_schedule=True)
         self.assertFalse(excluded)
         _, excluded, _ = takeoff_2d._scan_metadata([legend], lambda: image)
         self.assertTrue(excluded)
