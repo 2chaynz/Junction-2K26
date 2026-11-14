@@ -162,6 +162,8 @@ export default function App() {
   const projKey = drawing ? projectKeyOf(drawing) : null;
   const project = useMemo(() => projects.find((p) => p.key === projKey) ?? null, [projects, projKey]);
   const sessProj = useRef<string | null>(null); // project the open session belongs to
+  const curProj = useRef(projKey); // for async replies: still the project on screen?
+  curProj.current = projKey;
   // Conversations left while a question was still answering; the answer is saved into them when it lands.
   const parked = useRef(new Map<string, { key: string; msgs: Msg[] }>());
   const park = () => {
@@ -174,7 +176,9 @@ export default function App() {
 
   useEffect(() => {
     setSessions([]);
-    if (projKey) listSessions(projKey).then(setSessions).catch(() => {});
+    let stale = false;
+    if (projKey) listSessions(projKey).then((l) => !stale && setSessions(l)).catch(() => {});
+    return () => void (stale = true);
   }, [projKey]);
 
   useEffect(() => {
@@ -190,7 +194,7 @@ export default function App() {
     sessProj.current = key;
     saveSession(key, sid, msgs)
       .then((sum) => {
-        if (key !== projKey) return;
+        if (key !== curProj.current) return;
         setSessions((l) => [sum, ...l.filter((x) => x.id !== sum.id)]);
         setOverview((o) => ({ ...o, [key]: { sessions: (o[key]?.sessions ?? 0) + (sessions.some((x) => x.id === sum.id) ? 0 : 1), updated: sum.updated } }));
       })
@@ -261,9 +265,12 @@ export default function App() {
 
   async function openSession(id: string) {
     if (!projKey || busy) return;
+    if (id === sid) return setTab("Ask");
     try {
-      const s = await getSession(projKey, id);
-      const ms = s.msgs ?? [];
+      // Still answering in the background: take that live copy back, the server one lacks the pending answer.
+      const live = parked.current.get(id);
+      const ms = live ? live.msgs : (await getSession(projKey, id)).msgs ?? [];
+      parked.current.delete(id);
       park();
       loaded.current = ms;
       sessProj.current = projKey;
@@ -330,7 +337,7 @@ export default function App() {
       pk.msgs = pk.msgs.map((x, j) => (j === i ? next : x));
       if (!pk.msgs.some((x) => x.kind === "pending")) parked.current.delete(psid);
       saveSession(pk.key, psid, pk.msgs)
-        .then((sum) => setSessions((l) => (sessProj.current === pk.key ? [sum, ...l.filter((x) => x.id !== sum.id)] : l)))
+        .then((sum) => setSessions((l) => (curProj.current === pk.key ? [sum, ...l.filter((x) => x.id !== sum.id)] : l)))
         .catch(() => {});
       return;
     }
