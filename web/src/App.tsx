@@ -173,12 +173,13 @@ export default function App() {
         if (!curProj.current) return;
         e.preventDefault();
         setTab("Drawings");
+        if (!panels.w.explorer) panels.set("explorer", 288);
         setTimeout(() => search.current?.focus());
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [panels.w.explorer, panels.set]);
 
   const drawing = useMemo(() => drawings.find((d) => d.path === path), [drawings, path]);
   const allPaths = useMemo(() => drawings.map((d) => d.path), [drawings]);
@@ -464,6 +465,7 @@ export default function App() {
               Back to <span className="ellipsis">{project.name}</span> ›
             </button>
           )}
+          <a className="btn" href="?demo">Final demo</a>
           <VlmBadge />
         </div>
         <nav className="tabs subnav">

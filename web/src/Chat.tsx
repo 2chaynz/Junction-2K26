@@ -35,18 +35,18 @@ function lines(steps: Step[]) {
 }
 
 function Thinking({ steps, live, time }: { steps: Step[]; live: boolean; time?: number }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const ls = lines(steps);
   return (
     <div className={`think ${live ? "live" : ""}`}>
       <button
         className="think-head"
-        disabled={live}
+        aria-expanded={open}
         onClick={(e) => (e.stopPropagation(), setOpen(!open))}
       >
         {live ? "Thinking…" : `${open ? "▾" : "▸"} Reasoned for ${fmtTime(time ?? 0)} · ${ls.length} steps`}
       </button>
-      {(live || open) && (
+      {open && (
         <ol className="think-body">
           {ls.length === 0 && <li className="try">Reading the question…</li>}
           {ls.map((l, i) => (

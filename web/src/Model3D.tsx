@@ -20,6 +20,7 @@ type Props = {
   onHover: (i: number | null) => void;
   onFocus: (i: number | null) => void;
   busy: boolean;
+  demo?: { url: string; replay: number; overview: boolean; changeIds: ReadonlySet<string>; onReady: () => void };
 };
 
 type Cat = "walls" | "doors" | "windows" | "slabs" | "spaces" | "other";
@@ -85,6 +86,8 @@ const mats = {
   planFloor: new THREE.MeshBasicMaterial({ color: "#ffffff", ...ds, ...back }),
   planThin: new THREE.MeshBasicMaterial({ color: "#9a9a9a", ...ds }),
   mark: new THREE.MeshLambertMaterial({ color: RED, emissive: RED, emissiveIntensity: 0.25, ...ds, ...front }),
+  added: new THREE.MeshLambertMaterial({ color: "#24d6aa", emissive: "#07906e", emissiveIntensity: 0.38, ...ds, ...front }),
+  removed: new THREE.MeshLambertMaterial({ color: "#ff736a", emissive: "#e24e43", emissiveIntensity: 0.32, ...ds, ...front, transparent: true, opacity: 0.7, depthWrite: false }),
   hot: new THREE.MeshLambertMaterial({ color: RED, emissive: RED, emissiveIntensity: 0.8, ...ds, ...front }),
   room: new THREE.MeshLambertMaterial({ color: RED, emissive: RED, emissiveIntensity: 0.2, ...ds, ...front, transparent: true, opacity: 0.3, depthWrite: false }),
   roomHot: new THREE.MeshLambertMaterial({ color: RED, emissive: RED, emissiveIntensity: 0.6, ...ds, ...front, transparent: true, opacity: 0.55, depthWrite: false }),
@@ -139,11 +142,29 @@ const quantile = (xs: number[], q: number) => {
   return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : 0;
 };
 
-async function load(path: string, root: THREE.Group, alive: () => boolean): Promise<Model | null> {
-  const [a, buf] = await Promise.all([ifcApi(), fetch(`/api/ifc?path=${encodeURIComponent(path)}`).then((r) => {
+const ifcBytes = new Map<string, { until: number; data: Promise<ArrayBuffer> }>();
+function fetchIfc(url: string) {
+  const hit = ifcBytes.get(url);
+  if (hit && hit.until > Date.now()) {
+    ifcBytes.delete(url);
+    ifcBytes.set(url, hit);
+    return hit.data;
+  }
+  const data = fetch(url).then((r) => {
     if (!r.ok) throw new Error(`ifc: ${r.status}`);
     return r.arrayBuffer();
-  })]);
+  }).catch((error) => {
+    if (ifcBytes.get(url)?.data === data) ifcBytes.delete(url);
+    throw error;
+  });
+  ifcBytes.delete(url);
+  ifcBytes.set(url, { data, until: Date.now() + 300_000 });
+  if (ifcBytes.size > 2) ifcBytes.delete(ifcBytes.keys().next().value!);
+  return data;
+}
+
+async function load(url: string, root: THREE.Group, alive: () => boolean): Promise<Model | null> {
+  const [a, buf] = await Promise.all([ifcApi(), fetchIfc(url)]);
   await new Promise((r) => setTimeout(r, 30)); // let "Loading" paint: streaming blocks the thread
   if (!alive()) return null;
   const id = a.OpenModel(new Uint8Array(buf), { COORDINATE_TO_ORIGIN: true });
@@ -242,7 +263,7 @@ async function info(a: IfcAPI, m: Model, e: Elem): Promise<Info | null> {
 }
 const fmt = (v: unknown) => (typeof v === "number" ? String(Math.round(v * 1000) / 1000) : String(v));
 
-export default function Model3D({ path, answer, hover, focus, onHover, onFocus, busy }: Props) {
+export default function Model3D({ path, answer, hover, focus, onHover, onFocus, busy, demo }: Props) {
   const locale = navigator.language.split("-")[0] as keyof typeof FLOOR_LABELS;
   const floorLabels = FLOOR_LABELS[locale] ?? FLOOR_LABELS.en;
   const host = useRef<HTMLDivElement>(null);
@@ -258,6 +279,9 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
   const [flat, setFlat] = useState(false); // 2D plan of the floor
   const [off, setOff] = useState<Set<Cat>>(new Set(["spaces"]));
   const [picked, setPicked] = useState<Info | null>(null);
+  const modelUrl = demo?.url ?? `/api/ifc?path=${encodeURIComponent(path)}`;
+  const introReplay = demo?.replay;
+  const onReady = demo?.onReady;
   const busyRef = useRef(busy);
   busyRef.current = busy;
   const elems = model?.elems ?? null;
@@ -420,10 +444,12 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
     setStatus("Loading model…");
     for (const m of [...s.root.children] as THREE.Mesh[]) m.geometry.dispose();
     s.root.clear();
-    load(path, s.root, () => !dead)
+    s.fly = null;
+    load(modelUrl, s.root, () => !dead)
       .then(async (m) => {
         if (!m) return;
         opened = m;
+        if (m.box.isEmpty()) throw new Error("No visible geometry");
         if (dead) return (await ifcApi()).CloseModel(m.id);
         s.root.userData.box = m.box;
         const c = m.box.getCenter(new THREE.Vector3());
@@ -447,11 +473,36 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
       for (const m of [...s.root.children] as THREE.Mesh[]) m.geometry.dispose();
       s.root.clear();
     };
-  }, [path]);
+  }, [modelUrl]);
+
+  useEffect(() => {
+    const s = three.current;
+    if (!s || !model || introReplay === undefined || !onReady) return;
+    const center = model.box.getCenter(new THREE.Vector3());
+    const radius = model.box.getBoundingSphere(new THREE.Sphere()).radius;
+    const wide = radius * Math.max(2.75, 2.45 / Math.max(s.persp.aspect, 0.5));
+    const end = center.clone().add(new THREE.Vector3(1, 0.78, -1).normalize().multiplyScalar(wide));
+    const start = center.clone().add(new THREE.Vector3(1, 0.25, -0.3).normalize().multiplyScalar(radius * 0.92));
+    const detail = center.clone().add(new THREE.Vector3(radius * 0.42, radius * 0.12, 0));
+    let first = -1;
+    const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 1800;
+    s.fly = (t) => {
+      if (first < 0) first = t;
+      const progress = duration ? Math.min((t - first) / duration, 1) : 1;
+      const ease = 1 - (1 - progress) ** 3;
+      s.orbit.target.lerpVectors(detail, center, ease);
+      s.persp.position.lerpVectors(start, end, ease);
+      if (progress === 1) {
+        s.fly = null;
+        onReady();
+      }
+    };
+    return () => { s.fly = null; };
+  }, [model, introReplay, onReady]);
 
   // A new answer opens the floor its elements are on (one floor → that floor; spread → whole building).
   useEffect(() => {
-    if (!cited.size) return;
+    if (demo || !cited.size) return;
     const fl = new Set([...cited.values()].map((e) => e.storey));
     const only = fl.size === 1 ? [...fl][0] : null;
     setFloor(only);
@@ -487,29 +538,30 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
       s.ortho.zoom = 1;
       s.ortho.updateProjectionMatrix();
     }
+    if (demo && (demo.overview || !cited.size)) return;
     const f = focus !== null ? cited.get(focus) : undefined;
     if (f && (floor === null || f.storey === floor)) return flyTo(f.box, twoD ? 4 : 2.2);
     const marks = new THREE.Box3();
     cited.forEach((e) => (floor === null || e.storey === floor) && marks.union(e.box));
-    flyTo(marks.isEmpty() ? box : marks, marks.isEmpty() ? 1.05 : 1.3);
-  }, [model, floor, flat, cited]); // eslint-disable-line react-hooks/exhaustive-deps
+    flyTo(marks.isEmpty() ? box : marks, marks.isEmpty() ? 1.05 : demo ? 1.85 : 1.3);
+  }, [model, floor, flat, cited, demo?.overview]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Materials + visibility: cited red, the rest normal (2D) or ghosted (3D); floor and category filters.
   useEffect(() => {
     if (!elems) return;
-    const marked = new Set(cited.values());
+    const marked = new Map([...cited].map(([i, e]) => [e, answer?.evidence[i].label]));
     const any = marked.size > 0;
     const twoD = flat && floor !== null;
     const hotEl = hover !== null ? cited.get(hover) : focus !== null ? cited.get(focus) : undefined;
     elems.forEach((e) => {
       const onFloor = floor === null || e.storey === floor;
       const isMark = marked.has(e);
-      const shown = onFloor && (isMark || !off.has(e.cat));
+      const shown = onFloor && (isMark || (!off.has(e.cat) && !demo?.changeIds.has(e.guid)));
       e.meshes.forEach((m, k) => {
         m.visible = shown;
         if (isMark) {
           const hot = e === hotEl;
-          m.material = e.cat === "spaces" ? (hot ? mats.roomHot : mats.room) : hot ? mats.hot : mats.mark;
+          m.material = demo ? (marked.get(e)?.startsWith("Removed") ? mats.removed : mats.added) : e.cat === "spaces" ? (hot ? mats.roomHot : mats.room) : hot ? mats.hot : mats.mark;
           m.renderOrder = 2;
         } else if (twoD) {
           m.material = e.cat === "walls" ? mats.planWall : e.cat === "slabs" ? mats.planFloor
@@ -521,7 +573,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
         }
       });
     });
-  }, [elems, cited, hover, focus, floor, flat, off]);
+  }, [elems, cited, answer, hover, focus, floor, flat, off, demo?.changeIds]);
 
   // Focus from chat → fly to that element (and its floor).
   useEffect(() => {
@@ -596,13 +648,13 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
           if (!d || Math.hypot(e.clientX - d[0], e.clientY - d[1]) > 4) return;
           const i = pickCited(e);
           if (i !== null) onFocus(focus === i ? null : i);
-          pickAny(e);
+          if (!demo) pickAny(e);
         }}
         onPointerLeave={() => hover !== null && onHover(null)}
         onDoubleClick={fitAll}
       />
       <div ref={tags} className="tags">
-        {[...cited.keys()]
+        {!demo && [...cited.keys()]
           .filter((i) => cited.size <= 25 || i === hover || i === focus)
           .map((i) => (
             <span key={`${answer?.trace.join()}-${i}`} data-i={i} className={`tag ${hover === i || focus === i ? "hot" : ""}`}>

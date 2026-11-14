@@ -177,7 +177,7 @@ def ifc(path: str):
     p = _safe(path)
     if p.suffix.lower() != ".ifc":
         raise HTTPException(400, "not an IFC file")
-    return FileResponse(p, media_type="application/octet-stream")
+    return FileResponse(p, media_type="application/octet-stream", headers={"Cache-Control": "private, max-age=300"})
 
 
 @app.get("/api/takeoff")

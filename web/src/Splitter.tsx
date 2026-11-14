@@ -3,6 +3,7 @@ import "./splitter.css";
 
 const KEY = "sitelens.panels";
 const DEF = { explorer: 288, chat: 400 };
+const INITIAL = { ...DEF, explorer: 0 };
 const MIN = { explorer: 180, chat: 300 };
 const MAX = { explorer: 560, chat: 820 };
 const STAGE_MIN = 360; // the drawing never gets squeezed below this
@@ -13,9 +14,9 @@ function saved(): Widths {
   try {
     const j = JSON.parse(localStorage.getItem(KEY) || "{}");
     const num = (v: unknown, d: number) => (typeof v === "number" && isFinite(v) && v >= 0 ? v : d);
-    return { explorer: num(j.explorer, DEF.explorer), chat: num(j.chat, DEF.chat) };
+    return { explorer: num(j.explorer, INITIAL.explorer), chat: num(j.chat, DEF.chat) };
   } catch {
-    return DEF;
+    return INITIAL;
   }
 }
 
