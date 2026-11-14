@@ -3,6 +3,8 @@
 Text lines are matched by content and position after aligning the sheets on lines they share.
 Geometry is compared on renders, not vector paths: exporters split the same line into different
 segments from one issue to the next, so path-level matching reports noise.
+Quantities: area deltas in edited notes/schedules, door marks added/removed, drawn length change
+in feet from the sheet scale (vector lines clipped to each change region; raster or hatch regions skipped).
 Pairs of issues the router can find live in `sitelens/diff_pairs.json`.
 
   python -m sitelens.paths.diff <old.pdf> <new.pdf>      (dataset-relative or absolute paths)
@@ -15,6 +17,7 @@ import re
 import statistics
 import time
 from collections import Counter, defaultdict, deque
+from fractions import Fraction
 from pathlib import Path
 
 import fitz  # PyMuPDF
@@ -24,6 +27,7 @@ from ..answer import Answer, Evidence
 
 PAIRS = Path(__file__).resolve().parent.parent / "diff_pairs.json"
 CUE = re.compile(r"(?i)what (?:has )?changed|changes?\b|revis|differen|compare|previous issue|addend"
+                 r"|\b(?:added|removed|deleted)\b|since the"
                  r"|was hat sich|änderung|muutos|muuttunut|mis muutus|modifi|cambiat|ændr")
 # Plot stamps change on every print; they are not design changes.
 NOISE = re.compile(r"^(?:\d{1,2}/\d{1,2}/\d{2,4}|\d{1,2}:\d{2}(?::\d{2})?|[AP]M)$")
@@ -39,7 +43,20 @@ CELL_MIN = 6      # changed px for a cell to count
 REGION_MIN = 3    # cells: smaller regions are render noise
 TABLE_GAP = 25.0  # pt: text changes this close belong to one table
 TABLE_MIN = 8     # text changes in one cluster before it is reported as one reworked table
-ORDER = ("changed", "removed", "added", "table", "drawing")  # most telling first
+ORDER = ("quantity", "changed", "removed", "added", "table", "drawing")  # most telling first
+
+AREA_Q = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(SF|SQ\.? ?FT|sq\.? ?ft|ft2|ft²|m2|m²)(?![A-Za-z])")
+FTIN_Q = re.compile(r"(\d+)'\s*-?\s*(\d+)?(?:\s+(\d+)/(\d+))?\"?")
+DOOR_MARK = re.compile(r"^\d{2,3}\.[A-Z]\d?$")
+SCALE = re.compile(r"(?<![\d/])(?:(\d+)\s+)?(\d+)(?:/(\d+))?\s*\"\s*=\s*1\s*'\s*-?\s*0\s*\"")  # 1 1/2" = 1'-0"
+SIZE_RATIO = 4.0      # a size that grows/shrinks more than this is a mis-paired label, not an edit
+RASTER_INK = 0.5      # both issues have this share of ink in a region...
+RASTER_LINES = 0.1    # ...but one has under this share of vector lines: it was drawn as an image
+HATCH_DENSITY = 4.0   # line length per (width + height) of a region above this = hatch, not outlines
+DOOR_ASK = re.compile(r"(?i)\bdoors?\b|türen|\bovi|portes?\b")
+AREA_ASK = re.compile(r"(?i)\barea\b|square|\bSF\b|ft2|ft²|m2|m²|fläche|pinta-ala|surface|superficie")
+ADDED_ASK = re.compile(r"(?i)\badded\b|\bnew\b|\bmore\b|increase|hinzu|lisä")
+REMOVED_ASK = re.compile(r"(?i)removed|deleted|fewer|\bless\b|decrease|entfernt|poist")
 
 
 LONG = "\\\\?\\"
@@ -252,8 +269,155 @@ def _bbox(r: fitz.Rect) -> list[float]:
     return [round(r.x0, 1), round(r.y0, 1), round(r.x1, 1), round(r.y1, 1)]
 
 
+def _areas(text: str) -> list[tuple[float, str]]:
+    return [(float(n.replace(",", "")), "m2" if u.lower().startswith("m") else "ft2") for n, u in AREA_Q.findall(text)]
+
+
+def _ftin(text: str) -> list[float]:
+    """Feet-inch dimensions (8' - 0", 7' - 10 1/4") in feet."""
+    out = []
+    for ft, inch, num, den in FTIN_Q.findall(text):
+        frac = float(num) / float(den) if num and den and float(den) else 0.0
+        out.append(round(float(ft) + (float(inch or 0) + frac) / 12, 4))
+    return out
+
+
+def _fmt_ft(v: float) -> str:
+    """Feet → 7' - 10 1/4" (nearest 1/16")."""
+    sixteenths = round(abs(v) * 12 * 16)
+    ft, rest = divmod(sixteenths, 12 * 16)
+    inch, frac = divmod(rest, 16)
+    f = f" {Fraction(frac, 16)}" if frac else ""
+    return f"{'-' if v < 0 else ''}{ft}' - {inch}{f}\""
+
+
+def _marks(page) -> dict[str, fitz.Rect]:
+    """Door marks (121.A, 118.B2) → first bbox, rendered-page coords."""
+    out: dict[str, fitz.Rect] = {}
+    for w in page.get_text("words"):
+        if DOOR_MARK.match(w[4]) and w[4] not in out:
+            out[w[4]] = fitz.Rect(w[:4]) * page.rotation_matrix
+    return out
+
+
+def _scales(page) -> list[tuple[float, fitz.Point]]:
+    """Scale labels (1/16" = 1'-0") → (real feet per PDF point, label centre)."""
+    out = []
+    for b in page.get_text("blocks"):
+        for m in SCALE.finditer(b[4].replace("\n", " ")):
+            paper_in = float(m.group(1) or 0) + float(m.group(2)) / float(m.group(3) or 1)
+            r = fitz.Rect(b[:4]) * page.rotation_matrix
+            if paper_in > 0:
+                out.append((1 / (72 * paper_in), fitz.Point((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2)))
+    return out
+
+
+def _segments(page, t=None) -> list[tuple[fitz.Point, fitz.Point]]:
+    """Every drawn segment as end points in rendered coords (old sheet mapped by t)."""
+    rot = page.rotation_matrix
+
+    def pt(p):
+        q = p * rot
+        return fitz.Point(q.x * t[0] + t[1], q.y * t[0] + t[2]) if t else q
+    out = []
+    for d in page.get_drawings():
+        for it in d["items"]:
+            if it[0] == "l":
+                ends = [(it[1], it[2])]
+            elif it[0] == "c":
+                ends = [(it[1], it[4])]
+            elif it[0] == "re":
+                r = it[1]
+                ends = [(r.tl, r.tr), (r.tr, r.br), (r.br, r.bl), (r.bl, r.tl)]
+            else:
+                continue
+            for a, b in ends:
+                out.append((pt(a), pt(b)))
+    return out
+
+
+def _clipped(a: fitz.Point, b: fitz.Point, r: fitz.Rect) -> float:
+    """Length of segment a-b inside r (Liang-Barsky)."""
+    if max(a.x, b.x) < r.x0 or min(a.x, b.x) > r.x1 or max(a.y, b.y) < r.y0 or min(a.y, b.y) > r.y1:
+        return 0.0
+    dx, dy = b.x - a.x, b.y - a.y
+    t0, t1 = 0.0, 1.0
+    for p, q in ((-dx, a.x - r.x0), (dx, r.x1 - a.x), (-dy, a.y - r.y0), (dy, r.y1 - a.y)):
+        if p == 0:
+            if q < 0:
+                return 0.0
+        else:
+            u = q / p
+            if p < 0:
+                t0 = max(t0, u)
+            else:
+                t1 = min(t1, u)
+    return max(0.0, t1 - t0) * (dx * dx + dy * dy) ** 0.5
+
+
+def _quantities(sheet, t, edits, ev, old, new, old_page, new_page):
+    """How much changed → (totals, quantity Evidence, trace lines)."""
+    q = {"area_delta": {}, "doors_added": [], "doors_removed": [], "linework_ft": None}
+    qev, lines = [], []
+    for ot, nt, box in edits:  # numbers inside an edited note or schedule block, paired in reading order
+        oa, na = _areas(ot), _areas(nt)
+        if oa and len(oa) == len(na) and all(a[1] == b[1] for a, b in zip(oa, na)):
+            d = round(sum(b[0] - a[0] for a, b in zip(oa, na)), 4)
+            if d:
+                u = oa[0][1]
+                q["area_delta"][u] = round(q["area_delta"].get(u, 0.0) + d, 4)
+                qev.append(Evidence(new, _bbox(box), new_page, f"quantity: area {d:+g} {u} over {len(oa)} values", "text"))
+        of, nf = _ftin(ot), _ftin(nt)
+        if of and len(of) == len(nf) and of != nf:
+            ch = [f"{_fmt_ft(a)} → {_fmt_ft(b)}" for a, b in zip(of, nf)
+                  if a != b and max(a, b) <= SIZE_RATIO * max(min(a, b), 1 / 12)]
+            if ch:
+                    qev.append(Evidence(new, _bbox(box), new_page, "quantity: size " + "; ".join(ch[:4]), "text"))
+    mo, mn = sheet["marks_old"], sheet["marks_new"]
+    if mo or mn:
+        q["doors_added"], q["doors_removed"] = sorted(set(mn) - set(mo)), sorted(set(mo) - set(mn))
+        qev += [Evidence(new, _bbox(mn[m]), new_page, f"quantity: door {m} added", "text") for m in q["doors_added"]]
+        qev += [Evidence(old, _bbox(mo[m]), old_page, f"quantity: door {m} removed", "text") for m in q["doors_removed"]]
+        lines.append(f"quantity: door marks {len(mo)} → {len(mn)} "
+                     f"(+{len(q['doors_added'])} / -{len(q['doors_removed'])})")
+    for u, d in q["area_delta"].items():
+        lines.append(f"quantity: areas in edited notes/schedules {d:+g} {u}")
+    regions = [e for e in ev if e.label.startswith("drawing")]
+    if regions and sheet["scales"]:
+        total, skipped = 0.0, 0
+        for e in regions:
+            r = fitz.Rect(e.bbox)
+            c = fitz.Point((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2)
+            f = min(sheet["scales"], key=lambda s: abs(s[1] - c))[0]
+            lo = sum(_clipped(a, b, r) for a, b in sheet["seg_old"])
+            ln = sum(_clipped(a, b, r) for a, b in sheet["seg_new"])
+            y0, y1, x0, x1 = (int(v * RES) for v in (r.y0, r.y1, r.x0, r.x1))
+            io, inew = int(sheet["ink_old"][y0:y1, x0:x1].sum()), int(sheet["ink_new"][y0:y1, x0:x1].sum())
+            if min(io, inew) > RASTER_INK * max(io, inew) and min(lo, ln) < RASTER_LINES * max(lo, ln):
+                skipped += 1  # similar ink, but one issue has almost no vector lines here: drawn as an image
+                e.label += " (raster in one issue, not measured)"
+                continue
+            d_pt = ln - lo
+            if abs(d_pt) > HATCH_DENSITY * (r.width + r.height):
+                skipped += 1  # far more line than the box could hold as outlines: hatch or fill pattern
+                e.label += " (pattern/hatch changed)"
+                continue
+            total += d_pt * f
+            e.label += f" (≈ {d_pt * f:+.0f} ft of lines at {Fraction(1 / (72 * f)).limit_denominator(64)}\" = 1'-0\")"
+        if len(regions) > skipped:
+            q["linework_ft"] = round(total, 1)
+            lines.append(f"quantity: drawn lines in changed regions ≈ {total:+.0f} ft at sheet scale "
+                         f"({len(regions) - skipped} regions measured, {skipped} skipped: raster or hatch)")
+    return q, qev, lines
+
+
 def diff(old: str, new: str, old_page: int = 0, new_page: int = 0) -> Answer:
     """Changes from sheet `old` to sheet `new`. value = number of change items; evidence = one per item."""
+    return diff_with_quantities(old, new, old_page, new_page)[0]
+
+
+def diff_with_quantities(old: str, new: str, old_page: int = 0, new_page: int = 0) -> tuple[Answer, dict]:
+    """diff() plus totals: area deltas, door marks added/removed, drawn length change in feet."""
     t0 = time.time()
     with _open(old) as do, _open(new) as dn:
         po, pn = do[old_page], dn[new_page]
@@ -263,6 +427,9 @@ def diff(old: str, new: str, old_page: int = 0, new_page: int = 0) -> Answer:
         removed, added = _text_diff(lo, ln, t) if lo and ln else ([], [])
         ink_new = _ink(pn, RES)
         ink_old = _fit(_ink(po, RES * t[0]), ink_new.shape, round(t[1] * RES), round(t[2] * RES))
+        sheet = {"marks_old": _marks(po), "marks_new": _marks(pn), "scales": _scales(pn),
+                 "ink_old": ink_old, "ink_new": ink_new,
+                 "seg_old": _segments(po, t), "seg_new": _segments(pn)}
     trace = [f"old: {len(lo)} text lines · new: {len(ln)} text lines"
              + ("" if lo and ln else " · one sheet has no text layer: geometry only"),
              f"aligned: scale {t[0]:.3f}, shift ({t[1]:.1f}, {t[2]:.1f}) pt"]
@@ -271,6 +438,7 @@ def diff(old: str, new: str, old_page: int = 0, new_page: int = 0) -> Answer:
     ng = _group(added)
     n_new = len(ng)
     ev: list[Evidence] = []
+    edits = []
     moved, gone_txt = 0, []
     for ot, orr in og:  # a removed note with an added one on top of it is an edit
         hit = [g for g in ng if g[1].intersects(orr + (-NEAR, -NEAR, NEAR, NEAR))]
@@ -287,6 +455,7 @@ def diff(old: str, new: str, old_page: int = 0, new_page: int = 0) -> Answer:
             moved += 1
         else:
             ev.append(Evidence(new, _bbox(nr), new_page, f"changed: {ot} → {nt}", "text"))
+            edits.append((ot, nt, nr))
     for ot, orr in gone_txt:  # same note further away: moved, not removed
         twin = next((g for g in ng if _norm(g[0]) == _norm(ot) and _dist(g[1], orr) < MOVE_TOL), None)
         if twin:
@@ -311,11 +480,15 @@ def diff(old: str, new: str, old_page: int = 0, new_page: int = 0) -> Answer:
         g, c = int(gone[y0:y1, x0:x1].sum()), int(came[y0:y1, x0:x1].sum())
         what = "lines removed" if g > 3 * c else "lines added" if c > 3 * g else "lines changed"
         ev.append(Evidence(new, _bbox(fitz.Rect(x0, y0, x1, y1) / RES), new_page, f"drawing: {what}", "box"))
-    ev.sort(key=lambda e: next(i for i, k in enumerate(ORDER) if e.label.startswith(k)))
     trace.append(f"geometry: {int(gone.sum())} ink px gone, {int(came.sum())} new → {len(regs)} regions")
+    q, qev, qlines = _quantities(sheet, t, edits, ev, old, new, old_page, new_page)
+    q["changes"] = len(ev)
+    ev = qev + ev
+    ev.sort(key=lambda e: next(i for i, k in enumerate(ORDER) if e.label.startswith(k)))
+    trace += qlines
     trace.append(f"diff, {time.time() - t0:.2f}s")
-    return Answer(value=len(ev), unit="count", method="diff", confidence=0.8,
-                  evidence=ev, trace=trace)
+    return Answer(value=q["changes"], unit="count", method="diff", confidence=0.8,
+                  evidence=ev, trace=trace), q
 
 
 def pairs() -> list[dict]:
@@ -329,8 +502,20 @@ def answer(path: str, question: str) -> Answer | None:
     p = next((p for p in pairs() if p["new"] == path), None)
     if p is None:
         return None
-    a = diff(p["old"], p["new"])
+    a, q = diff_with_quantities(p["old"], p["new"])
     a.trace.insert(0, f"compared with earlier issue: {p['old']}")
+    if DOOR_ASK.search(question) and (q["doors_added"] or q["doors_removed"]):
+        add, rem = len(q["doors_added"]), len(q["doors_removed"])
+        wants_add, wants_rem = ADDED_ASK.search(question), REMOVED_ASK.search(question)
+        keep = "added" if wants_add and not wants_rem else "removed" if wants_rem and not wants_add else ""
+        a.value = add if keep == "added" else rem if keep == "removed" else add - rem
+        a.evidence = [e for e in a.evidence if " door " in e.label and e.label.endswith(keep)]
+        a.trace.append(f"answer: doors +{add} / -{rem}")
+    elif AREA_ASK.search(question) and q["area_delta"]:
+        u, d = max(q["area_delta"].items(), key=lambda kv: abs(kv[1]))
+        a.value, a.unit = d, u
+        a.evidence = [e for e in a.evidence if e.label.startswith("quantity: area")]
+        a.trace.append(f"answer: net area change {d:+g} {u} in edited schedule values")
     return a
 
 
