@@ -36,6 +36,7 @@ FLOORS = re.compile(r"(?i)floors \(storeys\)|how many floors|kerrosta")
 COUNT_CUE = re.compile(r"(?i)how many|number of|kuinka monta|montako")
 
 # confidence threshold per target (classes joined by "+"), tuned on the `rest` split only
+NMS_IOU = float(os.environ.get("SITELENS_DET_IOU", "0.4"))   # lower than the 0.5 default merges fewer adjacent windows
 CONF = {"default": 0.35}
 # YOLO11l v2 (labels with all sink variants + WC rooms): thresholds tuned on `rest` only
 CONF_L = {"door": 0.35, "floor": 0.25, "room_bath": 0.25, "room_bedroom": 0.2, "room_kitchen": 0.2,
@@ -78,7 +79,7 @@ def detect(path: str) -> tuple:
     if m is None:
         return ()
     img = str(data_root() / path)
-    r = m.predict(img, imgsz=1280, conf=0.1, iou=0.5, verbose=False, max_det=600)[0]
+    r = m.predict(img, imgsz=1280, conf=0.1, iou=NMS_IOU, verbose=False, max_det=600)[0]
     names = r.names
     out = []
     for c, p, b in zip(r.boxes.cls.tolist(), r.boxes.conf.tolist(), r.boxes.xyxy.tolist()):
