@@ -1,4 +1,5 @@
 import type { Answer, Drawing, Mark, MeasureState, Step } from "./types";
+import { isEnglishQuestion } from "./format";
 
 export const originalUrl = (path: string) => `/api/original?path=${encodeURIComponent(path)}`;
 
@@ -11,10 +12,14 @@ export const isImage = (path: string) => /\.(png|jpe?g)$/i.test(path);
 export const RENDER_SCALE = 2;
 export const viewScale = (path: string) => (isImage(path) ? 1 : RENDER_SCALE);
 
+let drawings: Drawing[] | undefined;
+
 export async function getDrawings(): Promise<Drawing[]> {
   const r = await fetch("/api/drawings");
   if (!r.ok) throw new Error(`drawings: ${r.status}`);
-  return r.json();
+  const result: Drawing[] = await r.json();
+  drawings = result;
+  return result;
 }
 
 export async function ask(path: string, question: string): Promise<Answer> {
@@ -28,9 +33,14 @@ export async function ask(path: string, question: string): Promise<Answer> {
 }
 
 export async function surprise(): Promise<{ path: string; question: string }> {
-  const r = await fetch("/api/random");
-  if (!r.ok) throw new Error(`random: ${r.status}`);
-  return r.json();
+  const catalog = drawings ?? await getDrawings();
+  const eligible = catalog.flatMap(({ path, questions }) => {
+    const english = questions.filter(({ question }) => isEnglishQuestion(question));
+    return english.length ? [{ path, questions: english }] : [];
+  });
+  if (!eligible.length) throw new Error("No English sample questions are available.");
+  const { path, questions } = eligible[Math.floor(Math.random() * eligible.length)];
+  return { path, question: questions[Math.floor(Math.random() * questions.length)].question };
 }
 
 // Same as ask(), but reports each reasoning step as the server takes it.
