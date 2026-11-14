@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 03:24 · johanseneuson · johanseneuson: Swiss counts from DXF geometry, no model, all preview Qs: doors 130/130 (5-pt DOOR polylines), windows 130/130 (4-pt WINDOW), toilets 130/130 + washbasins 130/130 (48-pt ellipse without/with drain circle), bathtubs 112/112 (69-pt polyline), showers 32/42, room labels via ROOM_TEXT. Corrects my earlier 'arcs != doors': count leaves, not arcs. Going into T3 vector path
 - 2026-11-14 03:22 · 2chaynz · decision PR #8: refocus SiteLens on benchmark Q&A (T3-T8); photo/3D-print/voice stretch, Eurocode out. Needs team OK + merge
 - 2026-11-14 03:13 · johanseneuson · johanseneuson: Verda refuses to deploy compute on the JUNCTION-2026 coupon unless a payment method is on file (even with credit + auto top-up off). A100 80GB = EUR 2.14/h. Plan: T5 detector on CubiCasa5K, preview images excluded
 - 2026-11-14 02:59 · johanseneuson · johanseneuson: measured (no model): IFC room areas 782/804 from psets; swiss DOOR arcs != door count (74/265), so DXF counts need real detection; cubicasa raster = 53% of Qs. Literature + 5 ideas incl. RL-trained Gemma 4 with tools (ideas/johanseneuson.md)
