@@ -9,3 +9,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T2 Demo video, README, pitch | pitch | T1 |  | todo |  |  |  |
 | T3 Vector path: Swiss + opening_design | ai | T1 |  | todo |  |  |  |
 | T4 IFC path: counts, lengths, volumes, text | ai | T1 |  | todo |  |  |  |
+| T5 Train symbol detector on CubiCasa5K | train | T1 |  | todo |  |  |  |
