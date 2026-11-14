@@ -5,5 +5,5 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 
 | Ticket | Area | Needs | Owner | Status | Branch | Device | Question |
 |---|---|---|---|---|---|---|---|
-| T1 Project scaffold + CONTRACT.md + Run section | setup | | | todo | | | |
-| T2 Demo video, README, pitch | pitch | T1 | | todo | | | |
+| T1 Project scaffold + CONTRACT.md + Run section | setup |  | johanseneuson | doing | johanseneuson/T1-scaffold |  |  |
+| T2 Demo video, README, pitch | pitch | T1 |  | todo |  |  |  |
