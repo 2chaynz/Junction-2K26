@@ -91,7 +91,7 @@ function Cites({ a, on, hover, focus, onHover, onFocus }: {
 }
 
 function AnswerMsg(props: {
-  a: Answer; steps: Step[]; on: boolean; hover: number | null; focus: number | null;
+  a: Answer; steps: Step[]; on: boolean; busy: boolean; onAsk: (q: string) => void; hover: number | null; focus: number | null;
   onHover: (i: number | null) => void; onFocus: (i: number | null) => void;
 }) {
   const { a } = props;
@@ -103,6 +103,21 @@ function AnswerMsg(props: {
       {METHOD_NAME[a.method] ?? a.method} · {fmtEur(a.cost_eur)} · {fmtTime(a.time_s)}
     </span>
   );
+
+  if (a.method === "clarify" && a.clarify)
+    return (
+      <>
+        <p>{a.clarify.ask}</p>
+        <div className="options">
+          {a.clarify.options.map((q) => (
+            <button key={q} className="option" disabled={props.busy} onClick={(e) => (e.stopPropagation(), props.onAsk(q))}>
+              {q}
+            </button>
+          ))}
+        </div>
+        <div className="meta"><span className="mono">asked back · {fmtEur(a.cost_eur)} · {fmtTime(a.time_s)}</span></div>
+      </>
+    );
 
   if (a.value === null || a.value === undefined)
     return (
@@ -183,7 +198,7 @@ export default function Chat(p: Props) {
               title={marks && !on ? "Show on the plan" : undefined}
             >
               {m.steps.length > 0 && <Thinking steps={m.steps} live={false} time={m.answer.time_s} />}
-              <AnswerMsg a={m.answer} steps={m.steps} on={on} hover={p.hover} focus={p.focus} onHover={p.onHover} onFocus={p.onFocus} />
+              <AnswerMsg a={m.answer} steps={m.steps} on={on} busy={p.busy} onAsk={p.onAsk} hover={p.hover} focus={p.focus} onHover={p.onHover} onFocus={p.onFocus} />
             </div>
           );
         })}
