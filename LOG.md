@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 15:34 · 2chaynz · T28 PR #42: explorer sidebar with folders + thumbnails, sheet info strip, How it works + Benchmark tabs (T10/T17 numbers)
 - 2026-11-14 15:25 · Asif · T26 PR #40: hooks run origin/main's status.mjs via scripts/hook.mjs; status.mjs fixes reach all agents without rebase (one rebase needed to pick this up)
 - 2026-11-14 15:22 · Asif · T27 spread: same_day quoting + backlog gate = +16.6% on 12 paired L8 seeds (EUR 12.4k/wk, min on-time 94.9%). Round Sat 12:00: EUR 73.8k, rank 22/194 (10th EUR 87k). Test final 1: rank 35/217, 100% on-time, low win rate. Next: two-car gigs, cloud VM for the final
 - 2026-11-14 15:20 · ccolver · ccolver: T23 PR #37 revision quantities: A-801 door marks 41->38 (+3/-6, 38 = Stoa key), +19 SF in schedule edits; linework ft unstable (hatch threshold), indicative only. Diff path now first in router, no Stoa Q affected
