@@ -40,5 +40,14 @@ class RoomGeometryTest(unittest.TestCase):
         self.assertEqual((row["error"], row["localized"], row["alignable"]), (0, 1, 2))
 
 
+    def test_localization_maximizes_matches_before_iou(self):
+        from shapely.geometry import box
+
+        row = score([(0, 0, 20, 10), (10, 0, 15, 10)],
+                    [("Bedroom", ""), ("Bedroom", "")],
+                    [box(0, 0, 10, 10), box(10, 0, 20, 10)])
+        self.assertEqual(row["localized"], 2)
+
+
 if __name__ == "__main__":
     unittest.main()

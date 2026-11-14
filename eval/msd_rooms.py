@@ -104,7 +104,7 @@ def baseline(path: Path) -> dict:
 def score(predicted: list, gold: list, polygons: list) -> dict:
     from shapely.geometry import box
 
-    candidates = []
+    candidates = defaultdict(list)
     for i, bbox in enumerate(predicted):
         rect = box(*bbox)
         for j, poly in enumerate(polygons):
@@ -112,12 +112,26 @@ def score(predicted: list, gold: list, polygons: list) -> dict:
                 intersection = rect.intersection(poly).area
                 union = rect.area + poly.area - intersection
                 if union and intersection / union >= 0.5:
-                    candidates.append((intersection / union, i, j))
-    used, matched = set(), set()
-    for _, i, j in sorted(candidates, reverse=True):
-        if i not in used and j not in matched:
-            used.add(i)
-            matched.add(j)
+                    candidates[i].append((intersection / union, j))
+    for options in candidates.values():
+        options.sort(reverse=True)
+
+    matched = {}
+
+    def assign(i, seen):
+        for _, j in candidates[i]:
+            if j in seen:
+                continue
+            seen.add(j)
+            if j not in matched or assign(matched[j], seen):
+                matched[j] = i
+                return True
+        return False
+
+    # Reassign earlier boxes when doing so makes room for an additional match.
+    for i in candidates:
+        assign(i, set())
+    used = set(matched.values())
     complete = all(p is not None for p in polygons)
     return {"count": len(predicted), "gold": len(gold), "error": abs(len(predicted) - len(gold)),
             "localized": len(matched), "alignable": sum(p is not None for p in polygons),
