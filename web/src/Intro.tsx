@@ -30,7 +30,10 @@ function seen() {
 }
 
 function show() {
-  if (new URLSearchParams(location.search).has("intro")) return true;
+  const q = new URLSearchParams(location.search);
+  if (q.has("intro")) return true;
+  // Scripted browsers (video capture, tests) would be blocked by the overlay.
+  if (q.has("nointro") || navigator.webdriver) return false;
   return !seen() && !matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
