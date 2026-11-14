@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 19:13 · ccolver · DECISION.md merged (PR #70): pitch angle = one integration tool per role
 - 2026-11-14 19:03 · ccolver · T50 PR #68: same-session Claude review PASS (no Codex, claude -p empty); fixed duplicate floor plates when a floor has pdf+png
 - 2026-11-14 19:01 · ccolver · pitch angle: one integration tool for PE/site mgr/super/PM/estimator (takeoff CSV, measure). T2 ticket updated; DECISION.md in PR #70, blocked on xreview (no codex, claude CLI login)
 - 2026-11-14 18:59 · Asif · T51 PR #69 merged: spread/.gitignore ignores autotune.log, tuned_params.json, bl.txt; removed stray q&a/ + spread outputs locally
