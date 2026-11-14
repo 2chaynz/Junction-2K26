@@ -24,7 +24,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T17 Detector on AECV-Bench: outside benchmark vs VLMs | eval | T6 | ccolver | done | ccolver/T17-aecv-bench |  |  |
 | T18 Auto-close tickets when their PR merges | setup |  | Asif | done | asif/T18-close-merged |  |  |
 | T19 Room-label OCR: bedrooms, baths, WCs, room counts | ai | T6 | ccolver | done | ccolver/T19-room-ocr |  |  |
-| T20 Hot-swappable VLM backends: Gemini, Gemma, Nemotron | ai | T7 | Asif | review | asif/T20-vlm-backends |  |  |
+| T20 Hot-swappable VLM backends: Gemini, Gemma, Nemotron | ai | T7 | Asif | done | asif/T20-vlm-backends |  |  |
 | T21 UI v2: drawing + chat redesign | app | T8 | 2chaynz | done | 2chaynz/T21-ui-v2 |  |  |
 | T22 Reliable heartbeats: retry on failure, beat the claimed ticket | setup | T16 | Asif | done | asif/T22-reliable-beats |  |  |
 | T23 Revision quantities: how much changed between issues | ai | T15 | ccolver | done | ccolver/T23-revision-quantities |  |  |
