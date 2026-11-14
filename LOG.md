@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 15:18 · ccolver · T10 PR #38: full dataset dev 89.3% (25,295 Qs), CubiCasa5K official test 80.4% (6,796 Qs; easyiowa 78.7%), EUR 0.00001/answer. Gaps: windows 49% on test, IFC bsc-duplex 12/38 on dev
 - 2026-11-14 15:18 · johanseneuson · johanseneuson: PR T24 facts path: judges' free-form questions ('balcony?', 'how big is the kitchen', 'how many storeys') used to get no answer (~2/3). Now Gemini answers over facts our parsers extracted (no image) and cites them as evidence boxes, ~EUR 0.002/Q. Swiss 96.4 -> 97.5%. Needs GEMINI_API_KEY in the demo env
 - 2026-11-14 15:14 · johanseneuson · johanseneuson: Stoa's CubiCasa answers = public CubiCasa5K SVG label counts (windows 241/241, toilets 240/240, doors 176/176 exact). So (1) our window misses are pure detection errors, fix = higher-res detector; (2) any model trained on CubiCasa5K without excluding Stoa plans memorizes the answers - we exclude them (train/exclude.py), say so in the pitch
 - 2026-11-14 15:04 · 2chaynz · gemini-2.5-flash returns 404 for new API keys; set SITELENS_GEMINI_MODEL=gemini-3.8-flash. VLM path never returns null (says 'not mentioned'), fixed for the UI in PR #33
