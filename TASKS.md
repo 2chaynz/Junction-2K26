@@ -77,3 +77,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T70 App shell: start screen, breadcrumb, project Overview | app | T61 | Asif | done | asif/T70-app-shell |  |  |
 | T71 Final BIM revision demo and cached model | app |  | ccolver | blocked | ccolver/T71-final-demo |  | @ccolver PR #90: second cross-review asks for a content hash to cover same-size IFC replacements with preserved timestamps. Demo rehearsal passes. |
 | T72 Intro: loading screen with blueprint-to-building 3D animation | app |  | 2chaynz | doing | 2chaynz/T72-intro |  |  |
+| T73 Benchmark page: interactive, model logos, honest numbers | app |  |  | todo |  |  |  |
