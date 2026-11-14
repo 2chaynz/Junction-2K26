@@ -177,11 +177,17 @@ def _answer(path: str, question: str) -> Answer | None:
         return Answer(value=len(groups), unit="count", method="detector", confidence=0.7, cost_eur=0.00001,
                       evidence=ev, trace=[f"{len(hits)} {classes[0]} boxes ≥ {t}", f"{len(groups)} groups"])
     conf, note = _stability(path, classes, t)
+    near = [d for d in detect(path) if d[0] in classes and t - NEAR_MISS <= d[1] < t]
     return Answer(
         value=len(hits), unit="count", method="detector", confidence=conf, cost_eur=0.00001,
         evidence=[Evidence(file=path, bbox=list(b), label=f"{c} {p:.2f}") for c, p, b in hits],
-        trace=[f"detector classes {', '.join(classes)}", f"{len(hits)} boxes ≥ {t}", note],
+        trace=[f"detector classes {', '.join(classes)}", f"{len(hits)} boxes ≥ {t}", note]
+              + ([f"{len(near)} more just under the cut (shown dashed): add any that are real"] if near else []),
+        candidates=[Evidence(file=path, bbox=list(b), label=f"near-miss {c} {p:.2f}") for c, p, b in near],
     )
+
+
+NEAR_MISS = 0.2   # T42: detections this far under the cut are returned as candidates for review mode
 
 
 STABILITY_BAND = 0.1

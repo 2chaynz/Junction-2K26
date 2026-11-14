@@ -1,11 +1,12 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { askStream, getDrawings, surprise } from "./api";
+import { ask, askStream, getDrawings, surprise } from "./api";
 import Benchmark from "./Benchmark";
+import Changes, { CHANGE_Q, PAIRS, onNewSheet } from "./Changes";
 import Chat from "./Chat";
 import Explorer from "./Explorer";
 import { DEMO, SOURCE_LABEL, TYPE, fmtSize, pickChips, sheetCode, shortName } from "./format";
 import HowItWorks from "./HowItWorks";
-import type { Drawing, Msg, Step } from "./types";
+import type { Answer, Drawing, Msg, Step } from "./types";
 import Viewer from "./Viewer";
 
 // three.js + web-ifc are ~4 MB: only fetch them when a model is opened in 3D.
@@ -66,6 +67,10 @@ export default function App() {
   const [size, setSize] = useState<[number, number] | null>(null);
   const [mode, setMode] = useState<"plan" | "3d">("plan");
   const search = useRef<HTMLInputElement>(null);
+  const [chOn, setChOn] = useState(false);
+  const [chData, setChData] = useState<Record<string, { answer?: Answer; error?: string }>>({});
+  const [chHover, setChHover] = useState<number | null>(null);
+  const [chFocus, setChFocus] = useState<number | null>(null);
 
   useEffect(() => {
     getDrawings()
@@ -102,8 +107,19 @@ export default function App() {
   const allPaths = useMemo(() => drawings.map((d) => d.path), [drawings]);
   const chips = useMemo(() => pickChips(drawing), [drawing]);
   const busy = msgs.some((m) => m.kind === "pending");
+  const hasPair = PAIRS.has(path);
+  const showCh = chOn && hasPair;
+
+  useEffect(() => {
+    if (!showCh || chData[path]) return;
+    setChData((d) => ({ ...d, [path]: {} }));
+    ask(path, CHANGE_Q)
+      .then((a) => setChData((d) => ({ ...d, [path]: { answer: a } })))
+      .catch((e) => setChData((d) => ({ ...d, [path]: { error: String(e) } })));
+  }, [showCh, path]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function activate(i: number | null) {
+    if (i !== null) setChOn(false); // a chat answer takes over the drawing
     setActive(i);
     setHover(null);
     setFocus(null);
@@ -115,6 +131,8 @@ export default function App() {
     setPath(p);
     setSize(null);
     setDraft("");
+    setChHover(null);
+    setChFocus(null);
     activate(null);
     setMsgs((m) => (m.length ? [...m, { kind: "switch", path: p }] : m));
   }
@@ -159,10 +177,12 @@ export default function App() {
 
   const act = active !== null ? msgs[active] : null;
   const answer = act?.kind === "answer" && act.path === path ? act.answer : null;
-  const view = answer?.view ?? drawing?.view ?? "";
+  const view = showCh ? drawing?.view ?? "" : answer?.view ?? drawing?.view ?? "";
   const isIfc = path.endsWith(".ifc");
   const hasPlan = isIfc && !view.endsWith(".ifc");
   const show3d = isIfc && (mode === "3d" || !hasPlan);
+  const ch = chData[path];
+  const chAnswer = useMemo(() => (ch?.answer ? onNewSheet(ch.answer, view) : null), [ch, view]);
 
   return (
     <div className={`app ${tab === "Ask" ? "" : "paged"}`}>
@@ -207,16 +227,33 @@ export default function App() {
             ) : view ? (
               <Viewer
                 view={view}
-                answer={answer}
-                hover={hover}
-                focus={focus}
-                onHover={setHover}
-                onFocus={setFocus}
+                answer={showCh ? chAnswer : answer}
+                hover={showCh ? chHover : hover}
+                focus={showCh ? chFocus : focus}
+                onHover={showCh ? setChHover : setHover}
+                onFocus={showCh ? setChFocus : setFocus}
                 onSize={(w, h) => setSize([w, h])}
-                busy={busy}
+                busy={busy || (showCh && !ch?.answer && !ch?.error)}
+                changes={showCh}
               />
             ) : (
               <div className="empty">{error || "Loading drawings…"}</div>
+            )}
+            {hasPair && !view.endsWith(".ifc") && (
+              <button className={`ch-toggle ${showCh ? "on" : ""}`} onClick={() => setChOn((v) => !v)}>
+                {showCh ? "Hide changes" : "What changed"}
+              </button>
+            )}
+            {showCh && (
+              <Changes
+                path={path}
+                answer={chAnswer}
+                error={ch?.error ?? ""}
+                hover={chHover}
+                focus={chFocus}
+                onHover={setChHover}
+                onFocus={setChFocus}
+              />
             )}
           </div>
           {drawing && <SheetInfo d={drawing} all={allPaths} view={view} size={size} />}

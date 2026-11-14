@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fileUrl, viewScale } from "./api";
+import { changeKind } from "./Changes";
 import { fmtAnswer } from "./format";
 import type { Answer } from "./types";
 
@@ -12,6 +13,7 @@ type Props = {
   onFocus: (i: number | null) => void;
   onSize?: (w: number, h: number) => void;
   busy: boolean;
+  changes?: boolean; // revision diff: colour marks by added / removed / changed, no margin note
 };
 
 type T = { s: number; x: number; y: number };
@@ -47,7 +49,7 @@ function penLoop(b: Box, minR: number): string {
   return "M" + pts.join(" L");
 }
 
-export default function Viewer({ view, answer, hover, focus, onHover, onFocus, onSize, busy }: Props) {
+export default function Viewer({ view, answer, hover, focus, onHover, onFocus, onSize, busy, changes }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [t, setT] = useState<T>({ s: 1, x: 0, y: 0 });
@@ -70,6 +72,7 @@ export default function Viewer({ view, answer, hover, focus, onHover, onFocus, o
       const el = box.current;
       if (!el || !size) return;
       const cw = el.clientWidth, ch = el.clientHeight;
+      if (!cw || !ch) return; // not laid out yet: a zero scale would put marks at infinity
       const full = Math.min(cw / size.w, ch / size.h) * 0.96;
       const w = Math.max(x1 - x0, 1) * pad, h = Math.max(y1 - y0, 1) * pad;
       const s = Math.min(Math.max(Math.min(cw / w, ch / h), full), full * 10);
@@ -110,7 +113,7 @@ export default function Viewer({ view, answer, hover, focus, onHover, onFocus, o
   const union = boxes.length
     ? { x: Math.max(...boxes.map((b) => b.x1)), y: Math.min(...boxes.map((b) => b.y0)) }
     : null;
-  const note = answer && boxes.length ? fmtAnswer(answer) : "";
+  const note = answer && boxes.length && !changes ? fmtAnswer(answer) : "";
 
   return (
     <div
@@ -153,7 +156,7 @@ export default function Viewer({ view, answer, hover, focus, onHover, onFocus, o
             {boxes.map((b, k) => (
               <g
                 key={`${answer?.trace.join()}-${b.i}`}
-                className={`mark ${hover === b.i ? "hot" : ""} ${focus === b.i ? "focus" : ""} ${
+                className={`mark ${changes ? `k-${changeKind(b.label)}` : ""} ${hover === b.i ? "hot" : ""} ${focus === b.i ? "focus" : ""} ${
                   focus !== null && focus !== b.i ? "dim" : ""
                 }`}
                 onMouseEnter={() => onHover(b.i)}

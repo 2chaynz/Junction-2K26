@@ -207,6 +207,27 @@ def ask_stream(req: Ask):
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+class Export(BaseModel):
+    path: str
+    question: str
+    answer: dict | None = None   # the /api/ask result to export; recomputed when omitted
+
+
+@app.post("/api/export")
+def export(req: Export):
+    """Answer as a redlined PDF (evidence → PDF annotations). Opens in Bluebeam / Acrobat as comments."""
+    from .export import redline
+    _safe(req.path)
+    ans = req.answer or _ask(req.path, req.question)
+    try:
+        pdf = redline(req.path, req.question, ans)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    name = req.path.rsplit("/", 1)[-1].rsplit(".", 1)[0] + "-sitelens-markup.pdf"
+    return Response(pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
 @app.get("/api/random")
 def surprise():
     qs = _questions()

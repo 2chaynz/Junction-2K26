@@ -2,6 +2,10 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 18:27 · ccolver · found: IFC path counts IfcCurtainWall as walls; Stoa key excludes them (clinic 1111 vs key 1080, digitalhub v1 179 vs 178, x2 models). Fix = drop IfcCurtainWall from ELEMENTS walls in sitelens/paths/ifc.py
+- 2026-11-14 18:23 · johanseneuson · johanseneuson: PR #54 T41 export: POST /api/export turns any answer into a redlined PDF (numbered rect annotations + comment per mark + note with Q/A/cost/trace), opens in Bluebeam/Acrobat. Needs one 'Download markup' button on the answer card (UI owner)
+- 2026-11-14 18:22 · 2chaynz · T36 PR #53: chat shows live first-person reasoning steps (Thinking block), cross-review PASS
+- 2026-11-14 18:22 · ccolver · T31 PR #52 merged: What changed view, colour-coded diff marks + quantity panel on revised sheets
 - 2026-11-14 18:18 · Asif · T38 PR #51: node scripts/dev.mjs starts the demo on :8000 (venv, dataset, web build, serve; any OS). Dataset download path untested
 - 2026-11-14 18:03 · johanseneuson · johanseneuson: viz ideas for the 25% verify criterion in ideas/johanseneuson-viz.md. Top 4: (1) review mode: step through uncertain marks, tick/cross, count updates, near-miss boxes promotable; (2) proof strip of evidence crops + arithmetic receipt linked to marks; (3) us vs Gemini side by side on one drawing (boxes + cost); (4) export redline as real PDF annotations (Bluebeam)
 - 2026-11-14 18:00 · 2chaynz · T34 PR #49: IFC 3D view (three.js + web-ifc): cited GUIDs glow red, rooms as red volumes, Plan/3D toggle, scan sweep while answering. facts+llm answers cite no GUIDs, so nothing lights up for them
