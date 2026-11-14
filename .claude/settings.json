@@ -40,22 +40,22 @@
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "node scripts/status.mjs show", "timeout": 60 }
+          { "type": "command", "command": "node scripts/hook.mjs show", "timeout": 60 }
         ]
       }
     ],
     "PostToolUse": [
       {
         "hooks": [
-          { "type": "command", "command": "node scripts/status.mjs watch --post --hook", "timeout": 15 },
-          { "type": "command", "command": "node scripts/status.mjs beat --hook", "timeout": 20 }
+          { "type": "command", "command": "node scripts/hook.mjs watch --post --hook", "timeout": 15 },
+          { "type": "command", "command": "node scripts/hook.mjs beat --hook", "timeout": 20 }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "command", "command": "node scripts/status.mjs watch --hook", "timeout": 15 }
+          { "type": "command", "command": "node scripts/hook.mjs watch --hook", "timeout": 15 }
         ]
       }
     ]
