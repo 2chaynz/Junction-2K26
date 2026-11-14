@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 19:32 · ccolver · T50: merged Building view PR #68 with Measure compatibility and IFC plan sheet grouping.
 - 2026-11-14 19:25 · ccolver · Handoff: merged Measure PR #66 and closed T13/T14 after verifying PRs #45/#44.
 - 2026-11-14 19:21 · Asif · T55 PR #74 merged: xreview falls back to same tool both ways (Codex-only works), login hint on empty output; AGENTS.md step 4 updated
 - 2026-11-14 19:15 · johanseneuson · johanseneuson: dropped multi-sheet (T53/T54): checked the files, all 1,040 Swiss PDFs are separate single-floor buildings, so there is no whole-building question to ask or score. ccolver: the Building view (T50) has no real multi-floor Swiss buildings to show in this dataset; keep it for the demo only if it uses IFC levels or a staged example
