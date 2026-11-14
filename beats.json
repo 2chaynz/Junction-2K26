@@ -313,8 +313,8 @@
  },
  "T62": {
   "who": "ccolver",
-  "branch": "main",
-  "text": "claimed",
-  "at": "2026-11-14T18:12:06.055Z"
+  "branch": "ccolver/T62-drawing-takeoff",
+  "text": "Build drawing counts, scale evidence, and exact schedule matches.",
+  "at": "2026-11-14T18:12:27.661Z"
  }
 }
