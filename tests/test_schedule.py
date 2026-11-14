@@ -38,6 +38,8 @@ def test_total_sums_counts():
 def test_types_count_rows():
     a = _rules(P, "How many door types are listed in the schedule?", [TYPES])
     assert a.value == 3, a
+    a = _rules(P, "Number of door types listed in the schedule?", [TYPES])
+    assert a.value == 3, a
 
 
 def test_thousands_and_unreadable():

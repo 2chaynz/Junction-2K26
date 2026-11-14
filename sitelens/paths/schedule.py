@@ -297,7 +297,7 @@ def _rules(path: str, question: str, tables: list[Table]) -> Answer | None:
         if not idx:
             return None   # no matching row: say nothing rather than a confident 0
         # "how many types / marks" counts rows, not the instances in the count column
-        k = None if re.search(r"(?i)how many\s+(\w+\s+)?(types|type marks|kinds)\b", q) else _qty(t)
+        k = None if re.search(r"(?i)(how many|number of)\s+(\w+\s+)?(types|type marks|kinds)\b", q) else _qty(t)
         if k is not None:
             vals = [_int(t.rows[i][k]) for i in idx]
             if None in vals:
