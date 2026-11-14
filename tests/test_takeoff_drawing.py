@@ -73,7 +73,8 @@ class DrawingTakeoff(unittest.TestCase):
                         page.insert_text((100, 380), "LEVEL 01")
                         page.insert_text((110, 405), "101.A")
                         page = doc.new_page()
-                    page.insert_text((100, 80), "DOOR SCHEDULE")
+                    heading = "DOOR SCHEDULE - LEVEL 1" if layout == "same page" else "DOOR SCHEDULE"
+                    page.insert_text((100, 80), heading)
                     for y, row in [(110, ("MARK", "TYPE", "WIDTH", "HEIGHT", "MATL")),
                                    (130, (("900" if layout == "numeric label" else "101.A"), "A1", "900mm", "2100mm", "WOOD")),
                                    (144, ("102.A", "A1", "900mm", "2100mm", "WOOD")),

@@ -124,7 +124,7 @@ NON_PLAN_VIEW = re.compile(
     r"[^\r\n]*\b(?:elev(?:ations?)?|sec(?:tions?)?|details?|legends?|reflected ceiling plans?)\b[^\r\n]*$"
 )
 PLAN_TITLE = re.compile(
-    r"(?im)^[ \t]*(?:[\w-]+[ \t]+){0,5}"
+    r"(?im)^[ \t]*(?![^\r\n]*\bschedules?\b)(?:[\w-]+[ \t]+){0,5}"
     r"(?:floor plans?|level plans?|ground plans?|grundriss|pohjapiirustus|storeys?|stories|story|floors?|levels?|(?:level|floor|storey|story)[ \t]+-?\d+[A-Z]?)"
     r"(?:[ \t]+[\w-]+){0,3}[ \t]*$"
 )
