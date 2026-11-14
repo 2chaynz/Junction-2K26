@@ -11,7 +11,8 @@ from .. import data_root
 from ..answer import Answer, Evidence
 
 QUOTED = re.compile(r"['‘«“„]([^'’»”“]+)['’»”“]")
-AREA_KEY = re.compile(r"(?i)^(?!.*(gross|brutto)).*(netfloorarea|net floor area|netarea|pindala|nettoareal|nettofl.che|^area$)")
+AREA_KEY = re.compile(r"(?i)^(?!.*(gross|brutto)).*(netfloorarea|net floor area|netarea|pindala|nettoareal|nettofl.che)")
+PLAIN_AREA = re.compile(r"(?i)^area$")  # Revit 'Area' can include wall zones: geometry first
 
 
 def model_path(path: str) -> Path | None:
@@ -27,36 +28,41 @@ def spaces(ifc_file: str) -> list[dict]:
     f = ifcopenshell.open(ifc_file)
     out = []
     for s in f.by_type("IfcSpace"):
-        area = None
-        for pset in U.get_psets(s).values():
-            for k, v in pset.items():
-                if area is None and AREA_KEY.search(k):
-                    try:
-                        area = float(str(v).replace(",", "."))
-                    except ValueError:
-                        pass
-        if not area:
-            area = _footprint_area(s)
+        psets = list(U.get_psets(s).values())
+        area = _prop(psets, AREA_KEY) or _footprint_area(s) or _prop(psets, PLAIN_AREA)
         storey = U.get_container(s) or U.get_aggregate(s)
         out.append(dict(name=s.Name or "", long=s.LongName or "", storey=storey.Name if storey else "",
                         area=area, guid=s.GlobalId))
     return out
 
 
+def _prop(psets, key) -> float | None:
+    for pset in psets:
+        for k, v in pset.items():
+            if key.search(k):
+                try:
+                    return float(str(v).replace(",", ".")) or None
+                except ValueError:
+                    pass
+    return None
+
+
 def _footprint_area(space) -> float | None:
-    """Floor area from the space's mesh: sum of downward-facing triangles."""
+    """Floor area from the space's mesh: plan union of downward-facing triangles (overlaps count once)."""
     try:
         import numpy as np
         import ifcopenshell.geom as G
+        from shapely.geometry import Polygon
+        from shapely.ops import unary_union
         st = G.settings()
         st.set("use-world-coords", True)
         g = G.create_shape(st, space).geometry
         v = np.array(g.verts).reshape(-1, 3)
         t = np.array(g.faces).reshape(-1, 3)
         n = np.cross(v[t[:, 1]] - v[t[:, 0]], v[t[:, 2]] - v[t[:, 0]])
-        a = np.linalg.norm(n, axis=1) / 2
         down = n[:, 2] < -0.9 * np.linalg.norm(n, axis=1)
-        return round(float(a[down].sum()), 2) or None
+        tris = [p for p in (Polygon(v[tri, :2]) for tri in t[down]) if p.area > 0]
+        return round(float(unary_union(tris).area), 2) or None
     except Exception:
         return None
 
@@ -83,19 +89,21 @@ def _named_storeys(f, question: str) -> set[str]:
             and any(_mentions(question, label) for label in _storey_labels(s.Name))}
 
 
-ELEMENTS = [  # question keyword (en / da / et / de / fi) → IFC types
-    (r"(?i)\bdoors?\b|døre|\bust\b|türen|ovea", ("IfcDoor", "IfcDoorStandardCase")),
-    (r"(?i)windows?|vinduer|akne|aken|fenster|ikkun", ("IfcWindow", "IfcWindowStandardCase")),
-    (r"(?i)columns?|søjler|sammas|stützen|pilar", ("IfcColumn", "IfcColumnStandardCase")),
-    (r"(?i)stairs?|trapper|trepp|treppen|portai", ("IfcStair",)),
-    (r"(?i)slabs?|dæk|plaat|platten|laatt", ("IfcSlab", "IfcSlabStandardCase")),
-    (r"(?i)walls?|vægge|sein|wände|seini", ("IfcWall", "IfcWallStandardCase", "IfcCurtainWall")),
-    (r"(?i)rooms?|spaces?|\brum\b|ruumi|räume|tilo|huone", ("IfcSpace",)),
+ELEMENTS = [  # question keyword (en / da / et / de / fi / nl) → IFC types
+    (r"(?i)\bdoors?\b|døre|\bust\b|türen|ovea|deuren", ("IfcDoor", "IfcDoorStandardCase")),
+    (r"(?i)windows?|vinduer|akne|aken|fenster|ikkun|ramen", ("IfcWindow", "IfcWindowStandardCase")),
+    (r"(?i)columns?|søjler|sammas|stützen|pilar|kolommen", ("IfcColumn", "IfcColumnStandardCase")),
+    (r"(?i)\bbeams?\b|bjælker|talad|träger|palk|balken", ("IfcBeam", "IfcBeamStandardCase")),
+    (r"(?i)stairs?|trapper|trepp|treppen|portai|trappen", ("IfcStair",)),
+    (r"(?i)slabs?|dæk|plaat|platten|laatt|vloeren", ("IfcSlab", "IfcSlabStandardCase")),
+    # Stoa's key leaves out IfcCurtainWall (clinic 1111 vs key 1080)
+    (r"(?i)walls?|vægge|sein|wände|seini|wanden", ("IfcWall", "IfcWallStandardCase")),
+    (r"(?i)rooms?|spaces?|\brum\b|ruumi|räume|tilo|huone|ruimtes", ("IfcSpace",)),
 ]
 MEASURE = [  # (question pattern, quantity names, kind, unit)
-    (r"(?i)side area|sideareal|külgpind|seitenfläche", ("NetSideArea", "GrossSideArea"), "area", "m2"),
+    (r"(?i)side area|sideareal|külgpind|seitenfläche|zijoppervlakte", ("NetSideArea", "GrossSideArea"), "area", "m2"),
     (r"(?i)volume|volumen|maht|ruumala|tilavuus", ("NetVolume", "GrossVolume"), "volume", "m3"),
-    (r"(?i)length|længde|pikkus|länge|pituus", ("Length",), "length", "m"),
+    (r"(?i)length|længde|pikkus|länge|pituus|lengte", ("Length",), "length", "m"),
 ]
 
 
@@ -149,15 +157,16 @@ def _aggregate(ifc: Path, question: str) -> Answer | None:
     else:
         return None
     whole_model = storey not in {s.Name for s in f.by_type("IfcBuildingStorey")}
-    if whole_model and not re.search(r"(?i)in the model|i modellen|mudelis|im modell", question):
+    if whole_model and not re.search(r"(?i)in the model|i modellen|mudelis|im modell|het model", question):
         return None
-    if re.search(r"(?i)sanitary|sanitær|sanitaar", question):
+    bare = QUOTED.sub(" ", question)  # names like 'Hambakendreef' contain keywords ('aken')
+    if re.search(r"(?i)sanitary|sanitær|sanitaar|sanitair", bare):
         types = ("IfcSanitaryTerminal", "IfcFlowTerminal")
     else:
-        types = next((t for rx, t in ELEMENTS if re.search(rx, question)), None)
+        types = next((t for rx, t in ELEMENTS if re.search(rx, bare)), None)
     if types is None:
         return None
-    if types == ("IfcSpace",) and re.search(r"(?i)area|areal|pind|fläche", question) and not whole_model:
+    if types == ("IfcSpace",) and re.search(r"(?i)area|areal|pind|fläche|oppervlakte", bare) and not whole_model:
         rs = [x for x in spaces(str(ifc)) if x["storey"] == storey and x["area"]]
         if not rs:
             return None
@@ -171,9 +180,9 @@ def _aggregate(ifc: Path, question: str) -> Answer | None:
     rel = str(ifc.relative_to(data_root())).replace("\\", "/")
     ev = [Evidence(file=rel, bbox=[], kind="ifc", ifc_guid=e.GlobalId, label=f"{e.is_a()} {e.Name or ''}".strip())
           for e in els]
-    measure = next((m for m in MEASURE if re.search(m[0], question)), None)
+    measure = next((m for m in MEASURE if re.search(m[0], bare)), None)
     if measure is None:
-        if not re.search(r"(?i)how many|hvor mange|mitu|wie viele|kuinka monta", question):
+        if not re.search(r"(?i)how many|hvor mange|mitu|wie viele|kuinka monta|hoeveel", bare):
             return None
         return Answer(value=len(els), unit="count", method="ifc", confidence=0.85, evidence=ev,
                       trace=[f"{'/'.join(types)} on storey '{storey}': {len(els)}"])
@@ -193,10 +202,10 @@ def answer(path: str, question: str) -> Answer | None:
     ifc = model_path(path)
     if ifc is None:
         return None
-    if re.search(r"(?i)total|samlede|kokku|gesamt|yhteens|how many|hvor mange|mitu|wie viele", question) and \
+    if re.search(r"(?i)total|samlede|kokku|gesamt|yhteens|how many|hvor mange|mitu|wie viele|totale|hoeveel", question) and \
             not re.search(r"(?i)floor area of the room|nettoareal af rummet|netopõrandapind", question):
         a = _aggregate(ifc, question)
-        if a is not None or not re.search(r"(?i)rooms|spaces|rum|ruumi", question):
+        if a is not None or not re.search(r"(?i)rooms|spaces|rum|ruumi|ruimtes", question):
             return a
     if not re.search(r"(?i)area|m²|m2|pind|areal|fl.che|superficie", question):
         return None  # TODO (T4): counts, wall lengths, slab volumes, text questions
