@@ -1,0 +1,7 @@
+.vlm { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dim); padding: 5px 10px; border: 1px solid var(--line); border-radius: var(--r); white-space: nowrap; }
+.vlm .k { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+.vlm .mono { color: var(--ink); }
+.vlm.new { border-color: var(--red); background: var(--red-soft); color: var(--ink); }
+.vlm.new:hover:not(:disabled) { background: rgba(217, 45, 32, 0.14); }
+.vlm.new .go { color: var(--red); font-weight: 600; }
+.vlm .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
