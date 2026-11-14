@@ -64,5 +64,11 @@
   "branch": "ccolver/T10-scores",
   "text": "added --split test (CubiCasa5K test.txt, 387 plans); scoring full dataset test + dev",
   "at": "2026-11-14T12:39:56.494Z"
+ },
+ "T22": {
+  "who": "Asif",
+  "branch": "asif/T20-vlm-backends",
+  "text": "claimed",
+  "at": "2026-11-14T12:59:02.887Z"
  }
 }
