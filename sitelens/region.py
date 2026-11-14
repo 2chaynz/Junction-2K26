@@ -149,7 +149,7 @@ def _vlm(path: str, q: str, m: Mark, words) -> Answer | None:
     from .paths.vlm import _image, _parse
     from .vlm_backends import get
     name = os.environ.get("SITELENS_VLM") or ("gemini" if os.environ.get("GEMINI_API_KEY") else None)
-    if not name:
+    if not name or not path.lower().endswith((".pdf", ".png", ".jpg", ".jpeg")):
         return None
     backend = get(name)
     x0, y0, x1, y1 = m.bbox

@@ -230,11 +230,12 @@ def _ask(path: str, question: str, on_step=None, region: dict | None = None) -> 
 
 def _ask_region(path: str, question: str, region: dict, on_step, t: float) -> dict:
     """A painted mark makes "this" clear: no clarify, no answer key (Stoa's questions are whole-sheet)."""
-    from .region import answer as region_answer
+    from .region import Mark, answer as region_answer
     try:
-        a = region_answer(path, question, region, on_step, view=_view_of(path)).to_dict()
-    except ValueError as e:
-        raise HTTPException(400, str(e))
+        Mark.parse(region)
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, f"bad region: {e}")
+    a = region_answer(path, question, region, on_step, view=_view_of(path)).to_dict()
     a["time_s"], a["view"] = round(time.time() - t, 3), _view_of(path)
     return a
 
