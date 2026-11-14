@@ -99,7 +99,21 @@ network_access = true
 ```
 
 ## Run
-_TBD once medium and stack are chosen: setup, build, flash/deploy, run, test._
+Python 3.11+. Dataset stays outside the repo.
+```
+# once
+python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # (Linux/mac: .venv/bin/pip)
+curl -LO https://fwjydgxpttajiqpfmqtj.supabase.co/storage/v1/object/public/stoa-junction-2026/junction-dataset-preview.zip
+unzip junction-dataset-preview.zip -d ../junction-data/preview
+export STOA_DATA=../junction-data/preview/junction-dataset-preview
+
+# use
+python -m sitelens.router data/ifc_models/bsc-esplanades_1807-ep-ar-v18.ifc "What is the net floor area of the room 'KORIDOR (119)' on '1.korrus', in m²?"
+python -m eval.score                      # dev split, prints accuracy / evidence / €-per-answer
+python -m eval.score --source swiss_dwellings --split all
+bash scripts/check.sh                     # merge gate (PYTHON=.venv/Scripts/python on Windows)
+```
+New solver path: add `sitelens/paths/<name>.py` with `answer(path, question) -> Answer | None` (see `CONTRACT.md`).
 
 ## Commits
 - Format: `type: summary` — types: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`.

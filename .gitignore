@@ -11,3 +11,7 @@ build/
 *.elf
 .DS_Store
 .claude/settings.local.json
+eval/results/
+models/
+*.pt
+runs/
