@@ -119,6 +119,7 @@ def _words(page):
 
 NON_PLAN_VIEW = re.compile(
     r"(?im)^[ \t]*(?![^\r\n]*\b(?:see|refer|consult|verify|check|note)\b)"
+    r"(?![^\r\n]*\b\d+[A-Z]?[ \t]*/[ \t]*[A-Z][A-Z0-9-]*\d\b)"
     r"[^\r\n]*\b(?:elevations?|sections?|details?|legends?|reflected ceiling plans?)\b[^\r\n]*$"
 )
 PLAN_TITLE = re.compile(
@@ -140,12 +141,15 @@ def _pdf_bars(path, page, words):
 
     bars = []
     lines = []
+    divisions = []
     for drawing in page.get_drawings():
         for item in drawing["items"]:
             if item[0] == "l":
                 a, b = (p * page.rotation_matrix for p in item[1:3])
                 if abs(a.y - b.y) < 0.5 and abs(a.x - b.x) >= 15:
                     lines.append((min(a.x, b.x), max(a.x, b.x), a.y))
+                if abs(a.x - b.x) < .5 and 2 <= abs(a.y - b.y) <= 15:
+                    divisions.append((a.x, min(a.y, b.y), max(a.y, b.y)))
             elif item[0] == "re":
                 r = pymupdf.Rect(item[1]) * page.rotation_matrix
                 if r.width >= 15 and 0 < r.height <= 12:
@@ -171,6 +175,9 @@ def _pdf_bars(path, page, words):
                 if not inner or any(
                     not 0 < n < last or abs((tx - a) / (z - a) - n / last) > 0.08 for n, _, tx in inner
                 ):
+                    continue
+                if any(not any(abs(dx - tx) <= h / 2 and low - .5 <= sy <= high + .5
+                               for dx, low, high in divisions) for _, _, tx in inner):
                     continue
                 mpu = last * measure.UNIT_WORD[unit] / (z - a)
                 key = (round(mpu, 7), round(a), round(sy))

@@ -23,6 +23,7 @@ class DrawingTakeoff(unittest.TestCase):
                 for x, label in [(100, "0"), (150, "2"), (200, "4"), (220, "m")]:
                     page.insert_text((x - 2, 300), label, fontsize=8)
                 page.draw_rect(pymupdf.Rect(100, 303, 200, 307))
+                page.draw_line((150, 303), (150, 307))
                 doc.save(folder / "Plan.pdf")
             with pymupdf.open() as doc:
                 doc.new_page()
@@ -139,12 +140,12 @@ class DrawingTakeoff(unittest.TestCase):
                     self.assertEqual(row["evidence"][0]["page"], int(layout == "later page"))
                     self.assertEqual(row["dimension_evidence"][-1]["page"], int(layout == "later schedule"))
 
-    def test_two_endpoint_dimension_line_does_not_calibrate_window_span(self):
+    def test_dimension_line_without_drawn_ticks_does_not_calibrate_span(self):
         with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"STOA_DATA": d, "SITELENS_STORE": d}):
             path = "Plan.pdf"
             with pymupdf.open() as doc:
                 page = doc.new_page()
-                for x, label in [(100, "0"), (200, "4"), (220, "m")]:
+                for x, label in [(100, "0"), (150, "2"), (200, "4"), (220, "m")]:
                     page.insert_text((x - 2, 300), label, fontsize=8)
                 page.draw_line((100, 303), (200, 303))
                 doc.save(Path(d) / path)
@@ -165,6 +166,7 @@ class DrawingTakeoff(unittest.TestCase):
                 plan.insert_text((50, 70), "Scale 1:100")
                 plan.insert_text((50, 90), "Inset: N.T.S.")
                 plan.insert_text((50, 110), "FOR WALL DETAILS SEE A-501")
+                plan.insert_text((50, 130), "WALL SECTION 3/A-501")
                 mixed = doc.new_page()
                 mixed.insert_text((50, 50), "FIRST FLOOR PLAN")
                 mixed.insert_text((400, 50), "EAST ELEVATION")
