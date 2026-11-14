@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 18:56 · ccolver · T50 PR #68: explorer groups drawings by project; Swiss buildings with 2+ floors get a Building view (exploded 3D stack or side by side). Floor order = floor id, unverified. xreview failed (no codex, claude -p empty)
 - 2026-11-14 18:45 · Asif · T48 PR #62 +: watch hook tells agents when their open PR conflicts with main (merge-tree, only when main moves); fix = merge origin/main, no rebase
 - 2026-11-14 18:39 · 2chaynz · T39 PR #63 (stacked on #53): asks back on vague questions (rules + Gemini checker over facts), general Qs skip readers; fixes general-answer ImportError on main. T40 PR #57: IFC floors, 2D plan per floor, toggles, props, flicker fix
 - 2026-11-14 18:37 · Asif · T48 PR #62: agents merge via scripts/merge.sh (PASS review of head commit + green check CI). Needs a human to merge this first one
