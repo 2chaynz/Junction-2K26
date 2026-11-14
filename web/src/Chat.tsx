@@ -200,6 +200,16 @@ function AnswerMsg(props: {
       </>
     );
 
+  if (a.method === "revision") return (
+    <>
+      <p className="demo-answer">{fmtAnswer(a)}</p>
+      <ul>{notes.slice(0, 4).map((line) => <li key={line}>{line}</li>)}</ul>
+      <details><summary>All quantities and method</summary>
+        <ul>{notes.map((line) => <li key={line}>{line}</li>)}</ul>
+      </details>
+    </>
+  );
+
   const c = a.check;
   return (
     <>

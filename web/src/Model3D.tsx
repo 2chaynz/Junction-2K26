@@ -22,7 +22,7 @@ type Props = {
   onFocus: (i: number | null) => void;
   busy: boolean;
   language?: string;
-  demo?: { url: string; overview: boolean; changeIds: ReadonlySet<string>; onReady: (ready: boolean) => void };
+  demo?: { url: string; baseline: string; overview: boolean; removedIds: ReadonlySet<string>; onReady: (ready: boolean) => void };
 };
 
 type Cat = "walls" | "doors" | "windows" | "slabs" | "spaces" | "other";
@@ -159,15 +159,18 @@ function fetchSampleIfc(url: string) {
   return data;
 }
 
-async function load(url: string, root: THREE.Group, alive: () => boolean, sample: boolean): Promise<Model | null> {
+async function load(url: string, root: THREE.Group, alive: () => boolean, sample: boolean, only?: ReadonlySet<string>): Promise<Model | null> {
   const [a, buf] = await Promise.all([ifcApi(), sample ? fetchSampleIfc(url) : readIfc(url)]);
   await new Promise((r) => setTimeout(r, 30)); // let "Loading" paint: streaming blocks the thread
   if (!alive()) return null;
-  const id = a.OpenModel(new Uint8Array(buf), { COORDINATE_TO_ORIGIN: true });
+  const id = a.OpenModel(new Uint8Array(buf), { COORDINATE_TO_ORIGIN: !sample });
   const storeyIds = ids(a.GetLineIDsWithType(id, IFCBUILDINGSTOREY));
   const storeyOf = storeyMap(a, id, new Set(storeyIds));
   const elems = new Map<string, Elem>();
   const onMesh = (fm: FlatMesh) => {
+    const line = a.GetLine(id, fm.expressID);
+    const guid: string | undefined = line?.GlobalId?.value;
+    if (!guid || elems.has(guid) || (only && !only.has(guid))) return;
     const solid: THREE.BufferGeometry[] = [], glass: THREE.BufferGeometry[] = [];
     for (let k = 0; k < fm.geometries.size(); k++) {
       const pg = fm.geometries.get(k);
@@ -177,9 +180,7 @@ async function load(url: string, root: THREE.Group, alive: () => boolean, sample
       if (idx.length) (pg.color.w < 0.99 ? glass : solid).push(toGeometry(v, idx, pg.flatTransformation, pg.color));
       geo.delete();
     }
-    const line = a.GetLine(id, fm.expressID);
-    const guid: string | undefined = line?.GlobalId?.value;
-    if (!guid || elems.has(guid) || !(solid.length || glass.length)) return;
+    if (!(solid.length || glass.length)) return;
     const cat = CAT_OF[line.type] ?? "other";
     const e: Elem = {
       id: fm.expressID, guid, type: line.type, cat, storey: storeyOf.get(fm.expressID) ?? null,
@@ -277,6 +278,8 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
   const [picked, setPicked] = useState<Info | null>(null);
   const modelUrl = demo?.url ?? `/api/ifc?path=${encodeURIComponent(path)}`;
   const onReady = demo?.onReady;
+  const baseline = demo?.baseline;
+  const removedIds = demo?.removedIds;
   const busyRef = useRef(busy);
   busyRef.current = busy;
   const elems = model?.elems ?? null;
@@ -430,7 +433,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
   useEffect(() => {
     const s = three.current!;
     let dead = false;
-    let opened: Model | null = null;
+    const opened: Model[] = [];
     setModel(null);
     setFloor(null);
     setFlat(false);
@@ -443,9 +446,21 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
     load(modelUrl, s.root, () => !dead, !!demo)
       .then(async (m) => {
         if (!m) return;
-        opened = m;
-        if (m.box.isEmpty()) throw new Error("No visible geometry");
         if (dead) return (await ifcApi()).CloseModel(m.id);
+        opened.push(m);
+        if (baseline && removedIds) {
+          const older = await load(baseline, s.root, () => !dead, true, removedIds);
+          if (!older) return;
+          if (dead) return (await ifcApi()).CloseModel(older.id);
+          opened.push(older);
+          for (const element of older.elems.values()) {
+            const storey = older.storeys.find((level) => level.id === element.storey);
+            element.storey = m.storeys.find((level) => level.name === storey?.name)?.id ?? null;
+            element.meshes.forEach((mesh) => { mesh.visible = false; });
+            m.elems.set(element.guid, element);
+          }
+        }
+        if (m.box.isEmpty()) throw new Error("No visible geometry");
         s.root.userData.box = m.box;
         const c = m.box.getCenter(new THREE.Vector3());
         const r = m.box.getBoundingSphere(new THREE.Sphere()).radius;
@@ -464,11 +479,11 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
       .catch((e) => !dead && setStatus(`Could not load the model: ${String(e)}`));
     return () => {
       dead = true;
-      if (opened) ifcApi().then((a) => a.CloseModel(opened!.id));
+      if (opened.length) void ifcApi().then((a) => opened.forEach((m) => a.CloseModel(m.id)));
       for (const m of [...s.root.children] as THREE.Mesh[]) m.geometry.dispose();
       s.root.clear();
     };
-  }, [modelUrl]);
+  }, [modelUrl, baseline, removedIds]);
 
   useEffect(() => {
     const s = three.current;
@@ -553,7 +568,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
     elems.forEach((e) => {
       const onFloor = floor === null || e.storey === floor;
       const isMark = marked.has(e);
-      const shown = onFloor && (isMark || (!off.has(e.cat) && !demo?.changeIds.has(e.guid)));
+      const shown = onFloor && (isMark || (!off.has(e.cat) && !removedIds?.has(e.guid)));
       e.meshes.forEach((m, k) => {
         m.visible = shown;
         if (isMark) {
@@ -570,7 +585,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
         }
       });
     });
-  }, [elems, cited, answer, hover, focus, floor, flat, off, demo?.changeIds]);
+  }, [elems, cited, answer, hover, focus, floor, flat, off, removedIds]);
 
   // Focus from chat → fly to that element (and its floor).
   useEffect(() => {

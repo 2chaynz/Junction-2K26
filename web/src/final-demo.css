@@ -1,4 +1,4 @@
-﻿.app.revision-demo .askview {
+.app.revision-demo .askview {
   grid-template-columns: minmax(0, 1fr) minmax(300px, 36%);
   grid-template-areas: "stage chat";
 }
@@ -33,3 +33,5 @@
     grid-template-areas: "stage" "chat";
   }
 }
+
+.revision-demo a.btn { color: var(--ink); text-decoration: none; }

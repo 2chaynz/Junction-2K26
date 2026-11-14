@@ -4,7 +4,7 @@ import Benchmark from "./Benchmark";
 import Changes, { CHANGE_Q, PAIRS, onNewSheet } from "./Changes";
 import Chat from "./Chat";
 import Explorer from "./Explorer";
-import { demoBase, demoName, demoPath, useRevisionDemo } from "./FinalDemo";
+import { baselinePath, demoName, demoPath, ifcUrl, useRevisionDemo } from "./FinalDemo";
 import { Splitter, usePanels } from "./Splitter";
 import { SOURCE_LABEL, TYPE, floorsOf, fmtSize, pickChips, sheetCode, shortName } from "./format";
 import ProjectMenu from "./ProjectMenu";
@@ -118,7 +118,7 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
   const [tab, setTab] = useState<Tab>("Projects");
   const demoEntered = revisionDemo && tab === "Drawings";
   const demo = useRevisionDemo(revisionDemo, demoEntered, () => setTab("Drawings"));
-  const changedIds = useMemo(() => new Set(demo.changes?.map((row) => row.guid)), [demo.changes]);
+  const removedIds = useMemo(() => new Set(demo.changes?.filter((row) => row.change === "removed").map((row) => row.guid)), [demo.changes]);
   const demoMessage = demo.active === null ? undefined : demo.messages[demo.active];
   const demoAnswer = demoMessage?.kind === "answer" ? demoMessage.answer : null;
   const [drawings, setDrawings] = useState<SheetDrawing[]>([]);
@@ -520,7 +520,7 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
             <h1>Projects</h1>
             <button className="pcard project-entry" disabled={!demo.changes} onClick={() => setTab("Drawings")}>
               <strong>{demoName}</strong>
-              <span className="dim"> Recreated IFC revisions A and B</span>
+              <span className="dim"> Baseline and proposed renovation</span>
             </button>
             {demo.error && <p role="alert">{demo.error}</p>}
           </div> : <Projects projects={projects} overview={overview} recent={recent} current={projKey} onOpen={openProject} />}
@@ -543,10 +543,10 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
         />}
         <main className="stage">
           {demoEntered && <div className="demo-modelbar">
-            <strong>Revision A ? B</strong>
-            <span className="dim">Recreated IFC revisions</span>
+            <strong>Renovation comparison</strong>
+            <span className="dim">BIM-SPEED</span>
             {demoAnswer && <span className="demo-key"><span>Added</span><span>Removed</span></span>}
-            <details><summary>Source files</summary><a href={demoBase + "harbor-A.ifc"} download>Revision A</a>{" ? "}<a href={demoBase + "harbor-B.ifc"} download>Revision B</a></details>
+            <details><summary>Source files</summary><a href={ifcUrl(baselinePath)} download>Baseline</a>{" ? "}<a href={ifcUrl(demoPath)} download>Proposal</a></details>
           </div>}
           {drawing && folder && (
             <SheetBar
@@ -580,7 +580,7 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
                 path={modelPath}
                 answer={demoEntered ? demoAnswer : answer}
                 language={demoEntered ? "en" : projectLanguage(modelPath)}
-                demo={demoEntered ? { url: demoPath, overview: !String(demoAnswer?.value).startsWith("Floor 2"), changeIds: changedIds, onReady: demo.onReady } : undefined}
+                demo={demoEntered ? { url: ifcUrl(demoPath), baseline: ifcUrl(baselinePath), overview: !String(demoAnswer?.value).startsWith("P2"), removedIds, onReady: demo.onReady } : undefined}
                 hover={hover}
                 focus={focus}
                 onHover={setHover}
@@ -664,8 +664,8 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
           active={revisionDemo ? demo.active : active}
           artifact={demo.image ? <details className="demo-artifact" open>
             <summary>Revision takeoff image</summary>
-            <img src={demo.image} alt="Wall changes and gross side areas from the selected revisions" />
-            <a className="btn" href={demo.image} download="harbor-revision-takeoff.png">Download PNG</a>
+            <img src={demo.image} alt="Added and removed elements by type for the selected scope" />
+            <a className="btn" href={demo.image} download="vitoria-renovation-takeoff.png">Download PNG</a>
           </details> : undefined}
           hover={hover}
           focus={focus}

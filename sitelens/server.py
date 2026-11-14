@@ -188,31 +188,47 @@ def ifc(path: str, request: Request):
     return FileResponse(p, stat_result=stat, media_type="application/octet-stream", headers=headers)
 
 
+VITORIA = "data/ifc_models/bimspeed-vitoria_ald26-"
+
+
 @app.get("/api/demo/revisions")
 def demo_revisions():
-    """Compare the bundled practice revisions by IFC element ID."""
+    """Compare element IDs in the Vitoria baseline and renovation proposal."""
     import ifcopenshell
-    from ifcopenshell.util.element import get_container, get_pset
+    from ifcopenshell.util.element import get_container
 
-    directory = WEB.parent / "public" / "demo"
+    try:
+        paths = [_safe(VITORIA + state + ".ifc") for state in ("before", "project")]
+    except (HTTPException, RuntimeError) as error:
+        raise HTTPException(404, "Point STOA_DATA at the full Junction dataset to load Vitoria.") from error
+
     revisions = []
-    for revision in ("A", "B"):
-        model = ifcopenshell.open(directory / f"harbor-{revision}.ifc")
-        walls = {}
-        for wall in model.by_type("IfcWall"):
-            level = get_container(wall)
-            walls[wall.GlobalId] = {
-                "guid": wall.GlobalId,
-                "name": wall.Name,
+    for path in paths:
+        model = ifcopenshell.open(path)
+        elements = {}
+        for element in model.by_type("IfcElement"):
+            if not element.Representation or element.is_a("IfcFeatureElement"):
+                continue
+            level = get_container(element, ifc_class="IfcBuildingStorey")
+            kind = element.is_a()
+            if element.is_a("IfcWall"):
+                kind = "Insulation walls" if "LKS_ETICS" in (element.Name or "") else "Walls"
+            else:
+                kind = {
+                    "IfcFlowSegment": "MEP segments", "IfcFlowFitting": "MEP fittings",
+                    "IfcBuildingElementProxy": "Other modeled components",
+                    "IfcDoor": "Doors", "IfcWindow": "Windows", "IfcRoof": "Roofs",
+                }.get(kind, kind.removeprefix("Ifc"))
+            elements[element.GlobalId] = {
+                "guid": element.GlobalId, "kind": kind, "name": element.Name or kind,
                 "level": level.Name if level else None,
-                "area": get_pset(wall, "Qto_WallBaseQuantities", "GrossSideArea"),
             }
-        revisions.append(walls)
+        revisions.append(elements)
     before, after = revisions
     return [
-        {**wall, "change": change}
+        {**element, "change": change}
         for change, current, other in (("added", after, before), ("removed", before, after))
-        for guid, wall in current.items() if guid not in other
+        for guid, element in current.items() if guid not in other
     ]
 
 
