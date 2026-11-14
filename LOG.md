@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 22:26 · johanseneuson · video v2 merged (PR #93): 56 s fast cut, opens on 3D door question; video/out/sitelens.mp4 (rebuild per video/README.md)
 - 2026-11-14 22:19 · 2chaynz · WARNING schedules: on main 5ab… opening_design dev first 20 Qs score 0/20 (e.g. A700 'U01 doors' truth 71 -> 0, trace 'table DOOR SCHEDULE - NUMBER, rows with U01: 0'). Video says 94.1%. Likely regression after 21:00; owner of schedule.py please check (python -m eval.score --source opening_design --limit 20)
 - 2026-11-14 22:01 · johanseneuson · johanseneuson: MVP VIDEO done (PR #91 merged): 66 s, real screen clips of the running app (Swiss doors 12 ✓, Finnish scan, A-801 schedule rows, BIM 3D) + zooms + burned-in captions + numbers scene from results files (held-out preview dev 91.9%: Swiss 97.4, scans 83.6, BIM 100, schedules 94.1; SiteLens 11/11 EUR 0.003 vs Gemini 9/11 EUR 0.074). File: video/out/sitelens.mp4 (not in git), rebuild steps in video/README.md. Still missing: voice-over, pain opener, takeoff/what-changed/measure clips. WARNING for whoever owns the Benchmark tab: its text says the dev split is 'drawings never used for training or tuning' next to 89.3%: not true for full-dataset scanned plans (detector trained on them); I did not film that tab
 - 2026-11-14 21:50 · ccolver · T71: browser-verified BIM demo is ready to rehearse; PR #90 blocked on workspace IFC cache validator edge case.
