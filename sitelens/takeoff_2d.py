@@ -76,7 +76,7 @@ def _specs(path, page_tables):
     return specs, inspected, limited, failed
 
 
-def _associate(objects, words, specs):
+def _associate(objects, words, specs, repeated_marks=()):
     """Accept only an unambiguous nearby exact tag, never a fuzzy schedule match."""
     out = defaultdict(list)
     candidate_counts = {}
@@ -94,6 +94,8 @@ def _associate(objects, words, specs):
             if not (x0 - gap <= x <= x1 + gap and y0 - gap <= y <= y1 + gap):
                 continue
             marked = specs.get((cat, token, True), [])
+            if marked and token in repeated_marks:
+                continue
             matches = marked + specs.get((cat, token, False), [])
             if matches:
                 matching.append((token, box, matches, bool(marked)))
@@ -269,8 +271,8 @@ def _vector(path):
     return objects
 
 
-def _rows(objects, words, specs, scale, scanned=False):
-    matches = _associate(objects, words, specs)
+def _rows(objects, words, specs, scale, scanned=False, repeated_marks=()):
+    matches = _associate(objects, words, specs, repeated_marks)
     rows = {}
     mpu, scale_text, refs = scale
     for cat, ev, method, geometry in objects:
@@ -436,7 +438,18 @@ def _pdf_scan_words(page, native_text, has_schedule, bounded_schedule):
     labels = [(text, [min(p[0] for p in quad), min(p[1] for p in quad),
                       max(p[0] for p in quad), max(p[1] for p in quad)])
               for quad, text, confidence in result or [] if confidence >= .8]
-    regions, excluded, issue = _scan_metadata(labels, lambda: gray, native_text, has_schedule, bounded_schedule)
+    native_lines = [
+        ("".join(span["text"] for span in line["spans"]),
+         [v * zoom for v in pymupdf.Rect(line["bbox"]) * page.rotation_matrix])
+        for block in page.get_text("dict", flags=pymupdf.TEXTFLAGS_TEXT)["blocks"]
+        for line in block.get("lines", [])
+    ]
+    unique_labels = [(label, box) for label, box in labels if not any(
+        label.strip().casefold() == native.strip().casefold()
+        and not _outside_schedule(box, [native_box]) for native, native_box in native_lines)]
+    regions, excluded, issue = _scan_metadata(
+        unique_labels + native_lines, lambda: gray, has_schedule=has_schedule, bounded_schedule=bounded_schedule
+    )
     native_non_plan = {line.strip().casefold() for line in native_text.splitlines() if NON_PLAN_VIEW.fullmatch(line)}
     recognized = {label.strip().casefold() for label, _ in labels if NON_PLAN_VIEW.fullmatch(label)}
     if native_non_plan - recognized:
@@ -548,8 +561,15 @@ def takeoff(path):
         return schedule
     specs, inspected, limited, failed = _specs(path, page_tables)
     rows = []
+    mark_pages = defaultdict(set)
+    for page, objects, words, _, _, _ in pages:
+        if objects:
+            for token, _ in words:
+                mark_pages[token.upper()].add(page)
+    repeated_marks = {token for token, seen in mark_pages.items() if len(seen) > 1}
     for page, objects, words, bars, ambiguous_view, scanned_pdf in pages:
-        page_rows = _rows(objects, words, specs, _scale(path, page, bars, ambiguous_view, scanned_pdf), measure.is_image(path))
+        page_rows = _rows(objects, words, specs, _scale(path, page, bars, ambiguous_view, scanned_pdf),
+                          measure.is_image(path), repeated_marks)
         if len(pages) > 1:
             for row in page_rows:
                 row["levels"].add(f"Page {page + 1}")
