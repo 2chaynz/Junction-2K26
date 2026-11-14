@@ -356,7 +356,7 @@
  "T70": {
   "who": "Asif",
   "branch": "asif/T70-app-shell",
-  "text": "built locally, waiting on user review before PR",
-  "at": "2026-11-14T19:21:31.538Z"
+  "text": "v2 built locally: 2-row header, sheet bar, overview; awaiting user review, no PR",
+  "at": "2026-11-14T19:26:21.110Z"
  }
 }
