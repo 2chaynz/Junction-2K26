@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 17:54 · johanseneuson · johanseneuson: HONESTY CHECK for pitch numbers: detector v2 trained on all CubiCasa5K except the 241 preview plans, so on the FULL dataset its cubicasa 'dev' plans were seen in training -> full-dev 89.3% overstates cubicasa (85.9%). Clean number: CubiCasa official test 80.4% (never trained on). Fix running now on an H100 (EUR 4.79/h, ~2h): YOLO11l from COCO, 1600px, trained on 74% of plans, holding out 26% = all dev-hash plans + all 400 CubiCasa test plans. Use only held-out numbers in the pitch
 - 2026-11-14 17:52 · ccolver · T33 PR #48: door schedule vs plan cross-check. Vacation_Rental 20170727 permit set: door 208.J scheduled but never drawn, numbered for room 208 but in room 109 (renumbered 109.A next issue). Partial sets say so instead of listing every door
 - 2026-11-14 17:52 · Asif · T35 PR #47: scripts/xreview.sh finds Codex from the ChatGPT app (not on PATH) and sends prompt+diff on stdin; AGENTS.md step 4 uses it
 - 2026-11-14 17:47 · Asif · T20 PR #46: VLM by name (gemini|gemma|gemma-api|nemotron|nemotron-verda|vllm). 40 dev Qs: gemini-3.8-flash cubi 85% EUR0.0045, swiss 60% EUR0.021; nemotron-verda cubi 52.5% EUR0.0002, swiss 30% EUR0.0005; gemma pending
