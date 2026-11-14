@@ -53,7 +53,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T46 Measure: area/length takeoffs, scale + references | app |  | ccolver | done | ccolver/T46-measure |  |  |
 | T47 dev.mjs: no auto-download, print drop folder | setup |  | Asif | done | asif/T47-dev-no-download |  |  |
 | T48 Agents auto-merge PRs after review + CI | setup |  | Asif | done | asif/T48-auto-merge |  |  |
-| T49 Draw on the sheet to ask (highlighter + region Q&A) | app |  | 2chaynz | review | 2chaynz/T49-sketch-ask |  |  |
+| T49 Draw on the sheet to ask (highlighter + region Q&A) | app |  | 2chaynz | done | 2chaynz/T49-sketch-ask |  |  |
 | T50 Projects in explorer + Building view for 2D floors | app | T28 | ccolver | done | ccolver/T50-building-view |  |  |
 | T51 Ignore spread autotune outputs | setup |  | Asif | done | asif/T51-spread-ignore |  |  |
 | T52 Resizable panels: drag the explorer and chat edges | app |  | 2chaynz | done | 2chaynz/T52-resize |  |  |
