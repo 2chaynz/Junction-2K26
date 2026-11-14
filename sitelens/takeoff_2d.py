@@ -14,6 +14,7 @@ CATS = {"door": "Doors", "window": "Windows", "toilet": "Toilets", "sink": "Sink
         "basin": "Basins", "tub": "Bathtubs", "bathtub": "Bathtubs", "shower": "Showers"}
 TAG = re.compile(r"[A-Z0-9]+(?:[./-][A-Z0-9]+)*$")
 MAX_SHEETS = 30
+MAX_PAGES = 12
 
 
 def cell(row, col):
@@ -21,7 +22,7 @@ def cell(row, col):
 
 
 def _specs(path, page_tables):
-    from .paths.schedule import extract
+    import pymupdf
 
     root = data_root().resolve()
     folder = measure.project_dir(path)
@@ -32,11 +33,18 @@ def _specs(path, page_tables):
     specs = defaultdict(list)
     inspected = 0
     failed = 0
+    limited = len(candidates) > MAX_SHEETS
     for other in candidates[:MAX_SHEETS]:
         if not other.lower().endswith(".pdf"):
             continue
         try:
-            tables = page_tables if other == path else [(0, t) for t in extract(other)]
+            if other == path:
+                tables = page_tables
+            else:
+                with pymupdf.open(root / other) as doc:
+                    tables = [(page.number, table) for page in doc.pages(0, min(len(doc), MAX_PAGES))
+                              for table in _page_schedules(page)]
+                    limited |= len(doc) > MAX_PAGES
         except (RuntimeError, ValueError, OSError):
             failed += 1
             continue
@@ -62,7 +70,7 @@ def _specs(path, page_tables):
                     if TAG.fullmatch(key) and (is_mark or re.search(r"\d", key)):
                         specs[cat, key, is_mark].append((type_name, size, fields,
                             Evidence(other, box, page=page, label=f"{t.title}: {' | '.join(row)}", kind="text")))
-    return specs, inspected, len(candidates) > MAX_SHEETS, failed
+    return specs, inspected, limited, failed
 
 
 def _associate(objects, words, specs):
@@ -300,6 +308,23 @@ def _rows(objects, words, specs, scale, scanned=False):
     return list(rows.values())
 
 
+def _page_schedules(page, words=None):
+    import pymupdf
+
+    from .paths.schedule import extract_words
+
+    tables = extract_words([word[:5] for word in page.get_text("words")])
+    if tables:
+        for table in tables:
+            table.boxes = [list(pymupdf.Rect(box) * page.rotation_matrix) for box in table.boxes]
+        return tables
+    if page.rotation in (90, 180, 270):
+        if words is None:
+            words = _words(page)
+        return extract_words([(*box, token) for token, box in words])
+    return []
+
+
 def _outside_schedule(box, regions):
     x, y = measure._centre(box)
     return not any(x0 <= x <= x1 and y0 <= y <= y1 for x0, y0, x1, y1 in regions)
@@ -312,13 +337,11 @@ def _sheet(path, root, mtime, weights_mtime):
         return [(0, _detected(path), [(t, list(b)) for t, c, b in measure._ocr(path) if c >= .8], bars)], False, []
     import pymupdf
 
-    from .paths.schedule import extract_words
-
     pages, page_tables = [], []
     with pymupdf.open(data_root() / path) as doc:
         for page in doc:
             words = _words(page)
-            tables = extract_words([(x0, y0, x1, y1, token) for token, (x0, y0, x1, y1) in words])
+            tables = _page_schedules(page, words)
             page_tables.extend((page.number, t) for t in tables)
             regions = [measure._union(t.boxes) for t in tables if t.boxes]
             words = [(token, box) for token, box in words if _outside_schedule(box, regions)]
@@ -326,7 +349,7 @@ def _sheet(path, root, mtime, weights_mtime):
             objects = (_vector(path) if page.number == 0 else []) or _detected(path, page)
             objects = [obj for obj in objects if _outside_schedule(obj[1].bbox, regions)]
             pages.append((page.number, objects, words, bars))
-            if len(pages) == 12:
+            if len(pages) == MAX_PAGES:
                 break
         return pages, len(doc) > len(pages), page_tables
 
@@ -344,7 +367,7 @@ def takeoff(path):
         if schedule:
             schedule["notes"].append("No placements were identified outside the schedule table.")
             if truncated:
-                schedule["notes"].append("Only the first 12 PDF pages were reviewed.")
+                schedule["notes"].append(f"Only the first {MAX_PAGES} PDF pages were reviewed.")
             return schedule
     specs, inspected, limited, failed = _specs(path, page_tables)
     rows = []
@@ -356,7 +379,7 @@ def takeoff(path):
         rows.extend(page_rows)
     notes = [
         "Counts cover recognized objects on this drawing only. Missing categories and undetected objects are unknown.",
-        f"Checked schedules in {inspected} PDF drawing(s), including later pages of the selected drawing. Exact tags can supply dimensions and specifications; "
+        f"Checked schedules in {inspected} PDF drawing(s). Exact tags can supply dimensions and specifications; "
         "other sheets never add to this drawing's counts.",
         "Wall counts are rectangular DXF segments, where available. Column, beam, slab and full wall quantities "
         "cannot be inferred from symbol detections.",
@@ -366,6 +389,6 @@ def takeoff(path):
     if not rows:
         notes.append("No supported geometry or reliable symbols found. This does not establish a count of zero.")
     if truncated or limited or failed:
-        notes.append(f"Review limited to 12 pages of the selected drawing and {MAX_SHEETS} candidate sheets; "
+        notes.append(f"Review limited to {MAX_PAGES} pages per PDF and {MAX_SHEETS} candidate drawings; "
                      f"{failed} PDF drawing(s) could not be read.")
     return {"source": "drawing", "rows": rows, "notes": notes}

@@ -25,7 +25,9 @@ class DrawingTakeoff(unittest.TestCase):
                 page.draw_rect(pymupdf.Rect(100, 303, 200, 307))
                 doc.save(folder / "Plan.pdf")
             with pymupdf.open() as doc:
+                doc.new_page()
                 page = doc.new_page()
+                page.set_rotation(90)
                 page.insert_text((100, 80), "DOOR SCHEDULE")
                 for y, row in [(110, ("MARK", "TYPE", "WIDTH", "HEIGHT", "MATL")),
                                (130, ("101.A", "A1", "900mm", "2100mm", "WOOD")),
@@ -47,14 +49,20 @@ class DrawingTakeoff(unittest.TestCase):
             self.assertEqual(door["type"], "A1")
             self.assertIn("900mm", door["size"])
             self.assertEqual(door["specifications"], ["MATL: WOOD"])
-            self.assertEqual(door["dimension_evidence"][-1]["file"], schedule)
+            citation = door["dimension_evidence"][-1]
+            self.assertEqual(citation["file"], schedule)
+            self.assertEqual(citation["page"], 1)
+            with pymupdf.open(folder / "Schedule.pdf") as doc:
+                x0, y0, x1, y1 = citation["bbox"]
+                tag = doc[1].search_for("101.A")[0] * doc[1].rotation_matrix
+                self.assertTrue(pymupdf.Rect(x0, y0, x1, y1).contains(tag))
             self.assertIn("1.2 m plan span", window["size"])
             self.assertIn("4 m over 100.00 PDF points", window["dimension_evidence"][-1]["label"])
             self.assertEqual(unknown["size"], "")
             self.assertIn("Dimensions could not be inferred.", unknown["reason"])
 
     def test_schedule_does_not_replace_same_or_later_page_counts(self):
-        for layout in ("schedule only", "same page", "later page", "later schedule"):
+        for layout in ("schedule only", "same page", "later page", "later schedule", "rotated"):
             with self.subTest(layout=layout), tempfile.TemporaryDirectory() as d:
                 path = "Mixed.pdf"
                 with pymupdf.open() as doc:
@@ -69,11 +77,13 @@ class DrawingTakeoff(unittest.TestCase):
                                    (158, ("103.A", "B2", "1200mm", "2200mm"))]:
                         for x, label in zip((100, 165, 230, 305), row):
                             page.insert_text((x, y), label, fontsize=8)
+                    if layout == "rotated":
+                        page.set_rotation(270)
                     if layout == "later page":
                         page = doc.new_page()
                     if layout in ("same page", "later page"):
                         page.insert_text((110, 405), "101.A")
-                    if layout == "schedule only":
+                    if layout in ("schedule only", "rotated"):
                         for x, label in [(100, "0"), (150, "2"), (200, "4"), (220, "m")]:
                             page.insert_text((x - 2, 300), label, fontsize=8)
                         page.draw_rect(pymupdf.Rect(100, 303, 200, 307))
@@ -87,13 +97,13 @@ class DrawingTakeoff(unittest.TestCase):
                         layout == "later page" and page.number == 1
                     ):
                         boxes.append([102, 390, 145, 414])
-                    return [("Doors", Evidence(path, box, page=page.number), "Detected symbol", None)
-                            for box in boxes]
+                    return [("Doors", Evidence(path, list(pymupdf.Rect(box) * page.rotation_matrix),
+                                               page=page.number), "Detected symbol", None) for box in boxes]
 
                 with patch.dict(os.environ, {"STOA_DATA": d, "SITELENS_STORE": d}), \
                      patch.object(takeoff_2d, "_detected", side_effect=detected):
                     result = takeoff.takeoff(path)
-                if layout == "schedule only":
+                if layout in ("schedule only", "rotated"):
                     self.assertEqual(result["source"], "schedule")
                     self.assertEqual(sum(r["count"] for r in result["rows"]), 3)
                 else:
