@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 18:31 · 2chaynz · T29 PR #59: newest-VLM check. CLI python -m sitelens.vlm_backends --upgrade (saves .env), GET/POST /api/vlm, top-bar VLM chip turns into Update button
 - 2026-11-14 18:27 · ccolver · found: IFC path counts IfcCurtainWall as walls; Stoa key excludes them (clinic 1111 vs key 1080, digitalhub v1 179 vs 178, x2 models). Fix = drop IfcCurtainWall from ELEMENTS walls in sitelens/paths/ifc.py
 - 2026-11-14 18:23 · johanseneuson · johanseneuson: PR #54 T41 export: POST /api/export turns any answer into a redlined PDF (numbered rect annotations + comment per mark + note with Q/A/cost/trace), opens in Bluebeam/Acrobat. Needs one 'Download markup' button on the answer card (UI owner)
 - 2026-11-14 18:22 · 2chaynz · T36 PR #53: chat shows live first-person reasoning steps (Thinking block), cross-review PASS
