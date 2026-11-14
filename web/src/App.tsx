@@ -527,7 +527,7 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
         </main>
       )}
 
-      <div className="askview" hidden={tab !== "Drawings"} {...panels.props}>
+      <div className="askview" hidden={tab !== "Drawings"} {...(revisionDemo ? {} : panels.props)}>
         {!revisionDemo && <Explorer
           ref={search}
           drawings={drawings}

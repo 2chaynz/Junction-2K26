@@ -86,7 +86,7 @@ export function useRevisionDemo(enabled: boolean, entered: boolean, onOpen: () =
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [active, setActive] = useState<number | null>(null);
-  const [image, setImage] = useState("");
+  const [images, setImages] = useState<Record<number, string>>({});
   const automatic = useRef(true);
   const open = useRef(onOpen);
   open.current = onOpen;
@@ -122,7 +122,10 @@ export function useRevisionDemo(enabled: boolean, entered: boolean, onOpen: () =
     const answer = revisionAnswer(rows, scope);
     const recognized = wantsTakeoff || /chang|revision|compar/.test(q);
     setDraft("");
-    if (wantsTakeoff) setImage(takeoffImage(rows, scope));
+    if (wantsTakeoff) {
+      const image = takeoffImage(rows, scope);
+      setImages((previous) => ({ ...previous, [messages.length + 1]: image }));
+    }
     if (recognized) setActive(messages.length + 1);
     setMessages([...messages, { kind: "user", path: demoPath, text: question }, recognized
       ? { kind: "answer", path: demoPath, question, answer, steps: [] }
@@ -149,7 +152,7 @@ export function useRevisionDemo(enabled: boolean, entered: boolean, onOpen: () =
   }, [enabled, entered, ready, changes, step]);
 
   return {
-    changes, messages, draft, active, image, error,
+    changes, messages, draft, active, image: active === null ? "" : images[active] ?? "", error,
     onReady: setReady,
     activate: setActive,
     type(s: string) { automatic.current = false; setDraft(s); },
