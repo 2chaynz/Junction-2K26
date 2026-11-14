@@ -118,9 +118,9 @@ def _sinks(path: str) -> Answer:
                   evidence=ev, trace=[f"{len(sinks)} sinks detected", f"+{len(extra)} kitchens without a detected sink"])
 
 
-# room class → (OCR label kind, rule). Chosen per class on the `rest` split (T19): OCR beats boxes on balconies
-# 85/56% and WC rooms 64/60%; max(OCR, boxes) lifts bedrooms 87→89%. Kitchens/baths/saunas: boxes win, OCR unused.
-OCR_RULES = {"room_outdoor": ("balcony", "ocr"), "room_wc": ("wc", "ocr"), "room_bedroom": ("bedroom", "max")}
+# room class → (OCR label kind, rule). Chosen per class on the `rest` split with v2 weights (T19): OCR beats boxes
+# only on balconies (85 vs 71%). WC rooms (64 vs 94%), bedrooms (max = boxes, 90%), kitchens/baths/saunas: boxes win.
+OCR_RULES = {"room_outdoor": ("balcony", "ocr")}
 
 
 def _ocr_labels(path: str, kind: str) -> list | None:
