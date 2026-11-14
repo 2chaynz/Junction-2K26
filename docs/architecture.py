@@ -1,6 +1,6 @@
 # Regenerates the SiteLens architecture figure: python3 docs/architecture.py docs/architecture.svg out.html
 import sys
-W, H = 1640, 1085
+W, H = 1640, 1290
 INK = "#1f1f24"; GREY = "#6b6b75"; LIGHT = "#f2f2f4"
 C = {  # path colours: (front, top, side)
     "ifc":   ("#7b6cf0", "#a79df7", "#5a4bd1"),
@@ -95,8 +95,8 @@ def thumb_vlm(x, y):
 rows = [  # key, y-center, row label, reader, reader sub, tool, tool sub, cost, measured
     ("ifc", 160, "BIM", "ifcopenshell", "spaces · walls · slabs", "IFC query", "psets, sums per storey", "€0", "room areas 782/804"),
     ("vec", 380, "Vector", "PyMuPDF + ezdxf", "words · polylines · layers", "Geometry rules", "shape → class, room → unit", "€0", "Swiss 96.4% of 2,358 Qs"),
-    ("det", 600, "Raster", "YOLO detector", "fine-tuned + OCR labels", "Count boxes", "class filter per question", "≈ €0.0001", "T5 / T6 training"),
-    ("vlm", 820, "Fallback", "Crop renderer", "region of interest only", "Small VLM", "Gemma / Gemini on crop", "≈ €0.001", "T7 + frontier baseline"),
+    ("det", 600, "Raster", "YOLO detector", "fine-tuned + OCR, on CPU", "Count boxes", "class filter per question", "€0 local", "open weights · T5/T6"),
+    ("vlm", 820, "Fallback", "Crop renderer", "cuts out only the region", "Small open VLM", "Qwen3-VL-2B / Gemma", "€0 local", "open weights · T7"),
 ]
 X_IN, X_RD, X_TOK, X_RT, X_TL, X_EV, X_ANS, X_OUT = 40, 250, 470, 590, 720, 990, 1110, 1430
 
@@ -131,7 +131,11 @@ text(X_TOK + 20, 92, "Index", 22)
 # router (tall, like 'Student')
 box(X_RT, 105, 90, 780, "", bold=True)
 text(X_RT + 38, 495, "Router", 34, rot=-90)
-text(X_RT + 72, 495, "cheapest first", 16, color=GREY, it=True, rot=-90)
+text(X_RT + 72, 495, "plain code · no model · €0", 16, color=GREY, it=True, rot=-90)
+text(X_RT - 16, 118, "①", 22, color=GREY)
+text(X_RT + 45, 935, "②", 22, color=GREY)
+text(X_RD - 14, rows[3][1] - 46, "③", 22, color=GREY)
+text(X_TL - 14, rows[3][1] - 46, "④", 22, color=GREY)
 # fallthrough arrows inside router gap: None -> next
 for i in range(3):
     y1 = rows[i][1] + 30; y2 = rows[i + 1][1] - 30
@@ -151,22 +155,22 @@ for i, (k, v) in enumerate((("value", "15.9"), ("unit", "m²"), ("evidence", "[f
 for k, yc, *_ in rows:
     tx = X_EV + 74
     path(f"M{tx},{yc} C{tx+20},{yc} {X_ANS-30},{ay+ah/2} {X_ANS-4},{ay+ah/2}")
-text(X_ANS + 125, ay - 18, "first path that answers", 15, color=GREY, it=True)
+text(X_ANS + 125, ay - 18, "first path that answers wins", 15, color=GREY, it=True)
 
 # outputs (dashed like loss boxes)
 box(X_OUT, 170, 180, 200, "", dash=True, fill="#fafafa")
 text(X_OUT + 90, 210, "Demo UI", 24)
 for i, s in enumerate(("boxes on the plan", "step-by-step trace", "€ per answer")):
     text(X_OUT + 90, 250 + i * 32, s, 16, color=GREY)
-box(X_OUT, 520, 180, 230, "", dash=True, fill="#fafafa")
-text(X_OUT + 90, 560, "Scorer", 24)
-for i, s in enumerate(("vs. answer key", "count: exact", "area/len/vol: ±2%", "dev split only", "vs. Gemini full sheet")):
-    text(X_OUT + 90, 598 + i * 30, s, 16, color=GREY)
+box(X_OUT, 505, 180, 280, "", dash=True, fill="#fafafa")
+text(X_OUT + 90, 545, "Scorer", 24)
+for i, s in enumerate(("vs. answer key", "count: exact", "area/len/vol: ±2%", "dev split only", "baseline: Gemini API", "on full sheet (paid,", "comparison only)")):
+    text(X_OUT + 90, 580 + i * 29, s, 16, color=GREY)
 path(f"M{X_ANS+250},{ay+120} H{X_OUT-40} V270 H{X_OUT-4}", dash=True, color=GREY)
 path(f"M{X_ANS+250},{ay+300} H{X_OUT-40} V635 H{X_OUT-4}", dash=True, color=GREY)
 # answer key into scorer
 box(X_OUT, 820, 180, 70, "questions.jsonl", "7,990 Qs · Stoa key", fs=19)
-arrow(X_OUT + 90, 820, X_OUT + 90, 754, dash=True, color=GREY)
+arrow(X_OUT + 90, 820, X_OUT + 90, 790, dash=True, color=GREY)
 
 # training loop (dashed region, like Sinkhorn block)
 ty = 1000
@@ -175,7 +179,7 @@ box(X_RD, ty - 34, 200, 64, "CubiCasa5K labels", "≈ 5k Finnish plans, SVG", fs
 arrow(X_RD + 200, ty - 4, X_RD + 250, ty - 4)
 box(X_RD + 255, ty - 34, 200, 64, "exclude Stoa plans", "no test leakage", fs=18)
 arrow(X_RD + 455, ty - 4, X_RD + 505, ty - 4)
-box(X_RD + 510, ty - 34, 230, 64, "YOLO fine-tune", "Verda A100 · ≈ 1–2 h", fs=18)
+box(X_RD + 510, ty - 34, 230, 64, "YOLO fine-tune", "Verda A100 · ≈ €4 of €200 credit", fs=18)
 # weights up to detector
 wx = X_RD + 625
 path(f"M{wx},{ty+30} V{ty+62} H{X_RD-28} V{rows[2][1]+92} H{X_RD+90} V{rows[2][1]+46}", dash=True, color=GREY)
@@ -187,6 +191,22 @@ cube(lx, ly - 18, "ans", s=20); text(lx + 34, ly, "value", 17, anchor="start")
 cube(lx + 110, ly - 18, "det", s=20); text(lx + 144, ly, "evidence (bbox / guid)", 17, anchor="start")
 a(f'<line x1="{lx+340}" y1="{ly-6}" x2="{lx+390}" y2="{ly-6}" stroke="{GREY}" stroke-width="3" stroke-dasharray="8 6"/>')
 text(lx + 400, ly, "offline / evaluation", 17, anchor="start")
+
+# notes panel
+NY = 1110
+notes = [
+    ("① Router", ["Plain code, not a model.", "Calls the paths in order;", "the first that answers wins.", "Costs nothing."]),
+    ("② Cheapest first", ["Free, exact readers (BIM, vector)", "run before any model. A model", "only runs when they can't answer.", "Cost = 25% of Stoa's score."]),
+    ("③ Crop renderer", ["Sends only a small region", "(title block, one room) to the VLM,", "not the whole sheet: faster,", "cheaper, and more accurate."]),
+    ("④ €0 per answer", ["Detector and VLM are open weights", "running locally. Gemini is only the", "paid comparison baseline. Only paid", "step: detector training (credit)."]),
+]
+nw, gap = 380, 13
+for i, (head, lines) in enumerate(notes):
+    nx = 40 + i * (nw + gap)
+    a(f'<rect x="{nx}" y="{NY}" width="{nw}" height="160" rx="10" fill="#f6f6f8" stroke="{GREY}" stroke-width="2"/>')
+    text(nx + 18, NY + 34, head, 21, anchor="start", weight="bold")
+    for j, ln in enumerate(lines):
+        text(nx + 18, NY + 66 + j * 26, ln, 17, anchor="start", color="#3a3a42")
 
 a('</svg>')
 svg = "\n".join(out)
