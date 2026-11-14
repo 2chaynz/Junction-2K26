@@ -10,6 +10,7 @@ type Props = {
   focus: number | null;
   onHover: (i: number | null) => void;
   onFocus: (i: number | null) => void;
+  onSize?: (w: number, h: number) => void;
   busy: boolean;
 };
 
@@ -46,7 +47,7 @@ function penLoop(b: Box, minR: number): string {
   return "M" + pts.join(" L");
 }
 
-export default function Viewer({ view, answer, hover, focus, onHover, onFocus, busy }: Props) {
+export default function Viewer({ view, answer, hover, focus, onHover, onFocus, onSize, busy }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [t, setT] = useState<T>({ s: 1, x: 0, y: 0 });
@@ -142,6 +143,7 @@ export default function Viewer({ view, answer, hover, focus, onHover, onFocus, b
           onLoad={(e) => {
             const im = e.currentTarget;
             setSize({ w: im.naturalWidth / scale, h: im.naturalHeight / scale });
+            onSize?.(im.naturalWidth / scale, im.naturalHeight / scale);
           }}
           style={{ width: size?.w, height: size?.h }}
           alt=""
