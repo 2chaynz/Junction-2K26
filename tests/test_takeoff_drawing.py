@@ -88,6 +88,7 @@ class DrawingTakeoff(unittest.TestCase):
                         page.insert_text((100, 380), "FIRST STOREY" if layout == "same page" else "LEVEL 01")
                     if layout == "framed plan":
                         page.draw_rect(pymupdf.Rect(90, 350, 480, 500))
+                        page.insert_text((75, 399), "102.A", fontsize=5)
                     if layout in ("same page", "framed plan", "later page", "numeric label"):
                         page.insert_text((110, 405), "900" if layout == "numeric label" else "101.A")
                     if layout in ("schedule only", "rotated"):

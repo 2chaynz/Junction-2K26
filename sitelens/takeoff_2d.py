@@ -544,6 +544,8 @@ def _sheet(path, root, mtime, weights_mtime):
                     if plan_frames:
                         objects = [obj for obj in objects if any(
                             pymupdf.Rect(frame).contains(pymupdf.Rect(obj[1].bbox)) for frame in plan_frames)]
+                        words = [(token, box) for token, box in words if any(
+                            pymupdf.Rect(frame).contains(pymupdf.Rect(box)) for frame in plan_frames)]
             objects = [obj for obj in objects if _outside_schedule(obj[1].bbox, regions)]
             scale_issue = (UNKNOWN_VIEW_SCALE
                            if NOT_TO_SCALE.search(text) else
