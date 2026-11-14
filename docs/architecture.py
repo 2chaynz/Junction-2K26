@@ -56,6 +56,10 @@ def text(x, y, s, fs=18, anchor="middle", color=INK, it=False, rot=None, weight=
     tr = f' transform="rotate({rot} {x} {y})"' if rot else ""
     a(f'<text x="{x}" y="{y}" font-size="{fs}" text-anchor="{anchor}" fill="{color}"{st}{wt}{tr}>{s}</text>')
 
+def mark(x, y, n, r=13, fs=17):
+    a(f'<circle cx="{x}" cy="{y}" r="{r}" fill="white" stroke="{GREY}" stroke-width="2"/>')
+    a(f'<text x="{x}" y="{y}" font-size="{fs}" text-anchor="middle" dominant-baseline="central" fill="{GREY}" font-weight="bold">{n}</text>')
+
 # ---- thumbnails (input drawings) ----
 def thumb_ifc(x, y):
     # isometric building
@@ -132,10 +136,10 @@ text(X_TOK + 20, 92, "Index", 22)
 box(X_RT, 105, 90, 780, "", bold=True)
 text(X_RT + 38, 495, "Router", 34, rot=-90)
 text(X_RT + 72, 495, "plain code · no model · €0", 16, color=GREY, it=True, rot=-90)
-text(X_RT - 16, 118, "①", 22, color=GREY)
-text(X_RT + 45, 935, "②", 22, color=GREY)
-text(X_RD - 14, rows[3][1] - 46, "③", 22, color=GREY)
-text(X_TL - 14, rows[3][1] - 46, "④", 22, color=GREY)
+mark(X_RT - 18, 112, 1)
+mark(X_RT + 45, 930, 2)
+mark(X_RD - 14, rows[3][1] - 52, 3)
+mark(X_TL - 14, rows[3][1] - 52, 4)
 # fallthrough arrows inside router gap: None -> next
 for i in range(3):
     y1 = rows[i][1] + 30; y2 = rows[i + 1][1] - 30
@@ -195,16 +199,17 @@ text(lx + 400, ly, "offline / evaluation", 17, anchor="start")
 # notes panel
 NY = 1110
 notes = [
-    ("① Router", ["Plain code, not a model.", "Calls the paths in order;", "the first that answers wins.", "Costs nothing."]),
-    ("② Cheapest first", ["Free, exact readers (BIM, vector)", "run before any model. A model", "only runs when they can't answer.", "Cost = 25% of Stoa's score."]),
-    ("③ Crop renderer", ["Sends only a small region", "(title block, one room) to the VLM,", "not the whole sheet: faster,", "cheaper, and more accurate."]),
-    ("④ €0 per answer", ["Detector and VLM are open weights", "running locally. Gemini is only the", "paid comparison baseline. Only paid", "step: detector training (credit)."]),
+    ("1  Router", ["Plain code, not a model.", "Calls the paths in order;", "the first that answers wins.", "Costs nothing."]),
+    ("2  Cheapest first", ["Free, exact readers (BIM, vector)", "run before any model. A model", "only runs when they can't answer.", "Cost = 25% of Stoa's score."]),
+    ("3  Crop renderer", ["Sends only a small region", "(title block, one room) to the VLM,", "not the whole sheet: faster,", "cheaper, and more accurate."]),
+    ("4  €0 per answer", ["Detector and VLM are open weights", "running locally. Gemini is only the", "paid comparison baseline. Only paid", "step: detector training (credit)."]),
 ]
 nw, gap = 380, 13
 for i, (head, lines) in enumerate(notes):
     nx = 40 + i * (nw + gap)
     a(f'<rect x="{nx}" y="{NY}" width="{nw}" height="160" rx="10" fill="#f6f6f8" stroke="{GREY}" stroke-width="2"/>')
-    text(nx + 18, NY + 34, head, 21, anchor="start", weight="bold")
+    mark(nx + 30, NY + 28, head[0])
+    text(nx + 52, NY + 35, head[3:], 21, anchor="start", weight="bold")
     for j, ln in enumerate(lines):
         text(nx + 18, NY + 66 + j * 26, ln, 17, anchor="start", color="#3a3a42")
 
