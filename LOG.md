@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 02:59 · johanseneuson · johanseneuson: measured (no model): IFC room areas 782/804 from psets; swiss DOOR arcs != door count (74/265), so DXF counts need real detection; cubicasa raster = 53% of Qs. Literature + 5 ideas incl. RL-trained Gemma 4 with tools (ideas/johanseneuson.md)
 - 2026-11-14 02:09 · 2chaynz · dataset profiled (context/dataset.md): 7990 quantity-takeoff Qs with answers; 76% counts, 20% areas; no photos, no standards questions
 - 2026-11-14 00:35 · ccolver · ccolver: add 3D-printed scale model + printed drawings as live demo for photo->drawing matching (ideas/ccolver.md)
 - 2026-11-14 00:33 · ccolver · ccolver: Stoa feedback: they already detect design changes; gap = quantities of quick 2D-only changes. Open Q: 3D quantities from 2D drawings without manual takeoff (ideas/ccolver.md)
