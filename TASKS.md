@@ -32,4 +32,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T25 DrawingVQA: whole-sheet VLM vs our crop pipeline | eval | T13,T20 |  | todo |  |  |  |
 | T26 Hooks run status.mjs from origin/main | setup | T22 | Asif | review | asif/T26-hooks-from-main |  |  |
 | T27 Spread bot: top 10 at level 8 (Bahn side challenge) | spread |  | Asif | done | asif/spread-bot |  |  |
-| T28 UI v3: explorer sidebar, sheet info, How it works + Benchmark | app | T21 | 2chaynz | doing | 2chaynz/T28-ui-explorer |  |  |
+| T28 UI v3: explorer sidebar, sheet info, How it works + Benchmark | app | T21 | 2chaynz | review | 2chaynz/T28-ui-explorer |  |  |
