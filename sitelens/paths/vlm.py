@@ -101,7 +101,8 @@ def _parse(text: str):
     if isinstance(v, str):
         n = re.search(r"-?\d+(?:[.,]\d+)?", v)
         v = float(n.group(0).replace(",", ".")) if n and len(v) < 20 else v
-    boxes = [b for b in d.get("boxes") or [] if isinstance(b, list) and len(b) == 4]
+    boxes = [b for b in d.get("boxes") or [] if isinstance(b, list) and len(b) == 4
+             and all(isinstance(x, (int, float)) for x in b)]
     return v, boxes
 
 
