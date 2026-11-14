@@ -92,3 +92,8 @@
   .page.projects { padding: 20px 16px 48px; }
   .psearch { width: 100%; }
 }
+
+/* BIM cards: the model turning (pre-rendered clay turntable). Fills the card; no paper padding or blend. */
+.pthumb video.pspin, .pthumb img.pspin, .pmini img.pspin {
+  width: 100%; height: 100%; object-fit: cover; padding: 0; mix-blend-mode: normal; background: var(--canvas); display: block;
+}
