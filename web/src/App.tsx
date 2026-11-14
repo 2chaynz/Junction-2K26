@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { ask, getDrawings, surprise } from "./api";
 import Benchmark from "./Benchmark";
 import Chat from "./Chat";
@@ -7,6 +7,9 @@ import { DEMO, SOURCE_LABEL, TYPE, fmtSize, pickChips, sheetCode, shortName } fr
 import HowItWorks from "./HowItWorks";
 import type { Drawing, Msg } from "./types";
 import Viewer from "./Viewer";
+
+// three.js + web-ifc are ~4 MB: only fetch them when a model is opened in 3D.
+const Model3D = lazy(() => import("./Model3D"));
 
 const TABS = ["Ask", "How it works", "Benchmark"] as const;
 type Tab = (typeof TABS)[number];
@@ -61,6 +64,7 @@ export default function App() {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
   const [size, setSize] = useState<[number, number] | null>(null);
+  const [mode, setMode] = useState<"plan" | "3d">("plan");
   const search = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -129,7 +133,10 @@ export default function App() {
       const i = m.findIndex((x) => x.kind === "pending");
       const out = [...m];
       out[i] = next;
-      if (next.kind === "answer") setActive(i);
+      if (next.kind === "answer") {
+        setActive(i);
+        if (next.answer.evidence.some((e) => e.ifc_guid)) setMode("3d");
+      }
       return out;
     });
   }
@@ -147,6 +154,9 @@ export default function App() {
   const act = active !== null ? msgs[active] : null;
   const answer = act?.kind === "answer" && act.path === path ? act.answer : null;
   const view = answer?.view ?? drawing?.view ?? "";
+  const isIfc = path.endsWith(".ifc");
+  const hasPlan = isIfc && !view.endsWith(".ifc");
+  const show3d = isIfc && (mode === "3d" || !hasPlan);
 
   return (
     <div className={`app ${tab === "Ask" ? "" : "paged"}`}>
@@ -170,8 +180,24 @@ export default function App() {
         <Explorer ref={search} drawings={drawings} selected={path} onSelect={select} />
         <main className="stage">
           <div className="canvas">
-            {view.endsWith(".ifc") ? (
-              <div className="empty">No 2D plan for this model. Answers cite model elements in the chat.</div>
+            {hasPlan && (
+              <div className="modes">
+                <button className={show3d ? "" : "on"} onClick={() => setMode("plan")}>Plan</button>
+                <button className={show3d ? "on" : ""} onClick={() => setMode("3d")}>3D</button>
+              </div>
+            )}
+            {show3d ? (
+              <Suspense fallback={<div className="empty">Loading 3D viewer…</div>}>
+              <Model3D
+                path={path}
+                answer={answer}
+                hover={hover}
+                focus={focus}
+                onHover={setHover}
+                onFocus={setFocus}
+                busy={busy}
+              />
+              </Suspense>
             ) : view ? (
               <Viewer
                 view={view}
