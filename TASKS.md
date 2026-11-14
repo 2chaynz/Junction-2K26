@@ -45,3 +45,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T38 One-command local start (scripts/dev.mjs) | setup |  | Asif | doing | asif/T38-dev-script |  |  |
 | T39 Ask back when unclear: clarify + reformulate | ai |  |  | todo |  |  |  |
 | T40 IFC floors: storey picker, 2D plan per floor, toggles, element info | app |  |  | todo |  |  |  |
+| T41 Export redline as PDF markup (Bluebeam) | app |  |  | todo |  |  |  |
