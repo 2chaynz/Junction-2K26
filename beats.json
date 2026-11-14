@@ -448,5 +448,11 @@
   "branch": "ccolver/T85-sheet-demo",
   "text": "PR #105 open, running cross-review",
   "at": "2026-11-14T22:51:36.297Z"
+ },
+ "T86": {
+  "who": "Asif",
+  "branch": "asif/T86-vlm-picker",
+  "text": "claimed",
+  "at": "2026-11-14T22:59:10.896Z"
  }
 }
