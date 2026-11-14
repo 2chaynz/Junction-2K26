@@ -1,0 +1,255 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1640 1085" role="img" aria-label="SiteLens architecture: a question and a drawing go through a cheapest-first router over four paths (BIM, vector, raster detector, VLM fallback); each path returns a value with evidence boxes and a cost; answers are scored against Stoa's answer key; the detector is fine-tuned on CubiCasa5K excluding Stoa drawings." font-family="Times New Roman, Georgia, serif" fill="#1f1f24">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1f1f24"/></marker><marker id="ahg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6b6b75"/></marker></defs>
+<rect width="1640" height="1085" fill="white"/>
+<text x="32" y="160" font-size="24" text-anchor="middle" fill="#1f1f24" transform="rotate(-90 32 160)">BIM</text>
+<g stroke="#1f1f24" stroke-width="2" fill="#ece9fd">
+<path d="M60,125 l60,-30 l60,30 v60 l-60,30 l-60,-30 z"/>
+<path d="M60,125 l60,30 l60,-30" fill="none"/>
+<path d="M120,155 v60" fill="none"/>
+<path d="M60,155 l60,30 l60,-30" fill="none" stroke-dasharray="4 3"/>
+</g>
+<text x="120" y="237" font-size="15" text-anchor="middle" fill="#6b6b75">model.ifc</text>
+<line x1="200" y1="160" x2="244" y2="160" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<rect x="250" y="118" width="180" height="84" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
+<text x="340.0" y="150.0" font-size="21" text-anchor="middle" dominant-baseline="middle">ifcopenshell</text>
+<text x="340.0" y="178.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">spaces · walls · slabs</text>
+<line x1="430" y1="160" x2="462" y2="160" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<path d="M470,112 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#a79df7"/>
+<path d="M496,112 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#5a4bd1"/>
+<rect x="470" y="112" width="26" height="26" fill="#7b6cf0"/>
+<path d="M470,146 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#a79df7"/>
+<path d="M496,146 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#5a4bd1"/>
+<rect x="470" y="146" width="26" height="26" fill="#7b6cf0"/>
+<path d="M470,180 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#a79df7"/>
+<path d="M496,180 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#5a4bd1"/>
+<rect x="470" y="180" width="26" height="26" fill="#7b6cf0"/>
+<line x1="510" y1="160" x2="586" y2="160" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<line x1="680" y1="160" x2="714" y2="160" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<rect x="720" y="118" width="200" height="84" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
+<text x="820.0" y="150.0" font-size="21" text-anchor="middle" dominant-baseline="middle">IFC query</text>
+<text x="820.0" y="178.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">psets, sums per storey</text>
+<text x="820" y="226" font-size="15" text-anchor="middle" fill="#6b6b75" font-style="italic">€0 · room areas 782/804</text>
+<line x1="920" y1="160" x2="984" y2="160" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<path d="M990,120 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#79bf9d"/>
+<path d="M1016,120 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#2d6e50"/>
+<rect x="990" y="120" width="26" height="26" fill="#3f8f6b"/>
+<path d="M1024,120 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#a79df7"/>
+<path d="M1050,120 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#5a4bd1"/>
+<rect x="1024" y="120" width="26" height="26" fill="#7b6cf0"/>
+<path d="M990,154 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#79bf9d"/>
+<path d="M1016,154 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#2d6e50"/>
+<rect x="990" y="154" width="26" height="26" fill="#3f8f6b"/>
+<path d="M1024,154 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#a79df7"/>
+<path d="M1050,154 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#5a4bd1"/>
+<rect x="1024" y="154" width="26" height="26" fill="#7b6cf0"/>
+<path d="M1024,188 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#a79df7"/>
+<path d="M1050,188 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#5a4bd1"/>
+<rect x="1024" y="188" width="26" height="26" fill="#7b6cf0"/>
+<text x="32" y="380" font-size="24" text-anchor="middle" fill="#1f1f24" transform="rotate(-90 32 380)">Vector</text>
+<g stroke="#1f1f24" stroke-width="2" fill="white">
+<rect x="55" y="305" width="130" height="120"/>
+<path d="M120,305 v70 M55,375 h130 M150,375 v50" fill="none"/>
+<path d="M120,345 a18,18 0 0 1 18,18" fill="none" stroke-width="1.5"/>
+</g>
+<text x="87" y="340" font-size="11" text-anchor="middle" fill="#1f1f24">Zimmer</text>
+<text x="87" y="355" font-size="11" text-anchor="middle" fill="#1f1f24">15.90 m²</text>
+<text x="152" y="340" font-size="11" text-anchor="middle" fill="#1f1f24">Küche</text>
+<text x="100" y="405" font-size="11" text-anchor="middle" fill="#1f1f24">Bad</text>
+<text x="120" y="457" font-size="15" text-anchor="middle" fill="#6b6b75">plan.pdf / .dxf</text>
+<line x1="200" y1="380" x2="244" y2="380" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<rect x="250" y="338" width="180" height="84" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
+<text x="340.0" y="370.0" font-size="21" text-anchor="middle" dominant-baseline="middle">PyMuPDF + ezdxf</text>
+<text x="340.0" y="398.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">words · polylines · layers</text>
+<line x1="430" y1="380" x2="462" y2="380" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<path d="M470,332 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#f9bf9e"/>
+<path d="M496,332 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#d97a4c"/>
+<rect x="470" y="332" width="26" height="26" fill="#f59a6b"/>
+<path d="M470,366 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#f9bf9e"/>
+<path d="M496,366 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#d97a4c"/>
+<rect x="470" y="366" width="26" height="26" fill="#f59a6b"/>
+<path d="M470,400 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#f9bf9e"/>
+<path d="M496,400 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#d97a4c"/>
+<rect x="470" y="400" width="26" height="26" fill="#f59a6b"/>
+<line x1="510" y1="380" x2="586" y2="380" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<line x1="680" y1="380" x2="714" y2="380" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<rect x="720" y="338" width="200" height="84" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
+<text x="820.0" y="370.0" font-size="21" text-anchor="middle" dominant-baseline="middle">Geometry rules</text>
+<text x="820.0" y="398.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">shape → class, room → unit</text>
+<text x="820" y="446" font-size="15" text-anchor="middle" fill="#6b6b75" font-style="italic">€0 · Swiss 96.4% of 2,358 Qs</text>
+<line x1="920" y1="380" x2="984" y2="380" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<path d="M990,340 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#79bf9d"/>
+<path d="M1016,340 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#2d6e50"/>
+<rect x="990" y="340" width="26" height="26" fill="#3f8f6b"/>
+<path d="M1024,340 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#f9bf9e"/>
+<path d="M1050,340 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#d97a4c"/>
+<rect x="1024" y="340" width="26" height="26" fill="#f59a6b"/>
+<path d="M990,374 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#79bf9d"/>
+<path d="M1016,374 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#2d6e50"/>
+<rect x="990" y="374" width="26" height="26" fill="#3f8f6b"/>
+<path d="M1024,374 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#f9bf9e"/>
+<path d="M1050,374 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#d97a4c"/>
+<rect x="1024" y="374" width="26" height="26" fill="#f59a6b"/>
+<path d="M1024,408 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#f9bf9e"/>
+<path d="M1050,408 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#d97a4c"/>
+<rect x="1024" y="408" width="26" height="26" fill="#f59a6b"/>
+<text x="32" y="600" font-size="24" text-anchor="middle" fill="#1f1f24" transform="rotate(-90 32 600)">Raster</text>
+<rect x="55" y="525" width="130" height="120" fill="#e9e6df" stroke="#1f1f24" stroke-width="4"/>
+<path d="M55,580 h70 v65 M125,525 v30" fill="none" stroke="#1f1f24" stroke-width="4"/>
+<rect x="140" y="600" width="14" height="14" fill="none" stroke="#cf4a4a" stroke-width="2.5"/>
+<rect x="162" y="600" width="14" height="14" fill="none" stroke="#cf4a4a" stroke-width="2.5"/>
+<rect x="80" y="545" width="14" height="14" fill="none" stroke="#cf4a4a" stroke-width="2.5"/>
+<rect x="90" y="521" width="28" height="8" fill="#9fc6e6" stroke="#1f1f24" stroke-width="1.5"/>
+<text x="120" y="677" font-size="15" text-anchor="middle" fill="#6b6b75">scan.png</text>
+<line x1="200" y1="600" x2="244" y2="600" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<rect x="250" y="558" width="180" height="84" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
+<text x="340.0" y="590.0" font-size="21" text-anchor="middle" dominant-baseline="middle">YOLO detector</text>
+<text x="340.0" y="618.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">fine-tuned + OCR labels</text>
+<line x1="430" y1="600" x2="462" y2="600" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<path d="M470,552 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#f7a1a1"/>
+<path d="M496,552 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#cf4a4a"/>
+<rect x="470" y="552" width="26" height="26" fill="#f06b6b"/>
+<path d="M470,586 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#f7a1a1"/>
+<path d="M496,586 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#cf4a4a"/>
+<rect x="470" y="586" width="26" height="26" fill="#f06b6b"/>
+<path d="M470,620 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#f7a1a1"/>
+<path d="M496,620 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#cf4a4a"/>
+<rect x="470" y="620" width="26" height="26" fill="#f06b6b"/>
+<line x1="510" y1="600" x2="586" y2="600" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<line x1="680" y1="600" x2="714" y2="600" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<rect x="720" y="558" width="200" height="84" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
+<text x="820.0" y="590.0" font-size="21" text-anchor="middle" dominant-baseline="middle">Count boxes</text>
+<text x="820.0" y="618.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">class filter per question</text>
+<text x="820" y="666" font-size="15" text-anchor="middle" fill="#6b6b75" font-style="italic">≈ €0.0001 · T5 / T6 training</text>
+<line x1="920" y1="600" x2="984" y2="600" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<path d="M990,560 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#79bf9d"/>
+<path d="M1016,560 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#2d6e50"/>
+<rect x="990" y="560" width="26" height="26" fill="#3f8f6b"/>
+<path d="M1024,560 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#f7a1a1"/>
+<path d="M1050,560 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#cf4a4a"/>
+<rect x="1024" y="560" width="26" height="26" fill="#f06b6b"/>
+<path d="M990,594 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#79bf9d"/>
+<path d="M1016,594 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#2d6e50"/>
+<rect x="990" y="594" width="26" height="26" fill="#3f8f6b"/>
+<path d="M1024,594 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#f7a1a1"/>
+<path d="M1050,594 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#cf4a4a"/>
+<rect x="1024" y="594" width="26" height="26" fill="#f06b6b"/>
+<path d="M1024,628 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#f7a1a1"/>
+<path d="M1050,628 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#cf4a4a"/>
+<rect x="1024" y="628" width="26" height="26" fill="#f06b6b"/>
+<text x="32" y="820" font-size="24" text-anchor="middle" fill="#1f1f24" transform="rotate(-90 32 820)">Fallback</text>
+<rect x="55" y="745" width="130" height="120" fill="#f4f1ea" stroke="#1f1f24" stroke-width="2"/>
+<path d="M65,765 q30,-10 50,5 t50,0 M65,795 h90 M80,825 q20,15 60,-5" fill="none" stroke="#6b6b75" stroke-width="2"/>
+<rect x="100" y="780" width="60" height="40" fill="none" stroke="#1f1f24" stroke-width="2.5" stroke-dasharray="6 4"/>
+<text x="120" y="897" font-size="15" text-anchor="middle" fill="#6b6b75">old sheet / any</text>
+<line x1="200" y1="820" x2="244" y2="820" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<rect x="250" y="778" width="180" height="84" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
+<text x="340.0" y="810.0" font-size="21" text-anchor="middle" dominant-baseline="middle">Crop renderer</text>
+<text x="340.0" y="838.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">region of interest only</text>
+<line x1="430" y1="820" x2="462" y2="820" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<path d="M470,772 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#b5b5bd"/>
+<path d="M496,772 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#6e6e78"/>
+<rect x="470" y="772" width="26" height="26" fill="#8c8c96"/>
+<path d="M470,806 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#b5b5bd"/>
+<path d="M496,806 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#6e6e78"/>
+<rect x="470" y="806" width="26" height="26" fill="#8c8c96"/>
+<path d="M470,840 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#b5b5bd"/>
+<path d="M496,840 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#6e6e78"/>
+<rect x="470" y="840" width="26" height="26" fill="#8c8c96"/>
+<line x1="510" y1="820" x2="586" y2="820" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<line x1="680" y1="820" x2="714" y2="820" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<rect x="720" y="778" width="200" height="84" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
+<text x="820.0" y="810.0" font-size="21" text-anchor="middle" dominant-baseline="middle">Small VLM</text>
+<text x="820.0" y="838.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">Gemma / Gemini on crop</text>
+<text x="820" y="886" font-size="15" text-anchor="middle" fill="#6b6b75" font-style="italic">≈ €0.001 · T7 + frontier baseline</text>
+<line x1="920" y1="820" x2="984" y2="820" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<path d="M990,780 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#79bf9d"/>
+<path d="M1016,780 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#2d6e50"/>
+<rect x="990" y="780" width="26" height="26" fill="#3f8f6b"/>
+<path d="M1024,780 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#b5b5bd"/>
+<path d="M1050,780 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#6e6e78"/>
+<rect x="1024" y="780" width="26" height="26" fill="#8c8c96"/>
+<rect x="990" y="814" width="26" height="26" fill="none" stroke="#1f1f24" stroke-width="2" stroke-dasharray="4 3"/>
+<path d="M990,814 l8.32,-8.32 h26 v26 l-8.32,8.32" fill="none" stroke="#1f1f24" stroke-width="2" stroke-dasharray="4 3"/>
+<path d="M1024,814 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#b5b5bd"/>
+<path d="M1050,814 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#6e6e78"/>
+<rect x="1024" y="814" width="26" height="26" fill="#8c8c96"/>
+<path d="M1024,848 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#b5b5bd"/>
+<path d="M1050,848 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#6e6e78"/>
+<rect x="1024" y="848" width="26" height="26" fill="#8c8c96"/>
+<text x="490" y="92" font-size="22" text-anchor="middle" fill="#1f1f24">Index</text>
+<rect x="590" y="105" width="90" height="780" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="3.5"/>
+<text x="635.0" y="495.0" font-size="24" text-anchor="middle" dominant-baseline="middle"></text>
+<text x="628" y="495" font-size="34" text-anchor="middle" fill="#1f1f24" transform="rotate(-90 628 495)">Router</text>
+<text x="662" y="495" font-size="16" text-anchor="middle" fill="#6b6b75" font-style="italic" transform="rotate(-90 662 495)">cheapest first</text>
+<text x="698" y="270.0" font-size="14" text-anchor="start" fill="#6b6b75" font-style="italic">None → next</text>
+<text x="698" y="490.0" font-size="14" text-anchor="start" fill="#6b6b75" font-style="italic">None → next</text>
+<text x="698" y="710.0" font-size="14" text-anchor="start" fill="#6b6b75" font-style="italic">None → next</text>
+<rect x="545" y="10" width="180" height="58" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
+<text x="635.0" y="29.0" font-size="21" text-anchor="middle" dominant-baseline="middle">Question</text>
+<text x="635.0" y="57.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">any language</text>
+<line x1="635" y1="68" x2="635" y2="102" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<rect x="1110" y="300" width="250" height="420" rx="8" fill="white" stroke="#1f1f24" stroke-width="3.5"/>
+<text x="1235.0" y="510.0" font-size="24" text-anchor="middle" dominant-baseline="middle"></text>
+<text x="1235" y="338" font-size="26" text-anchor="middle" fill="#1f1f24">Answer</text>
+<text x="1132" y="390" font-size="18" text-anchor="start" fill="#1f1f24" font-weight="bold">value</text>
+<text x="1338" y="390" font-size="17" text-anchor="end" fill="#6b6b75">15.9</text>
+<text x="1132" y="440" font-size="18" text-anchor="start" fill="#1f1f24" font-weight="bold">unit</text>
+<text x="1338" y="440" font-size="17" text-anchor="end" fill="#6b6b75">m²</text>
+<text x="1132" y="490" font-size="18" text-anchor="start" fill="#1f1f24" font-weight="bold">evidence</text>
+<text x="1338" y="490" font-size="17" text-anchor="end" fill="#6b6b75">[file, page, bbox]</text>
+<text x="1132" y="540" font-size="18" text-anchor="start" fill="#1f1f24" font-weight="bold">trace</text>
+<text x="1338" y="540" font-size="17" text-anchor="end" fill="#6b6b75">steps</text>
+<text x="1132" y="590" font-size="18" text-anchor="start" fill="#1f1f24" font-weight="bold">cost_eur</text>
+<text x="1338" y="590" font-size="17" text-anchor="end" fill="#6b6b75">0.0</text>
+<text x="1132" y="640" font-size="18" text-anchor="start" fill="#1f1f24" font-weight="bold">confidence</text>
+<text x="1338" y="640" font-size="17" text-anchor="end" fill="#6b6b75">0.95</text>
+<path d="M1064,160 C1084,160 1080,510.0 1106,510.0" fill="none" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<path d="M1064,380 C1084,380 1080,510.0 1106,510.0" fill="none" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<path d="M1064,600 C1084,600 1080,510.0 1106,510.0" fill="none" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<path d="M1064,820 C1084,820 1080,510.0 1106,510.0" fill="none" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<text x="1235" y="282" font-size="15" text-anchor="middle" fill="#6b6b75" font-style="italic">first path that answers</text>
+<rect x="1430" y="170" width="180" height="200" rx="8" fill="#fafafa" stroke="#6b6b75" stroke-width="2.5" stroke-dasharray="9 7"/>
+<text x="1520.0" y="270.0" font-size="24" text-anchor="middle" dominant-baseline="middle"></text>
+<text x="1520" y="210" font-size="24" text-anchor="middle" fill="#1f1f24">Demo UI</text>
+<text x="1520" y="250" font-size="16" text-anchor="middle" fill="#6b6b75">boxes on the plan</text>
+<text x="1520" y="282" font-size="16" text-anchor="middle" fill="#6b6b75">step-by-step trace</text>
+<text x="1520" y="314" font-size="16" text-anchor="middle" fill="#6b6b75">€ per answer</text>
+<rect x="1430" y="520" width="180" height="230" rx="8" fill="#fafafa" stroke="#6b6b75" stroke-width="2.5" stroke-dasharray="9 7"/>
+<text x="1520.0" y="635.0" font-size="24" text-anchor="middle" dominant-baseline="middle"></text>
+<text x="1520" y="560" font-size="24" text-anchor="middle" fill="#1f1f24">Scorer</text>
+<text x="1520" y="598" font-size="16" text-anchor="middle" fill="#6b6b75">vs. answer key</text>
+<text x="1520" y="628" font-size="16" text-anchor="middle" fill="#6b6b75">count: exact</text>
+<text x="1520" y="658" font-size="16" text-anchor="middle" fill="#6b6b75">area/len/vol: ±2%</text>
+<text x="1520" y="688" font-size="16" text-anchor="middle" fill="#6b6b75">dev split only</text>
+<text x="1520" y="718" font-size="16" text-anchor="middle" fill="#6b6b75">vs. Gemini full sheet</text>
+<path d="M1360,420 H1390 V270 H1426" fill="none" stroke="#6b6b75" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#ahg)"/>
+<path d="M1360,600 H1390 V635 H1426" fill="none" stroke="#6b6b75" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#ahg)"/>
+<rect x="1430" y="820" width="180" height="70" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
+<text x="1520.0" y="845.0" font-size="19" text-anchor="middle" dominant-baseline="middle">questions.jsonl</text>
+<text x="1520.0" y="873.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">7,990 Qs · Stoa key</text>
+<line x1="1520" y1="820" x2="1520" y2="754" stroke="#6b6b75" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#ahg)"/>
+<rect x="230" y="950" width="800" height="92" rx="10" fill="#f6f6f8" stroke="#6b6b75" stroke-width="2.5" stroke-dasharray="9 7"/>
+<rect x="250" y="966" width="200" height="64" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
+<text x="350.0" y="988.0" font-size="18" text-anchor="middle" dominant-baseline="middle">CubiCasa5K labels</text>
+<text x="350.0" y="1016.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">≈ 5k Finnish plans, SVG</text>
+<line x1="450" y1="996" x2="500" y2="996" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<rect x="505" y="966" width="200" height="64" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
+<text x="605.0" y="988.0" font-size="18" text-anchor="middle" dominant-baseline="middle">exclude Stoa plans</text>
+<text x="605.0" y="1016.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">no test leakage</text>
+<line x1="705" y1="996" x2="755" y2="996" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
+<rect x="760" y="966" width="230" height="64" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
+<text x="875.0" y="988.0" font-size="18" text-anchor="middle" dominant-baseline="middle">YOLO fine-tune</text>
+<text x="875.0" y="1016.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">Verda A100 · ≈ 1–2 h</text>
+<path d="M875,1030 V1062 H222 V692 H340 V646" fill="none" stroke="#6b6b75" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#ahg)"/>
+<text x="214" y="760" font-size="17" text-anchor="middle" fill="#6b6b75" font-style="italic" transform="rotate(-90 214 760)">weights</text>
+<path d="M1080,988 l6.4,-6.4 h20 l-6.4,6.4 z" fill="#79bf9d"/>
+<path d="M1100,988 l6.4,-6.4 v20 l-6.4,6.4 z" fill="#2d6e50"/>
+<rect x="1080" y="988" width="20" height="20" fill="#3f8f6b"/>
+<text x="1114" y="1006" font-size="17" text-anchor="start" fill="#1f1f24">value</text>
+<path d="M1190,988 l6.4,-6.4 h20 l-6.4,6.4 z" fill="#f7a1a1"/>
+<path d="M1210,988 l6.4,-6.4 v20 l-6.4,6.4 z" fill="#cf4a4a"/>
+<rect x="1190" y="988" width="20" height="20" fill="#f06b6b"/>
+<text x="1224" y="1006" font-size="17" text-anchor="start" fill="#1f1f24">evidence (bbox / guid)</text>
+<line x1="1420" y1="1000" x2="1470" y2="1000" stroke="#6b6b75" stroke-width="3" stroke-dasharray="8 6"/>
+<text x="1480" y="1006" font-size="17" text-anchor="start" fill="#1f1f24">offline / evaluation</text>
+</svg>
