@@ -256,15 +256,16 @@ input { font: inherit; color: inherit; }
 .dot.k-changed { background: #c77700; }
 .dot.k-quantity { background: var(--ink); }
 .dot.k-drawing { background: #2563eb; }
-.mark.k-added path { stroke: var(--ok); }
-.mark.k-added text { fill: var(--ok); }
-.mark.k-removed path { stroke: var(--red); stroke-dasharray: none; animation: none; opacity: 0.75; }
-.mark.k-changed path { stroke: #c77700; }
-.mark.k-changed text { fill: #c77700; }
-.mark.k-quantity path { stroke: var(--ink); }
-.mark.k-quantity text { fill: var(--ink); }
-.mark.k-drawing path { stroke: #2563eb; }
-.mark.k-drawing text { fill: #2563eb; }
+/* flat highlighter per kind; multiply keeps the printed text readable underneath */
+.mark .hl { mix-blend-mode: multiply; stroke: var(--ink); transition: fill-opacity 0.15s; }
+.mark.k-added .hl { fill: rgba(26, 127, 55, 0.28); }
+.mark.k-removed .hl { fill: rgba(217, 45, 32, 0.26); }
+.mark.k-changed .hl { fill: rgba(250, 204, 21, 0.5); }
+.mark.k-quantity .hl { fill: rgba(250, 204, 21, 0.5); }
+.mark.k-drawing .hl { fill: rgba(37, 99, 235, 0.18); }
+.mark.hot .hl, .mark.focus .hl { fill-opacity: 1; filter: saturate(1.6); }
+.dot.k-quantity { background: #facc15; }
+.dot.k-changed { background: #facc15; }
 
 /* Listing answers: table under the answer, CSV download */
 .atable { margin-top: 8px; border: 1px solid var(--line); border-radius: var(--r); }
