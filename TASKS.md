@@ -80,6 +80,6 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T73 Benchmark page: interactive, model logos, honest numbers | app |  | 2chaynz | done | 2chaynz/T73-benchmark |  |  |
 | T74 Keep repeated marks in takeoff ambiguity checks | app |  | ccolver | done | ccolver/T74-takeoff-marks |  |  |
 | T75 Chat follow-ups + cited reasoning: drawing, project, web | app |  | ccolver | doing | ccolver/T75-cited-reasoning |  |  |
-| T76 Fix opening_design schedule counts (regression) | ai |  |  | todo |  |  |  |
+| T76 Fix opening_design schedule counts (regression) | ai |  | Asif | doing | asif/T76-schedule-fix |  |  |
 | T77 IFC count fixes: curtain walls, bsc-duplex, gymzaal | ai |  |  | todo |  |  |  |
 | T78 Honest CubiCasa numbers: 83.6% held-out headline | pitch |  |  | todo |  |  |  |
