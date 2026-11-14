@@ -93,8 +93,8 @@ def _associate(objects, words, specs):
             gap = min(12, max(x1 - x0, y1 - y0) * 0.35)
             if not (x0 - gap <= x <= x1 + gap and y0 - gap <= y <= y1 + gap):
                 continue
-            marked = specs.get((cat, token, True))
-            matches = marked or specs.get((cat, token, False))
+            marked = specs.get((cat, token, True), [])
+            matches = marked + specs.get((cat, token, False), [])
             if matches:
                 matching.append((token, box, matches, bool(marked)))
         candidate_counts[id(ev)] = len(matching)

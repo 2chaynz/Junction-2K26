@@ -219,6 +219,19 @@ class DrawingTakeoff(unittest.TestCase):
         specs = {("Doors", tag, True): [tag] for tag in ("D1", "D2")}
         self.assertEqual(takeoff_2d._associate(doors, words, specs), {})
 
+    def test_conflicting_mark_and_type_leave_size_unknown(self):
+        door = Evidence("plan.pdf", [0, 0, 20, 10])
+        citation = Evidence("schedule.pdf", [0, 0, 40, 10])
+        specs = {
+            ("Doors", "D1", True): [("A", "900 mm", (), citation)],
+            ("Doors", "D1", False): [("D1", "1200 mm", (), citation)],
+        }
+        row, = takeoff_2d._rows([("Doors", door, "Detected symbol", None)],
+                                [("D1", [0, 2, 4, 6])], specs, (None, "No scale", []))
+        self.assertEqual(row["count"], 1)
+        self.assertEqual(row["size"], "")
+        self.assertTrue(any("disagree" in line for line in row["reason"]))
+
     def test_disagreeing_scale_bars_do_not_produce_dimensions(self):
         from sitelens.measure import Scale
 
