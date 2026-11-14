@@ -20,12 +20,12 @@ REVIEW="$(gh pr view "$PR" --json comments \
 case "$REVIEW" in "Cross-review: PASS"*) ;; *) fail "latest cross-review is not PASS";; esac
 grep -q "Reviewed commit: $HEAD" <<<"$REVIEW" || fail "cross-review is for an older commit: re-run xreview.sh $PR"
 
-# CI registers checks a few seconds after a push.
-for _ in $(seq 12); do
-  gh pr checks "$PR" 2>&1 | grep -q "no checks reported" || break
-  sleep 5
-done
-gh pr checks "$PR" --watch --fail-fast >/dev/null || fail "checks failed: gh pr checks $PR"
+# The `check` job (.github/workflows/check.yml) must exist and pass; it registers a few seconds after a push.
+ci() { gh pr checks "$PR" --json name,bucket --jq '[.[] | select(.name == "check")][0].bucket // ""' 2>/dev/null || true; }
+for _ in $(seq 24); do [ -n "$(ci)" ] && break; sleep 5; done
+[ -n "$(ci)" ] || fail "no 'check' CI job on this PR"
+gh pr checks "$PR" --watch >/dev/null 2>&1 || true
+[ "$(ci)" = pass ] || fail "CI check is $(ci): gh pr checks $PR"
 
 gh pr merge "$PR" --merge --match-head-commit "$HEAD"
 echo "merged PR #$PR"

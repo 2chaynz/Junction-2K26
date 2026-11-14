@@ -50,9 +50,6 @@ fi
 
 head -1 "$out"
 grep -qE '^Cross-review: (PASS|BLOCKING)' "$out" || { echo "review output malformed, not posting" >&2; cat "$out" >&2; exit 1; }
-printf '
-
-Reviewed commit: %s
-' "$SHA" >> "$out"
+printf '\n\nReviewed commit: %s\n' "$SHA" >> "$out"
 gh pr comment "$PR" --body-file "$out" >/dev/null
 echo "posted on PR #$PR"
