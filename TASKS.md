@@ -52,3 +52,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T45 Gitignore dataset and zips | setup |  | Asif | doing | asif/T45-gitignore-dataset |  |  |
 | T46 Measure: area/length takeoffs, scale + references | app |  | ccolver | doing | ccolver/T46-measure |  |  |
 | T47 dev.mjs: no auto-download, print drop folder | setup |  | Asif | review | asif/T47-dev-no-download |  |  |
+| T48 Agents auto-merge PRs after review + CI | setup |  |  | todo |  |  |  |
