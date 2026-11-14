@@ -162,6 +162,11 @@ export default function App() {
   const projKey = drawing ? projectKeyOf(drawing) : null;
   const project = useMemo(() => projects.find((p) => p.key === projKey) ?? null, [projects, projKey]);
   const sessProj = useRef<string | null>(null); // project the open session belongs to
+  // Conversations left while a question was still answering; the answer is saved into them when it lands.
+  const parked = useRef(new Map<string, { key: string; msgs: Msg[] }>());
+  const park = () => {
+    if (busy && projKey) parked.current.set(sid, { key: sessProj.current ?? projKey, msgs });
+  };
 
   useEffect(() => {
     sessionsOverview().then(setOverview).catch(() => {});
@@ -233,6 +238,7 @@ export default function App() {
     const d = drawings.find((x) => x.path === p);
     if (d && projectKeyOf(d) !== projKey) {
       // Another project: its own conversation. The one we leave is already saved.
+      park();
       setMsgs([]);
       setSid(newSessionId());
       sessProj.current = projectKeyOf(d);
@@ -243,6 +249,7 @@ export default function App() {
   }
 
   function newSession() {
+    park();
     setMsgs([]);
     setSid(newSessionId());
     sessProj.current = projKey;
@@ -257,6 +264,7 @@ export default function App() {
     try {
       const s = await getSession(projKey, id);
       const ms = s.msgs ?? [];
+      park();
       loaded.current = ms;
       sessProj.current = projKey;
       setSid(id);
@@ -315,6 +323,16 @@ export default function App() {
       next = { kind: "answer", path: p, question: q, answer, steps, mark: region };
     } catch (e) {
       next = { kind: "error", path: p, text: `Something broke: ${String(e)}` };
+    }
+    for (const [psid, pk] of parked.current) {
+      const i = pk.msgs.findIndex((x) => x.kind === "pending" && x.id === id);
+      if (i < 0) continue;
+      pk.msgs = pk.msgs.map((x, j) => (j === i ? next : x));
+      if (!pk.msgs.some((x) => x.kind === "pending")) parked.current.delete(psid);
+      saveSession(pk.key, psid, pk.msgs)
+        .then((sum) => setSessions((l) => (sessProj.current === pk.key ? [sum, ...l.filter((x) => x.id !== sum.id)] : l)))
+        .catch(() => {});
+      return;
     }
     setMsgs((m) => {
       const i = m.findIndex((x) => x.kind === "pending" && x.id === id);
