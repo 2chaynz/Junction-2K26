@@ -2,6 +2,8 @@
 
 Our entry for Junction 2026 (Espoo, 13–15 Nov). Agents do the building; humans steer.
 
+![SiteLens architecture](docs/architecture.svg)
+
 ## Setup (once, 5 min)
 1. Clone, then run: `bash scripts/setup.sh`. Fix anything marked `FIX`.
    - Turns on the git hook that guards `main`. Checks `node`, `gh auth`, git name, `claude`/`codex`.
