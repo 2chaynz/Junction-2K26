@@ -14,7 +14,7 @@ from pathlib import Path
 
 import fitz  # PyMuPDF
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -142,29 +142,69 @@ def _general(path: str, question: str) -> dict | None:
             "evidence": [], "trace": [f"no path answered; {model} answered as a general question"]}
 
 
-@app.post("/api/ask")
-def ask(req: Ask):
-    _safe(req.path)
+def _ask(path: str, question: str, on_step=None) -> dict:
     t = time.time()
-    a = answer(req.path, req.question).to_dict()
+
+    def step(kind: str, text: str) -> None:
+        if on_step:
+            on_step({"kind": kind, "path": "", "text": text, "t": round(time.time() - t, 3)})
+
+    a = answer(path, question, on_step).to_dict()
     # The VLM never returns null: it answers "not mentioned" etc. Text from it may be a general question.
     if a["method"] == "vlm" and isinstance(a["value"], str):
-        g = _general(req.path, req.question)
+        g = _general(path, question)
         if g:
+            step("general", "The vision model found nothing on the sheet; answering as a general question")
             g["cost_eur"] = round(g["cost_eur"] + a["cost_eur"], 6)
             g["trace"] = [f"vlm replied '{a['value']}'"] + g["trace"]
             a = g
     if a["value"] is None:
         a["tried"] = [n.rsplit(".", 1)[1] for n in PATHS if _load(n) is not None]
-        a = _general(req.path, req.question) or a
+        g = _general(path, question)
+        if g:
+            step("general", "Not about this drawing; answering as a general question (no citations)")
+            a = g
     a["time_s"] = round(time.time() - t, 3)
-    a["view"] = _view_of(req.path)
+    a["view"] = _view_of(path)
     # When the question is one of Stoa's, show their answer next to ours.
-    key = next((q for q in _questions().get(req.path, []) if q["question"].strip() == req.question.strip()), None)
+    key = next((q for q in _questions().get(path, []) if q["question"].strip() == question.strip()), None)
     if key and a["method"] != "general":
         from eval.score import grade
         a["check"] = {"expected": key["answer"], "unit": key["unit"], "match": grade(key, a["value"])}
+        step("check", f"Stoa's answer key says {key['answer']} {key['unit'] or ''}".strip())
     return a
+
+
+@app.post("/api/ask")
+def ask(req: Ask):
+    _safe(req.path)
+    return _ask(req.path, req.question)
+
+
+@app.post("/api/ask/stream")
+def ask_stream(req: Ask):
+    """NDJSON: one {"step": {...}} line per reasoning step as it happens, then {"answer": {...}}."""
+    import queue
+    import threading
+    _safe(req.path)
+    q: queue.Queue = queue.Queue()
+    END = object()
+
+    def work():
+        try:
+            q.put({"answer": _ask(req.path, req.question, lambda s: q.put({"step": s}))})
+        except Exception as e:
+            q.put({"error": repr(e)})
+        q.put(END)
+
+    threading.Thread(target=work, daemon=True).start()
+
+    def lines():
+        while (m := q.get()) is not END:
+            yield json.dumps(m, ensure_ascii=False, default=str) + "\n"
+
+    return StreamingResponse(lines(), media_type="application/x-ndjson",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @app.get("/api/random")
