@@ -27,7 +27,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T20 Hot-swappable VLM backends: Gemini, Gemma, Nemotron | ai | T7 | Asif | doing | asif/T20-vlm-backends |  |  |
 | T21 UI v2: drawing + chat redesign | app | T8 | 2chaynz | done | 2chaynz/T21-ui-v2 |  |  |
 | T22 Reliable heartbeats: retry on failure, beat the claimed ticket | setup | T16 | Asif | done | asif/T22-reliable-beats |  |  |
-| T23 Revision quantities: how much changed between issues | ai | T15 | ccolver | review | ccolver/T23-revision-quantities |  |  |
+| T23 Revision quantities: how much changed between issues | ai | T15 | ccolver | done | ccolver/T23-revision-quantities |  |  |
 | T24 Facts path: free-form questions over extracted facts | ai |  | johanseneuson | review | johanseneuson/T24-facts |  |  |
 | T25 DrawingVQA: whole-sheet VLM vs our crop pipeline | eval | T13,T20 |  | todo |  |  |  |
 | T26 Hooks run status.mjs from origin/main | setup | T22 | Asif | doing | asif/T26-hooks-from-main |  |  |
