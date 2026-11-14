@@ -288,6 +288,15 @@ class DrawingTakeoff(unittest.TestCase):
             detect.assert_not_called()
             self.assertEqual(result["rows"], [])
 
+    def test_manual_calibration_can_scale_single_view_scanned_pdf(self):
+        manual = {"source": "manual", "m_per_unit": .04, "text": "Manual calibration", "refs": []}
+        with patch.object(takeoff_2d.measure, "_active", return_value=manual), \
+             patch.object(takeoff_2d.measure, "load", return_value={}):
+            value, _, _ = takeoff_2d._scale("scan.pdf", 0, [], scanned_pdf=True)
+            self.assertEqual(value, .04)
+            value, _, _ = takeoff_2d._scale("scan.pdf", 0, [], takeoff_2d.UNKNOWN_VIEW_SCALE, scanned_pdf=True)
+            self.assertIsNone(value)
+
     def test_disagreeing_scale_bars_do_not_produce_dimensions(self):
         from sitelens.measure import Scale
 

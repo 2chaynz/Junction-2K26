@@ -183,13 +183,15 @@ def _pdf_bars(path, page, words):
     return bars
 
 
-def _scale(path, page, bars, ambiguous_view=False):
+def _scale(path, page, bars, ambiguous_view="", scanned_pdf=False):
     if ambiguous_view:
         refs = [ref for bar in bars for ref in bar.refs]
         return None, ambiguous_view, refs
     stored = measure._active(measure.load(path), page)
     if stored and stored["source"] == "manual":
         return stored["m_per_unit"], stored["text"], [measure.Ref(**r) for r in stored["refs"]]
+    if scanned_pdf:
+        return None, "The scale could not be verified for the scanned view.", []
     notes = measure.notes(path, page)
     if len(notes) > 1:
         return None, "Multiple view scales are printed; calibrate this page in Measure before using a plan span.", []
@@ -450,7 +452,7 @@ def _sheet(path, root, mtime, weights_mtime):
         regions, excluded, scale_issue = _scan_metadata(words, gray)
         objects = [] if excluded else [obj for obj in _detected(path)
                                       if _outside_schedule(obj[1].bbox, regions)]
-        return [(0, objects, words, bars, scale_issue)], False, [], int(excluded)
+        return [(0, objects, words, bars, scale_issue, False)], False, [], int(excluded)
     import pymupdf
 
     pages, page_tables = [], []
@@ -467,14 +469,16 @@ def _sheet(path, root, mtime, weights_mtime):
                               for image in image_info)
             if image_info and (not words or raster_view):
                 labels, scan_regions, skip, scale_issue = _pdf_scan_words(page, page.get_text())
+                labels = [(token, box) for token, box in labels if not any(
+                    token.casefold() == native.casefold() and not _outside_schedule(box, [native_box])
+                    for native, native_box in words)]
                 regions.extend(scan_regions)
-                words = [(token, box) for token, box in (words or labels)
+                words = [(token, box) for token, box in (words + labels)
                          if _outside_schedule(box, regions)]
                 objects = [] if skip else [obj for obj in _detected(path, page)
                                            if _outside_schedule(obj[1].bbox, regions)]
                 excluded += int(skip)
-                pages.append((page.number, objects, words, [], scale_issue or
-                              "The scale could not be verified for the scanned view."))
+                pages.append((page.number, objects, words, [], scale_issue, True))
                 continue
             words = [(token, box) for token, box in words if _outside_schedule(box, regions)]
             text = page.get_text()
@@ -504,7 +508,7 @@ def _sheet(path, root, mtime, weights_mtime):
             scale_issue = (UNKNOWN_VIEW_SCALE
                            if NOT_TO_SCALE.search(text) else
                            "This sheet has multiple views; the applicable scale is unknown." if multiple_views else "")
-            pages.append((page.number, objects, words, bars, scale_issue))
+            pages.append((page.number, objects, words, bars, scale_issue, False))
         return pages, len(doc) > reviewed, page_tables, excluded
 
 
@@ -517,7 +521,7 @@ def takeoff(path):
     from .takeoff import _schedule
 
     schedule = _schedule(path, page_tables) if page_tables else None
-    if schedule and not any(objects for _, objects, _, _, _ in pages):
+    if schedule and not any(objects for _, objects, _, _, _, _ in pages):
         schedule["notes"].append("Placement counts were unavailable. Identifying a plan on a schedule page requires a recognizable plan heading or aligned drawing geometry.")
         if truncated:
             schedule["notes"].append(f"Only the first {MAX_PAGES} PDF pages were reviewed.")
@@ -526,8 +530,8 @@ def takeoff(path):
         return schedule
     specs, inspected, limited, failed = _specs(path, page_tables)
     rows = []
-    for page, objects, words, bars, ambiguous_view in pages:
-        page_rows = _rows(objects, words, specs, _scale(path, page, bars, ambiguous_view), measure.is_image(path))
+    for page, objects, words, bars, ambiguous_view, scanned_pdf in pages:
+        page_rows = _rows(objects, words, specs, _scale(path, page, bars, ambiguous_view, scanned_pdf), measure.is_image(path))
         if len(pages) > 1:
             for row in page_rows:
                 row["levels"].add(f"Page {page + 1}")
