@@ -88,5 +88,5 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T81 Fix Vitoria takeoff dimensions | app |  | ccolver | done | ccolver/T81-vitoria-dimensions |  |  |
 | T82 Judge-facing README | pitch |  | Asif | done | asif/T82-readme |  |  |
 | T83 English-only UI: translate loaded data | app |  | ccolver | doing | ccolver/T83-english-ui |  |  |
-| T84 Motion: press feedback, sliding tabs, growing bars, 3D loader, count-ups | app |  | 2chaynz | doing | 2chaynz/T84-motion |  |  |
+| T84 Motion: press feedback, sliding tabs, growing bars, 3D loader, count-ups | app |  | 2chaynz | review | 2chaynz/T84-motion |  |  |
 | T85 Sheet revision demo: scripted PDF diff walkthrough | app | T15 | ccolver | doing | ccolver/T85-sheet-demo |  |  |
