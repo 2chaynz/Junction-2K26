@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-15 00:51 · 2chaynz · T84 PR #103: motion (press feedback, sliding tab ink, hover lift, benchmark bars/count-ups in view, section reveal, 3D wireframe loader, answer count-up). 3 review rounds, PASS. Note: past feature freeze, user's call
 - 2026-11-15 00:49 · 2chaynz · T79 PR #104: BIM project cards on Home spin (PyVista clay turntables, 8 models, 2.7 MB); render script scripts/render_turntables.py; cross-review PASS
 - 2026-11-15 00:37 · Asif · T82: merged PR #102: judge-facing README (held-out numbers only); old workflow README now docs/workflow.md
 - 2026-11-15 00:33 · Asif · T82: Asif doing the judge-facing README (README.md, docs/workflow.md) for T2, @johanseneuson skip it
