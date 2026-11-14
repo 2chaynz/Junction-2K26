@@ -22,6 +22,7 @@ export type Answer = {
   view: string;
   check?: Check;
   tried?: string[];
+  clarify?: { ask: string; options: string[] }; // method "clarify": a question back instead of a guess
 };
 
 export type KeyQuestion = { question: string; answer: unknown; unit: string | null; type: string };
@@ -29,7 +30,7 @@ export type KeyQuestion = { question: string; answer: unknown; unit: string | nu
 export type Drawing = { path: string; source: string; view: string; questions: KeyQuestion[] };
 
 // One reasoning step streamed by /api/ask/stream (CONTRACT.md → Step).
-export type Step = { kind: "try" | "skip" | "fail" | "found" | "trace" | "general" | "check"; path: string; text: string; t: number };
+export type Step = { kind: "understand" | "try" | "skip" | "fail" | "found" | "trace" | "general" | "check" | "clarify"; path: string; text: string; t: number };
 
 export type Msg =
   | { kind: "user"; path: string; text: string }

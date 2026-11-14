@@ -114,6 +114,9 @@ Question: {q}
 Reply with JSON only: {{"general": true or false, "text": "..."}}"""
 
 
+GENERAL_EUR_PER_MTOK = (0.30, 2.50)  # Gemini flash, EUR per Mtok in / out
+
+
 def _general(path: str, question: str) -> dict | None:
     """Questions no path answers and that aren't about the drawing (e.g. 'how does this work?')."""
     import os
@@ -134,10 +137,9 @@ def _general(path: str, question: str) -> dict | None:
         return None
     if not d.get("general") or not d.get("text"):
         return None
-    from .paths.vlm import GEMINI_EUR_PER_MTOK
     u = r.get("usageMetadata", {})
-    cost = (u.get("promptTokenCount", 0) * GEMINI_EUR_PER_MTOK[0]
-            + (u.get("candidatesTokenCount", 0) + u.get("thoughtsTokenCount", 0)) * GEMINI_EUR_PER_MTOK[1]) / 1e6
+    cost = (u.get("promptTokenCount", 0) * GENERAL_EUR_PER_MTOK[0]
+            + (u.get("candidatesTokenCount", 0) + u.get("thoughtsTokenCount", 0)) * GENERAL_EUR_PER_MTOK[1]) / 1e6
     return {"value": d["text"], "unit": None, "method": "general", "confidence": 0.0, "cost_eur": round(cost, 6),
             "evidence": [], "trace": [f"no path answered; {model} answered as a general question"]}
 
@@ -149,6 +151,24 @@ def _ask(path: str, question: str, on_step=None) -> dict:
         if on_step:
             on_step({"kind": kind, "path": "", "text": text, "t": round(time.time() - t, 3)})
 
+    from . import clarify
+    # When the question is one of Stoa's, show their answer next to ours (and never ask back).
+    key = next((q for q in _questions().get(path, []) if q["question"].strip() == question.strip()), None)
+    step("understand", clarify.understand(question))
+    c = None if key else clarify.check(path, question)
+    if c and c.get("general"):
+        g = _general(path, question)
+        if g:
+            step("general", "This isn't about the drawing itself. I'll answer it as a general question, without citations.")
+            g["cost_eur"] = round(g["cost_eur"] + c["cost_eur"], 6)
+            g["time_s"], g["view"] = round(time.time() - t, 3), _view_of(path)
+            return g
+        c = None
+    if c:
+        step("clarify", f"{c['why']} Rather than guess, I'll ask.")
+        return {"value": None, "unit": None, "method": "clarify", "confidence": 0.0, "cost_eur": c["cost_eur"],
+                "evidence": [], "trace": [c["why"]], "clarify": {"ask": c["ask"], "options": c["options"]},
+                "time_s": round(time.time() - t, 3), "view": _view_of(path)}
     a = answer(path, question, on_step).to_dict()
     # The VLM never returns null: it answers "not mentioned" etc. Text from it may be a general question.
     if a["method"] == "vlm" and isinstance(a["value"], str):
@@ -166,8 +186,6 @@ def _ask(path: str, question: str, on_step=None) -> dict:
             a = g
     a["time_s"] = round(time.time() - t, 3)
     a["view"] = _view_of(path)
-    # When the question is one of Stoa's, show their answer next to ours.
-    key = next((q for q in _questions().get(path, []) if q["question"].strip() == question.strip()), None)
     if key and a["method"] != "general":
         from eval.score import grade
         a["check"] = {"expected": key["answer"], "unit": key["unit"], "match": grade(key, a["value"])}
