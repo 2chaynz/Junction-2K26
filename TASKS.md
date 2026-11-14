@@ -70,6 +70,6 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T63 Keep built-in questions in English | app |  | ccolver | done | ccolver/T63-english-questions |  |  |
 | T64 Localize BIM floors and accept unquoted questions | app |  | ccolver | done | ccolver/T64-bim-language |  |  |
 | T65 Benchmark geometry-based raster room counts | eval | T19 | ccolver | review | ccolver/T65-msd-rooms |  |  |
-| T66 Link plan locations to schedules and details | ai | T11 | ccolver | doing | ccolver/T66-plan-reference |  |  |
+| T66 Link plan locations to schedules and details | ai | T11 | ccolver | blocked | ccolver/T66-plan-reference |  | @ccolver PR #85 second cross-review: require verified plan-tag placement and reject multi-tag lookups. |
 | T67 Highlight on scans: OCR the marked spot before the VLM | ai | T49 | 2chaynz | review | 2chaynz/T67-region-ocr |  |  |
 | T68 Rotation-aware whole-sheet OCR for room counts | ai |  |  | todo |  |  |  |
