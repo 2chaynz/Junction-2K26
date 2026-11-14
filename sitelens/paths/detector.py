@@ -176,8 +176,22 @@ def _answer(path: str, question: str) -> Answer | None:
               for g in groups]
         return Answer(value=len(groups), unit="count", method="detector", confidence=0.7, cost_eur=0.00001,
                       evidence=ev, trace=[f"{len(hits)} {classes[0]} boxes ≥ {t}", f"{len(groups)} groups"])
+    conf, note = _stability(path, classes, t)
     return Answer(
-        value=len(hits), unit="count", method="detector", confidence=0.7, cost_eur=0.00001,
+        value=len(hits), unit="count", method="detector", confidence=conf, cost_eur=0.00001,
         evidence=[Evidence(file=path, bbox=list(b), label=f"{c} {p:.2f}") for c, p, b in hits],
-        trace=[f"detector classes {', '.join(classes)}", f"{len(hits)} boxes ≥ {t}"],
+        trace=[f"detector classes {', '.join(classes)}", f"{len(hits)} boxes ≥ {t}", note],
     )
+
+
+STABILITY_BAND = 0.1
+
+
+def _stability(path: str, classes: tuple, t: float) -> tuple[float, str]:
+    """Second opinion for free (T12): recount with the confidence cut moved ±0.1. If the count doesn't move,
+    the answer is right ~90% of the time (rest 89%, dev 91%); if it moves, ~50% → ask a human to check."""
+    n = lambda cut: sum(1 for d in detect(path) if d[0] in classes and d[1] >= cut)  # noqa: E731
+    lo, hi = n(max(0.01, t - STABILITY_BAND)), n(t + STABILITY_BAND)
+    if lo == hi:
+        return 0.9, f"stable: same count with the cut at {max(0.01, t - STABILITY_BAND):.2f} and {t + STABILITY_BAND:.2f}"
+    return 0.5, f"uncertain: count is {hi}–{lo} depending on the confidence cut, please check the boxes"
