@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Loader } from "./motion";
 import { fileUrl, isImage } from "./api";
 import { PAIRS } from "./Changes";
 import { fmtValue, sheetCode } from "./format";
@@ -171,7 +172,7 @@ export default function Overview(props: Props) {
             <>
               <h2>Quantities</h2>
               {qty === "loading" ? (
-                <p className="dim small">Counting from the {p.kind === "BIM" ? "model" : "schedule"}…</p>
+                <Loader kind={p.kind === "BIM" ? "model" : "sheet"} text={`Counting from the ${p.kind === "BIM" ? "model" : "schedule"}…`} />
               ) : (
                 <>
                   <table className="ov-qty">

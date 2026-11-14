@@ -57,7 +57,6 @@ function Thumb({ p }: { p: Proj }) {
     <span className="pthumb">
       <Spin p={p} />
       <span className="pkind mono">{p.kind === "BIM" ? "BIM" : p.kind === "Sheet set" ? "SET" : p.kind === "Portfolio" ? "PORT" : "ARCH"}</span>
-      {p.featured && <span className="pdemo">demo</span>}
     </span>
   );
 }

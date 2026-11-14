@@ -111,3 +111,37 @@ export function TabInk({ dep }: { dep?: unknown }) {
     />
   );
 }
+
+/** Wireframe building turning: models (IFC) and anything 3D. */
+export function BuildingLoader({ text }: { text: string }) {
+  return (
+    <div className="loader bld-loader" role="status">
+      <div className="bld">
+        <div className="bld-spin">
+          {[0, 1, 2].map((k) => (
+            <div key={k} className="bld-floor"><i /><i /><i /><i /></div>
+          ))}
+        </div>
+      </div>
+      <span>{text}</span>
+    </div>
+  );
+}
+
+/** A red pen sketching a floor plan on a gridded sheet: drawings and schedules. */
+export function SheetLoader({ text }: { text: string }) {
+  return (
+    <div className="loader sheet-loader" role="status">
+      <svg viewBox="0 0 120 84" width="120" height="84" aria-hidden>
+        <rect className="sl-paper" x="1" y="1" width="118" height="82" rx="2" />
+        <path className="sl-grid" d="M1 21H119M1 42H119M1 63H119M30 1V83M60 1V83M90 1V83" />
+        <path className="sl-pen" pathLength={1} d="M14 14H106V70H14Z M14 40H52 M52 14V54 M52 54H70 M78 40H106 M78 40V70 M30 70V58" />
+      </svg>
+      <span>{text}</span>
+    </div>
+  );
+}
+
+export function Loader({ kind, text }: { kind: "model" | "sheet"; text: string }) {
+  return kind === "model" ? <BuildingLoader text={text} /> : <SheetLoader text={text} />;
+}
