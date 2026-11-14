@@ -19,7 +19,7 @@ Shared by Claude Code (via CLAUDE.md) and Codex. Every rule here binds both equa
 - Deadlines (UTC+2): idea Fri 21:00 · preliminary submission Fri 23:55 · feature freeze Sat 22:00 · final Sun 10:00.
 - Speed beats polish. A working demo beats completeness.
 - Medium not decided: hardware, software or both. Don't assume web. Follow `DECISION.md` once set.
-- Agents do the work. Humans decide the idea, merge PRs, answer questions and handle hardware.
+- Agents do the work. Agents merge their own PRs (`scripts/merge.sh`). Humans decide the idea, answer questions and handle hardware.
 
 ## Repo map
 | Path | Purpose | How it changes |
@@ -37,7 +37,7 @@ Shared by Claude Code (via CLAUDE.md) and Codex. Every rule here binds both equa
 
 ## What goes to main without a PR
 Only `TASKS.md`, `LOG.md`, `tickets/`, `ideas/`, `context/`, and only through `node scripts/status.mjs`.
-`.githooks/pre-push` blocks any other direct push to main. Never bypass it (`--no-verify`, `ALLOW_MAIN_PUSH`, changing `core.hooksPath`). Never force-push. Never merge PRs: humans do that.
+`.githooks/pre-push` blocks any other direct push to main. Never bypass it (`--no-verify`, `ALLOW_MAIN_PUSH`, changing `core.hooksPath`). Never force-push. Merge only with `bash scripts/merge.sh <n>`, never `gh pr merge` directly.
 
 ## Status commands
 ```
@@ -64,7 +64,8 @@ node scripts/status.mjs close-merged                # review tickets with a merg
 - A `[team] main changed` notice → read the changed files from `origin/main`. Decision, contract or rules changed → rebase before continuing.
 - All agents (Claude Code and Codex): before each new step run `node scripts/status.mjs watch --force`. It prints `[team] main changed` if main moved since you last looked. Silent means nothing new.
 - Claude Code does this by hook after every prompt and tool call, so it needs no manual run. Codex has no hooks, so it must run it.
-- A clean local `main` fast-forwards inside `watch`. Feature branches never do: rebase them yourself.
+- A clean local `main` fast-forwards inside `watch`. Feature branches never do: rebase them yourself before the PR exists, merge `origin/main` after.
+- `[team] PR #n ... has merge conflicts` → fix it before anything else, steps in the notice. Only sent when main moves, so never poll PRs yourself.
 - Heartbeat: `status.mjs beat "<what you're doing now>"` whenever your focus changes (one line, ≤140 chars). The board flags a `doing` ticket silent for 15 min as stale.
 - Claude Code also beats by hook every 5 min (keeps your last text). Codex must beat by hand at least every 10 min.
 
@@ -76,7 +77,7 @@ Default mode for every agent: keep pulling work until the queue is empty. Claude
 1. `show` (it closes merged `review` tickets itself).
 2. Own a `doing` ticket → continue it. Else `next <area>` → `claim` → create the branch (worktree if you're the second agent).
 3. Work inside the ticket's **Files**. `beat` as you go.
-4. Pull requests steps 1–6 → `set Tn review`, `log` the outcome in one line.
+4. Pull requests steps 1–7 (ends merged), `log` the outcome in one line.
 5. Back to 1. Nothing claimable → `log "idle: <area> queue empty"` and stop. A human or the planner adds tickets.
 - Stale ticket (silent >30 min, owner not answering) → ask that person before taking it over. Never take over a ticket with an open PR.
 
@@ -94,19 +95,21 @@ One agent, run by one human, keeps the queue full. It edits tickets only, never 
 - Physical devices are shared: record them with `--device` before flashing or rewiring. Wiring changes go in `CONTRACT.md` (PR).
 
 ## Planning (once DECISION.md is merged)
-1. One agent fills `CONTRACT.md` first (PR, human merges).
+1. One agent fills `CONTRACT.md` first (PR).
 2. Then it splits the work into tickets: `status.mjs add` each, with `--area`, `--needs` and a `tickets/Tn.md` detail file. Tickets must not overlap in **Files**.
 3. `status.mjs log "plan: N tickets, areas …"`. A human glances at the board.
 
 ## Pull requests
-1. Commit on your branch. `git fetch origin && git rebase origin/main`.
+1. Commit on your branch. `git fetch origin && git rebase origin/main` (only before the first push; after that `git merge origin/main`: force-push is blocked).
 2. `bash scripts/check.sh` must pass.
 3. `git push -u origin HEAD`. Fill `.github/pull_request_template.md` into `pr.md`, then `gh pr create --title "T<n>: <summary>" --body-file pr.md` and delete `pr.md`.
-4. Cross-review, one round, by the *other* tool: `bash scripts/xreview.sh <n>` (Claude author) or `bash scripts/xreview.sh <n> --author codex`. It posts the comment.
+4. Cross-review by the *other* tool: `bash scripts/xreview.sh <n>` (Claude author) or `bash scripts/xreview.sh <n> --author codex`. It posts the comment.
    - Codex from the ChatGPT desktop app is not on PATH; the script finds it (`--which` shows where). Don't conclude Codex is missing from `which codex` alone.
    - Falls back to a fresh Claude session only when no Codex binary exists.
-5. BLOCKING → fix, push, comment what you fixed. No second review round unless a human asks.
-6. `status.mjs set Tn review`. A human merges.
+5. BLOCKING → fix, push, re-run `xreview.sh`. Still BLOCKING after 2 rounds → `set Tn blocked --q "..."` for a human.
+6. `status.mjs set Tn review`.
+7. `bash scripts/merge.sh <n>`. Merges only if the latest cross-review is PASS for the current head commit, CI (`check` workflow) is green and there are no conflicts. Refused → fix what it says, never work around it. The ticket goes `done` by itself.
+- Changes to `DECISION.md`, `CONTRACT.md` or `AGENTS.md`: merge, then `status.mjs log` one line so the team sees it.
 
 ## Codex setup
 Codex's default sandbox has no network, so `git push`, `gh` and `status.mjs` fail. In `~/.codex/config.toml`:

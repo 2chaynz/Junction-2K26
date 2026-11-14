@@ -111,6 +111,32 @@ const stateFile = join(resolve(root, git(["rev-parse", "--git-common-dir"], { cw
 const readState = () => { try { return JSON.parse(readFileSync(stateFile, "utf8")); } catch { return {}; } };
 const writeState = (s) => { try { writeFileSync(stateFile, JSON.stringify(s)); } catch {} };
 const mainHash = () => { try { return git(["rev-parse", "origin/main"], { cwd: root }); } catch { return ""; } };
+// Open PRs by this gh user that no longer merge cleanly into main. Runs only when main moved, so
+// agents never poll PRs. One notice per PR per main commit per clone, so one agent picks it up.
+const conflictNotices = (now) => {
+  let prs;
+  try {
+    prs = JSON.parse(sh("gh", ["pr", "list", "--author", "@me", "--state", "open", "--json", "number,headRefName"], { cwd: root, timeout: 6000 }));
+  } catch { return []; }
+  const told = readState().conflicts || {};
+  const out = [];
+  for (const { number, headRefName: b } of prs) {
+    if (told[number] === now) continue;
+    // Local branch first: it has the agent's latest work and needs no fetch.
+    const ref = [`refs/heads/${b}`, `refs/remotes/origin/${b}`].find((r) => {
+      try { git(["rev-parse", "--verify", "--quiet", r], { cwd: root }); return true; } catch { return false; }
+    });
+    if (!ref) continue;
+    // merge-tree exits 1 on conflicts; anything else (clean, old git) stays silent.
+    try { git(["merge-tree", "--write-tree", "origin/main", ref], { cwd: root, timeout: 5000 }); continue; }
+    catch (e) { if (e.status !== 1) continue; }
+    told[number] = now;
+    out.push(`[team] PR #${number} (${b}) has merge conflicts with main. Fix it now: in its worktree \`git fetch origin && git merge origin/main\`, ` +
+      `resolve, \`bash scripts/check.sh\`, commit, push (no rebase, no force-push), then \`bash scripts/xreview.sh ${number}\` and \`bash scripts/merge.sh ${number}\`.`);
+  }
+  if (out.length) writeState({ ...readState(), conflicts: told });
+  return out;
+};
 
 // --- Heartbeats ---------------------------------------------------------------
 // Kept on their own branch so beats never add history to main or trigger watch notices.
@@ -342,13 +368,16 @@ const commands = {
       if (!s.seen || s.seen === now) return save({ ...s, seen: now, last: Date.now() });
       const files = git(["diff", "--name-only", s.seen, now], { cwd: root }).split("\n").filter((f) => SHARED.test(f));
       save({ ...s, seen: now, last: Date.now() });
-      if (!files.length) return;
-      const subjects = git(["log", "--format=%s (%an)", "-5", `${s.seen}..${now}`], { cwd: root });
-      const out = [`[team] main changed: ${files.join(", ")}\n${subjects}`];
-      if (files.some((f) => /^(DECISION|CONTRACT|AGENTS)\.md$/.test(f)))
-        out.push("[team] Decision, contract or rules changed. Read them from origin/main and rebase your branch before continuing.");
-      else out.push("[team] Run `node scripts/status.mjs show` if it affects your ticket.");
-      say(out.join("\n"));
+      const out = [];
+      if (files.length) {
+        const subjects = git(["log", "--format=%s (%an)", "-5", `${s.seen}..${now}`], { cwd: root });
+        out.push(`[team] main changed: ${files.join(", ")}\n${subjects}`);
+        if (files.some((f) => /^(DECISION|CONTRACT|AGENTS)\.md$/.test(f)))
+          out.push("[team] Decision, contract or rules changed. Read them from origin/main and update your branch before continuing (rebase if it has no PR yet, else merge origin/main).");
+        else out.push("[team] Run `node scripts/status.mjs show` if it affects your ticket.");
+      }
+      out.push(...conflictNotices(now));
+      if (out.length) say(out.join("\n"));
     } catch {}
   },
 
