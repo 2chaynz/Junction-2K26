@@ -21,6 +21,11 @@ def cell(row, col):
     return row[col].strip() if col is not None and col < len(row) else ""
 
 
+def printed_specifications(table, row):
+    return tuple(f"{label}: {cell(row, i)}" for i, label in enumerate(table.header)
+                 if cell(row, i) and re.search(r"material|matl|finish|fire|rating|glazing|frame", label, re.I))
+
+
 def _specs(path, page_tables):
     import pymupdf
 
@@ -57,15 +62,13 @@ def _specs(path, page_tables):
             mark = t.col(r"^(mark|tag|id|(?:door |window )?(?:no\.?|number|#))$")
             typ = t.col(r"\btype\b")
             w, h = t.col(r"\bwidth\b", r"^wd$"), t.col(r"\bheight\b", r"^ht$")
-            attrs = [(i, label) for i, label in enumerate(t.header)
-                     if re.search(r"material|matl|finish|fire|rating|glazing|frame", label, re.I)]
             for row, box in zip(t.rows, t.boxes):
                 code = cell(row, mark).upper()
                 type_name = cell(row, typ)
                 width, height = cell(row, w), cell(row, h)
                 size = (f"{width} × {height}" if width and height else
                         f"{width} wide" if width else f"{height} high" if height else "")
-                fields = tuple(f"{label}: {cell(row, i)}" for i, label in attrs if cell(row, i))
+                fields = printed_specifications(t, row)
                 for key, is_mark in ((code, True), (type_name.upper(), False)):
                     if TAG.fullmatch(key) and (is_mark or re.search(r"\d", key)):
                         specs[cat, key, is_mark].append((type_name, size, fields,
@@ -420,8 +423,6 @@ def takeoff(path):
         entries = [row for row in schedule["rows"] if row["category"] not in counted]
         for row in entries:
             row["category"] += " (schedule)"
-            row["reason"] = ["Count of schedule entries. No placements were identified for this category."]
-            row["dimension_evidence"] = row["evidence"]
         rows.extend(entries)
     if specs:
         notes.append("Numeric-only labels cannot be distinguished from dimensions and are not matched to schedules.")

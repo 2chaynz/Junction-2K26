@@ -103,6 +103,8 @@ def _ifc(path: str) -> dict:
 
 
 def _schedule(path: str, page_tables) -> dict | None:
+    from .takeoff_2d import printed_specifications
+
     rows: list[dict] = []
     for page, t in page_tables:
         cat = "Doors" if "door" in t.title.lower() else "Windows" if "window" in t.title.lower() else None
@@ -116,12 +118,18 @@ def _schedule(path: str, page_tables) -> dict | None:
             h = r[kh] if kh is not None and kh < len(r) else ""
             if not (typ or w or h):
                 continue   # notes / sub-rows the table reader picked up: no type and no size
-            g = groups[(typ, f"{w} × {h}" if w and h else w or h)]
+            g = groups[(typ, f"{w} × {h}" if w and h else w or h, printed_specifications(t, r))]
             g["count"] += 1
             g["evidence"].append(Evidence(file=path, bbox=box, page=page, label=f"{t.title}: {r[0]}", kind="text"))
-        for (typ, size), g in groups.items():
+        for (typ, size, specs), g in groups.items():
+            reason = ["Count of schedule entries. Dimensions and specifications are as printed."]
+            if not size:
+                reason.append("No dimensions were identified.")
+            if not specs:
+                reason.append("No material or performance specifications were identified.")
             rows.append({"category": cat, "type": typ or "(no type)", "size": size, "count": g["count"], "levels": set(),
-                         "length_m": 0.0, "area_m2": 0.0, "volume_m3": 0.0, "evidence": g["evidence"]})
+                         "length_m": 0.0, "area_m2": 0.0, "volume_m3": 0.0, "evidence": g["evidence"],
+                         "dimension_evidence": g["evidence"], "specifications": list(specs), "reason": reason})
     if not rows:
         return None
     rows.sort(key=lambda r: (r["category"], r["type"], r["size"]))

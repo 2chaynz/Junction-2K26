@@ -72,11 +72,11 @@ class DrawingTakeoff(unittest.TestCase):
                         page.insert_text((110, 405), "101.A")
                         page = doc.new_page()
                     page.insert_text((100, 80), "DOOR SCHEDULE")
-                    for y, row in [(110, ("MARK", "TYPE", "WIDTH", "HEIGHT")),
-                                   (130, (("900" if layout == "numeric label" else "101.A"), "A1", "900mm", "2100mm")),
-                                   (144, ("102.A", "A1", "900mm", "2100mm")),
-                                   (158, ("103.A", "B2", "1200mm", "2200mm"))]:
-                        for x, label in zip((100, 165, 230, 305), row):
+                    for y, row in [(110, ("MARK", "TYPE", "WIDTH", "HEIGHT", "MATL")),
+                                   (130, (("900" if layout == "numeric label" else "101.A"), "A1", "900mm", "2100mm", "WOOD")),
+                                   (144, ("102.A", "A1", "900mm", "2100mm", "WOOD")),
+                                   (158, ("103.A", "B2", "1200mm", "2200mm", "STEEL"))]:
+                        for x, label in zip((100, 165, 230, 305, 390), row):
                             page.insert_text((x, y), label, fontsize=8)
                     if layout == "rotated":
                         page.set_rotation(270)
@@ -112,6 +112,9 @@ class DrawingTakeoff(unittest.TestCase):
                     detector.assert_not_called()
                     self.assertEqual(result["source"], "schedule")
                     self.assertEqual(sum(r["count"] for r in result["rows"]), 3)
+                    self.assertIn("MATL: WOOD", result["rows"][0]["specifications"])
+                    self.assertEqual(result["rows"][0]["dimension_evidence"], result["rows"][0]["evidence"])
+                    self.assertIn("MATL: WOOD", takeoff.to_csv(result))
                 elif layout == "unrelated placement":
                     self.assertEqual(result["source"], "drawing")
                     self.assertEqual({r["category"] for r in result["rows"]}, {"Sinks", "Doors (schedule)"})
