@@ -46,7 +46,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T39 Ask back when unclear: clarify + reformulate | ai |  |  | todo |  |  |  |
 | T40 IFC floors: storey picker, 2D plan per floor, toggles, element info | app |  | 2chaynz | doing | 2chaynz/T40-ifc-floors |  |  |
 | T41 Export redline as PDF markup (Bluebeam) | app |  | johanseneuson | done | johanseneuson/T41-export |  |  |
-| T42 Review mode: tick/cross uncertain marks, live count | app |  | johanseneuson | doing | johanseneuson/T42-review |  |  |
+| T42 Review mode: tick/cross uncertain marks, live count | app |  | johanseneuson | review | johanseneuson/T42-review |  | backend done (PR #56); review-mode UI needs the UI owner |
 | T43 Proof strip + arithmetic receipt under answers | app |  |  | todo |  |  |  |
 | T44 Us vs frontier model side by side (Benchmark) | app |  |  | todo |  |  |  |
 | T45 Gitignore dataset and zips | setup |  | Asif | doing | asif/T45-gitignore-dataset |  |  |
