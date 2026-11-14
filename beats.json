@@ -130,5 +130,11 @@
   "branch": "2chaynz/T34-ifc-3d",
   "text": "building Model3D.tsx: three.js + web-ifc viewer",
   "at": "2026-11-14T15:48:35.869Z"
+ },
+ "T35": {
+  "who": "Asif",
+  "branch": "asif/T20-vlm-backends",
+  "text": "claimed",
+  "at": "2026-11-14T15:49:09.900Z"
  }
 }
