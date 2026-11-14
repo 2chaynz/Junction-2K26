@@ -167,6 +167,7 @@ class DrawingTakeoff(unittest.TestCase):
                 plan.insert_text((50, 90), "Inset: N.T.S.")
                 plan.insert_text((50, 110), "FOR WALL DETAILS SEE A-501")
                 plan.insert_text((50, 130), "WALL SECTION 3/A-501")
+                plan.insert_text((50, 150), "TYPICAL WALL DETAIL ON SHEET A-501")
                 mixed = doc.new_page()
                 mixed.insert_text((50, 50), "FIRST FLOOR PLAN")
                 mixed.insert_text((400, 50), "EAST ELEVATION")

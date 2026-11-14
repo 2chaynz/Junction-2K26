@@ -120,6 +120,7 @@ def _words(page):
 NON_PLAN_VIEW = re.compile(
     r"(?im)^[ \t]*(?![^\r\n]*\b(?:see|refer|consult|verify|check|note)\b)"
     r"(?![^\r\n]*\b\d+[A-Z]?[ \t]*/[ \t]*[A-Z][A-Z0-9-]*\d\b)"
+    r"(?![^\r\n]*\b(?:on|per|from|at|in)[ \t]+(?:drawing|sheet|page)\b)"
     r"[^\r\n]*\b(?:elev(?:ations?)?|sec(?:tions?)?|details?|legends?|reflected ceiling plans?)\b[^\r\n]*$"
 )
 PLAN_TITLE = re.compile(
