@@ -4,6 +4,7 @@ import Benchmark from "./Benchmark";
 import Changes, { CHANGE_Q, PAIRS, onNewSheet } from "./Changes";
 import Chat from "./Chat";
 import Explorer from "./Explorer";
+import { Splitter, usePanels } from "./Splitter";
 import { DEMO, SOURCE_LABEL, TYPE, fmtSize, pickChips, sheetCode, shortName } from "./format";
 import HowItWorks from "./HowItWorks";
 import Takeoff, { type Row } from "./Takeoff";
@@ -69,6 +70,7 @@ export default function App() {
   const [size, setSize] = useState<[number, number] | null>(null);
   const [mode, setMode] = useState<"plan" | "3d">("plan");
   const search = useRef<HTMLInputElement>(null);
+  const panels = usePanels();
   const [chOn, setChOn] = useState(false);
   const [chData, setChData] = useState<Record<string, { answer?: Answer; error?: string }>>({});
   const [chHover, setChHover] = useState<number | null>(null);
@@ -229,7 +231,7 @@ export default function App() {
       {tab === "How it works" && <main className="pagewrap"><HowItWorks /></main>}
       {tab === "Benchmark" && <main className="pagewrap"><Benchmark /></main>}
 
-      <div className="askview" hidden={tab !== "Ask"}>
+      <div className="askview" hidden={tab !== "Ask"} {...panels.props}>
         <Explorer ref={search} drawings={drawings} selected={path} onSelect={select} />
         <main className="stage">
           <div className="canvas">
@@ -304,6 +306,8 @@ export default function App() {
           onHover={setHover}
           onFocus={setFocus}
         />
+        <Splitter side="explorer" w={panels.w} onChange={panels.set} />
+        <Splitter side="chat" w={panels.w} onChange={panels.set} />
       </div>
     </div>
   );

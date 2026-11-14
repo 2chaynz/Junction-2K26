@@ -1,0 +1,33 @@
+/* Resizable Ask view: widths come from usePanels() as --explorer / --chat on .askview */
+@media (min-width: 1101px) {
+  .app .askview { position: relative; grid-template-columns: var(--explorer, 288px) minmax(0, 1fr) var(--chat); }
+  .app .askview > .explorer, .app .askview > .chat { min-width: 0; overflow: hidden; }
+  .app .askview[data-explorer="off"] > .explorer { visibility: hidden; }
+}
+
+.splitter {
+  position: absolute; top: 0; bottom: 0; width: 9px; z-index: 5; cursor: col-resize; touch-action: none; outline: none;
+}
+.splitter.sp-explorer { left: calc(var(--explorer, 288px) - 5px); }
+.splitter.sp-chat { right: calc(var(--chat) - 5px); }
+.splitter::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 4px; width: 1px; background: transparent;
+  transition: background 0.12s, width 0.12s, left 0.12s;
+}
+.splitter:hover::after, .splitter:focus-visible::after, .splitter.drag::after { left: 3px; width: 3px; background: var(--red); }
+.splitter.collapsed { left: 0; width: 14px; background: #fbfbfa; border-right: 1px solid var(--line); }
+.splitter.collapsed::after { display: none; }
+.splitter-open { position: absolute; top: 10px; left: 0; width: 14px; color: var(--dim); font-size: 14px; line-height: 20px; }
+.splitter-open:hover { color: var(--ink); }
+
+/* While dragging: no text selection, and the canvas/3D view doesn't steal the pointer */
+body.resizing { cursor: col-resize; user-select: none; }
+body.resizing .askview > :not(.splitter) { pointer-events: none; }
+
+@media (max-width: 1100px) {
+  .splitter { display: none; }
+}
+
+/* A narrow drawing area must not let the sheet-info cells spill into each other */
+.app .askview .sheetinfo { overflow: hidden; }
+.app .askview .sheetinfo .v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
