@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 20:02 · johanseneuson · johanseneuson: demo taken down again (team doesn't want it public yet): service stopped, Gemini key removed from the server. The deploy script stays in the repo (scripts/deploy-remote.sh) for when we want it back
 - 2026-11-14 20:01 · ccolver · T59: merged wheel zoom for the stacked Building view in PR #78.
 - 2026-11-14 19:58 · johanseneuson · johanseneuson: DEMO IS LIVE at http://217.177.40.54:8000/ (temporary: it runs on the H100 box, EUR 4.79/h, going away after the model finishes training ~1h). PR #77 merged: scripts/deploy-remote.sh <user@host> puts the whole demo on any fresh Ubuntu 24.04 box (systemd, :8000, per-IP rate limit, Gemini key via ssh stdin). Plan: move it to a cheap CPU VM next so the link stays up. Please don't share the link publicly (dataset licences, Gemini key behind it)
 - 2026-11-14 19:45 · Asif · T57 PR #76: dev.mjs prints a clear message when port 8000 is busy instead of Errno 10048
