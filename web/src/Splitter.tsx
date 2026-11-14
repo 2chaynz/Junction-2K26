@@ -11,16 +11,35 @@ type Widths = Record<Side, number>;
 
 function saved(): Widths {
   try {
-    return { ...DEF, ...JSON.parse(localStorage.getItem(KEY) || "{}") };
+    const j = JSON.parse(localStorage.getItem(KEY) || "{}");
+    const num = (v: unknown, d: number) => (typeof v === "number" && isFinite(v) && v >= 0 ? v : d);
+    return { explorer: num(j.explorer, DEF.explorer), chat: num(j.chat, DEF.chat) };
   } catch {
     return DEF;
   }
 }
 
+// Widths saved on a wide screen must not squeeze the drawing on a narrower window: shrink chat, then list.
+function fit(w: Widths, total: number): Widths {
+  let { explorer, chat } = w;
+  const over = explorer + chat + STAGE_MIN - total;
+  if (over > 0) chat = Math.max(MIN.chat, chat - over);
+  const still = explorer + chat + STAGE_MIN - total;
+  if (still > 0 && explorer) explorer = Math.max(MIN.explorer, explorer - still);
+  return { explorer, chat };
+}
+
 /** Panel widths for the Ask view, kept in localStorage. Spread `props` on `.askview`. */
 export function usePanels() {
-  const [w, setW] = useState<Widths>(saved);
-  useEffect(() => localStorage.setItem(KEY, JSON.stringify(w)), [w]);
+  const [stored, setW] = useState<Widths>(saved);
+  const [total, setTotal] = useState(() => window.innerWidth);
+  useEffect(() => localStorage.setItem(KEY, JSON.stringify(stored)), [stored]);
+  useEffect(() => {
+    const on = () => setTotal(window.innerWidth);
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+  const w = fit(stored, total);
   const set = useCallback((side: Side, px: number) => setW((o) => ({ ...o, [side]: px })), []);
   // Collapsed explorer keeps a 14 px strip with the re-open button.
   const style = { "--explorer": `${w.explorer || 14}px`, "--chat": `${w.chat}px` } as CSSProperties;
@@ -64,7 +83,9 @@ export function Splitter({ side, w, onChange }: Props) {
     if (e.key !== grow && e.key !== shrink) return;
     e.preventDefault();
     const px = value + (e.key === grow ? step : -step);
-    onChange(side, Math.max(side === "explorer" && px < MIN.explorer ? 0 : MIN[side], Math.min(px, MAX[side])));
+    const host = (e.currentTarget as HTMLElement).parentElement!.getBoundingClientRect();
+    const max = Math.min(MAX[side], host.width - other - STAGE_MIN);
+    onChange(side, Math.max(side === "explorer" && px < MIN.explorer ? 0 : MIN[side], Math.min(px, max)));
   }
 
   const collapsed = side === "explorer" && value === 0;
