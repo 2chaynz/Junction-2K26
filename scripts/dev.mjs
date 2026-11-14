@@ -72,9 +72,14 @@ const needVenv =
   !existsSync(venvPy) || !existsSync(depsStamp) || statSync(reqFile).mtimeMs > statSync(depsStamp).mtimeMs;
 const needData = !dataDir || !existsSync(join(dataDir, "questions.jsonl"));
 const distIndex = join(WEB, "dist", "index.html");
+// npm writes this file on every install; older than the lockfile means deps changed (e.g. a merged PR added one)
+const webStamp = join(WEB, "node_modules", ".package-lock.json");
+const needWebDeps =
+  !existsSync(webStamp) || statSync(join(WEB, "package-lock.json")).mtimeMs > statSync(webStamp).mtimeMs;
 const needBuild =
   !args.has("--no-build") &&
-  (!existsSync(distIndex) ||
+  (needWebDeps ||
+    !existsSync(distIndex) ||
     newest(join(WEB, "src")) > statSync(distIndex).mtimeMs ||
     statSync(join(WEB, "package.json")).mtimeMs > statSync(distIndex).mtimeMs);
 
@@ -112,7 +117,7 @@ if (needVenv) {
 }
 
 if (needBuild) {
-  if (!existsSync(join(WEB, "node_modules"))) {
+  if (needWebDeps) {
     log("npm ci (web)");
     if (run("npm", ["ci"], { cwd: WEB }).status !== 0) die("npm ci failed");
   }
