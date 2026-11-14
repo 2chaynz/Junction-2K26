@@ -51,7 +51,11 @@ function loadEnv() {
 
 const venvPy = join(ROOT, ".venv", win ? "Scripts" : "bin", win ? "python.exe" : "python");
 const dataDir = resolve(process.env.STOA_DATA || loadEnv().STOA_DATA || DEFAULT_DATA);
-const needVenv = !existsSync(venvPy);
+// stamp is written only after pip succeeds, so an interrupted install is retried
+const depsStamp = join(ROOT, ".venv", ".deps-ok");
+const reqFile = join(ROOT, "requirements.txt");
+const needVenv =
+  !existsSync(venvPy) || !existsSync(depsStamp) || statSync(reqFile).mtimeMs > statSync(depsStamp).mtimeMs;
 const needData = !existsSync(join(dataDir, "questions.jsonl"));
 const distIndex = join(WEB, "dist", "index.html");
 const needBuild =
@@ -61,7 +65,7 @@ const needBuild =
     statSync(join(WEB, "package.json")).mtimeMs > statSync(distIndex).mtimeMs);
 
 if (args.has("--check")) {
-  console.log(`venv:    ${needVenv ? "MISSING" : "ok"}`);
+  console.log(`venv:    ${needVenv ? "missing or deps not installed" : "ok"}`);
   console.log(`dataset: ${needData ? "MISSING" : "ok"}  (${dataDir})`);
   console.log(`web/dist: ${needBuild ? "missing or stale" : "ok"}`);
   process.exit(needVenv || needData || needBuild ? 1 : 0);
@@ -70,12 +74,16 @@ if (args.has("--check")) {
 if (!ok("node", ["--version"])) die("node missing: install Node 18+");
 
 if (needVenv) {
-  const py = ["python", "python3", "py"].find((c) => ok(c, ["--version"]));
-  if (!py) die("Python 3.11+ missing: install it, then re-run");
-  log("creating .venv and installing requirements");
-  if (run(py, ["-m", "venv", ".venv"]).status !== 0) die("venv creation failed");
+  if (!existsSync(venvPy)) {
+    const py = ["python", "python3", "py"].find((c) => ok(c, ["--version"]));
+    if (!py) die("Python 3.11+ missing: install it, then re-run");
+    log("creating .venv");
+    if (run(py, ["-m", "venv", ".venv"]).status !== 0) die("venv creation failed");
+  }
+  log("installing requirements");
   if (run(venvPy, ["-m", "pip", "install", "-r", "requirements.txt"]).status !== 0)
     die("pip install failed");
+  writeFileSync(depsStamp, new Date().toISOString());
 }
 
 if (needData) {
