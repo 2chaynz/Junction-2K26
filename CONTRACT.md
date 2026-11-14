@@ -61,7 +61,7 @@ POST /api/measure {"path","kind":length|area|count,"points":[[x,y]…],"label"} 
 DELETE /api/measure?path=…&id=…                       → {"deleted"}
 POST /api/measure/calibrate {"path","points","length":"12'-6\"" | "3.5 m" | "15.9 m2","known_id"?} → stored scale
 POST /api/measure/scale {"path","scale_id"}           → pick a candidate (answer to `ask`); no scale_id = reset
-GET  /api/takeoff?path=data/…[&format=csv]           → {"path", "source": ifc|schedule|detector|none, "rows": [{category, type, size, count, levels, by_level, length_m, area_m2, volume_m3, evidence}], "notes"}; csv = download
+GET  /api/takeoff?path=data/…[&format=csv]           → {"path", "source": ifc|schedule|drawing|none, "rows": [{category, type, size, count, levels, by_level, length_m, area_m2, volume_m3, evidence, dimension_evidence, reason?, specifications?}], "notes"}; csv = download
 GET  /api/vlm                                         → {"backend", "current", "latest", "available": [...]}: latest = newer model of the same family, else null
 POST /api/vlm   {"model": "…"}                        → same shape; switches the VLM model for this server process (no .env write); 400 if unknown
 GET  /api/sessions                                    → {project: {"sessions", "updated"}} for the project list
@@ -78,6 +78,7 @@ DELETE /api/session?project=…&id=…                    → {"deleted"}
 - `/api/drawings` includes `model`, the related IFC path or null.
 - Projects (T61): the UI groups drawings into projects (`web/src/workspace.ts`: `bim/<building>`, `set/<sheet set>`, `portfolio/swiss`, `archive/cubicasa`) with typed subfolders. Sessions are stored per project key in `.sitelens/sessions/` (next to `SITELENS_STORE`); `Msg` is `web/src/types.ts`.
 - `/api/file` takes optional `scale` (default 1 = bbox coords).
+- Takeoff: evidence marks counted objects or schedule entries. dimension_evidence cites plan tags, dimensions and scale references. Drawing rows explain their basis and unknowns in reason; specifications contains cited schedule fields. CSV includes Specifications and Basis columns.
 - Measure (`sitelens/measure.py`): points in bbox units. Scale = `m_per_unit` + `source` (dxf | sibling | note | bar | sheet_size | manual) + `refs: [{file, page, bbox, text, kind}]` (file may be another sheet of the project). `scale: null` → `ask` + `options`. Stored per drawing in `SITELENS_STORE`.
 - Run: `STOA_DATA=… python -m sitelens.server` (serves `web/dist` after `cd web && npm ci && npm run build`). Dev: `npm run dev` in `web/` proxies `/api` to :8000.
 

@@ -12,12 +12,16 @@ export type Row = {
   area_m2: number;
   volume_m3: number;
   evidence: Evidence[];
+  dimension_evidence?: Evidence[];
+  specifications?: string[];
+  reason?: string[];
 };
-type Data = { path: string; source: "ifc" | "schedule" | "detector" | "none"; rows: Row[]; notes: string[] };
+type Data = { path: string; source: "ifc" | "schedule" | "drawing" | "detector" | "none"; rows: Row[]; notes: string[] };
 
 const SOURCE: Record<Data["source"], string> = {
   ifc: "BIM model (IFC)",
   schedule: "door / window schedule on the sheet",
+  drawing: "drawing and matching schedules",
   detector: "symbol detector on the scan",
   none: "",
 };
@@ -43,10 +47,16 @@ const CSS = `
 .tk-table th:nth-child(1) { width: 34%; }
 .tk-table td { padding: 5px 8px; border-bottom: 1px solid var(--line); }
 .tk-table .r { text-align: right; }
+.tk-basis { display: block; white-space: normal; overflow-wrap: anywhere; margin-top: 4px; }
+.tk-basis a { display: block; margin-top: 4px; }
+.tk-basis summary { cursor: pointer; }
 .tk-notes { margin-top: 18px; font-size: 12px; padding-left: 18px; }
 `;
 
 const url = (path: string, csv = false) => `/api/takeoff?path=${encodeURIComponent(path)}${csv ? "&format=csv" : ""}`;
+const evidenceUrl = (e: Evidence) => "/api/file?" + new URLSearchParams({
+  path: e.file, page: String(e.page), clip: e.bbox.join(","), pad: ".5", scale: "2",
+});
 const num = (v: number, d = 1) => (v ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : "");
 
 const PROJECT_LANGUAGES: Record<string, string> = { "bsc-esplanades": "et" };
@@ -61,8 +71,8 @@ export function levelLabel(name: string, language: string) {
   const labels: Record<string, string[]> = {
     en: ["Floor", "Roof", "Foundation"], et: ["Korrus", "Katus", "Vundament"],
     fi: ["Kerros", "Katto", "Perustus"], de: ["Geschoss", "Dach", "Fundament"],
-    fr: ["?tage", "Toit", "Fondation"], da: ["Etage", "Tag", "Fundament"],
-    uk: ["??????", "???", "?????????"],
+    fr: ["Étage", "Toit", "Fondation"], da: ["Etage", "Tag", "Fundament"],
+    uk: ["Поверх", "Дах", "Фундамент"],
   };
   const [floor, roof, foundation] = labels[locale] ?? labels.en;
   const n = name.match(/^(?:floor|level)\s+(\d+)$/i) ?? name.match(/^(\d+)\.\s*korrus$/i);
@@ -81,7 +91,7 @@ function ItemDetails({ row, language, onShow }: {
   return (
     <div className="tk-detail">
       <strong>{row.type}</strong>
-      <p>{[row.size, `${row.count} items`, row.levels.map((name) => levelLabel(name, language)).join(", ")].filter(Boolean).join(" ? ")}</p>
+      <p>{[row.size, `${row.count} items`, row.levels.map((name) => levelLabel(name, language)).join(", ")].filter(Boolean).join(" · ")}</p>
       <button className="btn" onClick={() => onShow(row)}>{instances.length ? "Show group in BIM" : "Show on drawing"}</button>
       {instances.length > 0 && <div className="tk-instances">
         <label>Element <select value={index} onChange={(e) => setIndex(Number(e.target.value))}>
@@ -110,7 +120,7 @@ export default function Takeoff({ path, name, language, onShow }: {
     const controller = new AbortController();
     fetch(url(path), { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`takeoff: ${r.status}`))))
-      .then(setData)
+      .then((result) => { if (!controller.signal.aborted) setData(result); })
       .catch((e) => { if (!controller.signal.aborted) setError(String(e)); });
     return () => controller.abort();
   }, [path]);
@@ -135,7 +145,7 @@ export default function Takeoff({ path, name, language, onShow }: {
         {counts.size > 0 && <a className="btn" href={url(path, true)} download>Download full CSV</a>}
       </div>
       {error && <p role="alert">{error}</p>}
-      {!data && !error && <p className="dim">{path ? "Reading the drawing?" : "Open a drawing or model to see its takeoff."}</p>}
+      {!data && !error && <p className="dim">{path ? "Reading the drawing…" : "Open a drawing or model to see its takeoff."}</p>}
       {data && !counts.size && <p className="dim">{data.notes.join(" ")}</p>}
       {rows.length > 0 && <>
         <div className="tk-filter">
@@ -157,10 +167,25 @@ export default function Takeoff({ path, name, language, onShow }: {
               <tr>
                 <td>{r.evidence.some((e) => e.ifc_guid || e.bbox.length === 4) ?
                   <button className="tk-name" aria-expanded={detail === index} onClick={() => setDetail(detail === index ? null : index)}>{r.type}</button> : r.type}</td>
-                <td className="mono">{r.size || "?"}</td>
+                <td>
+                  <span className="mono">{r.size || <span className="dim">Unknown</span>}</span>
+                  {!!(r.reason?.length || r.specifications?.length || r.dimension_evidence?.length) && (
+                    <details className="tk-basis">
+                      <summary>Why this size?</summary>
+                      {r.reason?.map((line) => <p key={line}>{line}</p>)}
+                      {r.specifications?.map((spec) => <p key={spec}>{spec}</p>)}
+                      {r.dimension_evidence?.filter((e) => e.bbox.length === 4).map((e, i) => (
+                        <a key={i} target="_blank" rel="noreferrer" href={evidenceUrl(e)}
+                          title={`${e.file}, page ${e.page + 1}`}>
+                          {e.label} &middot; {e.file.split("/").pop()} p.{e.page + 1}
+                        </a>
+                      ))}
+                    </details>
+                  )}
+                </td>
                 <td className="r mono">{r.count}</td>
-                <td className="dim">{levels.length > 1 ? levels.map(([name, count]) => `${label(name)} (${count})`).join(" ? ") : r.levels.map(label).join(", ") || "?"}</td>
-                {quantities.map(({ key }) => <td key={key} className="r mono">{num(r[key as "length_m" | "area_m2" | "volume_m3"], 2) || "?"}</td>)}
+                <td className="dim">{levels.length > 1 ? levels.map(([name, count]) => `${label(name)} (${count})`).join(" · ") : r.levels.map(label).join(", ") || "—"}</td>
+                {quantities.map(({ key }) => <td key={key} className="r mono">{num(r[key as "length_m" | "area_m2" | "volume_m3"], 2) || "—"}</td>)}
               </tr>
               {detail === index && <tr><td colSpan={4 + quantities.length}><ItemDetails row={r} language={language} onShow={onShow} /></td></tr>}
             </tbody>;
