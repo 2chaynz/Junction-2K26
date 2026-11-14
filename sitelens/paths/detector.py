@@ -118,7 +118,42 @@ def _sinks(path: str) -> Answer:
                   evidence=ev, trace=[f"{len(sinks)} sinks detected", f"+{len(extra)} kitchens without a detected sink"])
 
 
+# room class → (OCR label kind, rule). Chosen per class on the `rest` split (T19): OCR beats boxes on balconies
+# 85/56% and WC rooms 64/60%; max(OCR, boxes) lifts bedrooms 87→89%. Kitchens/baths/saunas: boxes win, OCR unused.
+OCR_RULES = {"room_outdoor": ("balcony", "ocr"), "room_wc": ("wc", "ocr"), "room_bedroom": ("bedroom", "max")}
+
+
+def _ocr_labels(path: str, kind: str) -> list | None:
+    try:
+        from .. import ocr
+    except ImportError:
+        return None
+    try:
+        return ocr.labels(str(data_root() / path), kind)
+    except ImportError:  # rapidocr not installed: boxes only
+        return None
+
+
+def _with_ocr(path: str, cls: str, boxes: Answer) -> Answer:
+    kind, rule = OCR_RULES[cls]
+    found = _ocr_labels(path, kind)
+    if found is None or (rule == "max" and len(found) <= boxes.value):
+        return boxes
+    return Answer(value=len(found), unit="count", method="detector+ocr", confidence=0.7, cost_eur=0.00001,
+                  evidence=[Evidence(file=path, bbox=list(b), label=f"label '{t}' {p:.2f}", kind="text")
+                            for t, p, b in found],
+                  trace=[f"read {len(found)} '{kind}' room labels", f"detector boxes: {boxes.value}"])
+
+
 def answer(path: str, question: str) -> Answer | None:
+    a = _answer(path, question)
+    classes = next((c for rx, c in TARGETS if re.search(rx, question)), None)
+    if a is not None and classes and len(classes) == 1 and classes[0] in OCR_RULES and not FLOORS.search(question):
+        return _with_ocr(path, classes[0], a)
+    return a
+
+
+def _answer(path: str, question: str) -> Answer | None:
     if not path.lower().endswith(RASTER) or not COUNT_CUE.search(question):
         return None
     classes = ("floor",) if FLOORS.search(question) else next((c for rx, c in TARGETS if re.search(rx, question)), None)
