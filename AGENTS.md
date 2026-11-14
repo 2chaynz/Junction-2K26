@@ -102,10 +102,9 @@ One agent, run by one human, keeps the queue full. It edits tickets only, never 
 1. Commit on your branch. `git fetch origin && git rebase origin/main`.
 2. `bash scripts/check.sh` must pass.
 3. `git push -u origin HEAD`. Fill `.github/pull_request_template.md` into `pr.md`, then `gh pr create --title "T<n>: <summary>" --body-file pr.md` and delete `pr.md`.
-4. Cross-review, one round, by the *other* tool (same tool in a fresh session if the other isn't installed):
-   - Claude author: `gh pr diff <n> | codex exec "Review this PR diff. Blocking issues only: bugs, contract breaks, broken demo. First line exactly 'Cross-review: PASS' or 'Cross-review: BLOCKING'." -o review.md`
-   - Codex author: `gh pr diff <n> | claude -p "<same prompt>" > review.md`
-   - `gh pr comment <n> --body-file review.md`, then delete `review.md`.
+4. Cross-review, one round, by the *other* tool: `bash scripts/xreview.sh <n>` (Claude author) or `bash scripts/xreview.sh <n> --author codex`. It posts the comment.
+   - Codex from the ChatGPT desktop app is not on PATH; the script finds it (`--which` shows where). Don't conclude Codex is missing from `which codex` alone.
+   - Falls back to a fresh Claude session only when no Codex binary exists.
 5. BLOCKING → fix, push, comment what you fixed. No second review round unless a human asks.
 6. `status.mjs set Tn review`. A human merges.
 
