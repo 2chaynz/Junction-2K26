@@ -127,11 +127,18 @@ const val = (p, k) => fixText(p?.[k]?.value ?? null)
 const countryOf = (address) => address?.split(',').map((x) => x.trim()).filter(Boolean).pop() ?? null
 const roundDate = (r) => (r.properties?.sources ?? []).map((s) => s.date).filter(Boolean).sort()[0] ?? null
 
+// A name match is wrong when the founding year cannot be our startup's (we pulled 2015+ founders).
+const mismatched = new Set()
 console.log('details:')
 const details = await pool([...seeds.values()], async (seed) => {
   const d = await call('POST', `/entities/${seed.id}`, QUERY)
   if (!d?.properties) return null
   const p = d.properties
+  const year = +String(val(p, 'founding_date') ?? '').slice(0, 4) || null
+  if (seed.old?.id.startsWith('q-') && year && (year < 2005 || (seed.old.founded && Math.abs(year - seed.old.founded) > 3))) {
+    mismatched.add(seed.id)
+    return null
+  }
   const out = d.relationships?.outgoing ?? {}
   const inc = d.relationships?.incoming ?? {}
   const founded = val(p, 'founding_date')
@@ -148,7 +155,6 @@ const details = await pool([...seeds.values()], async (seed) => {
     website: val(p, 'website') ?? seed.old?.website ?? null,
     description: val(p, 'description') || seed.old?.description || '',
     hq: val(p, 'headquarters_address') ?? seed.old?.hq ?? null,
-    industries: (out.OPERATES_IN_INDUSTRY ?? []).map((x) => x.properties?.original_label ?? x.name),
     fundingStage: val(p, 'funding_stage'),
     totalFunding: typeof funding === 'number' ? { value: funding, units: val(p, 'total_funding_units') ?? 'USD' } : null,
     funding: seed.old?.funding ?? null,
@@ -163,7 +169,6 @@ const details = await pool([...seeds.values()], async (seed) => {
     founders: (inc.FOUNDED ?? []).map((x) => ({ id: x.id, name: fixText(x.name) })),
     ceo: (inc.IS_CEO_OF ?? []).map((x) => ({ id: x.id, name: fixText(x.name) })),
     prov,
-    sources: [...new Set(Object.values(prov).map((s) => s.url))],
   }
 })
 
@@ -174,8 +179,16 @@ const isStartup = (s) => s.description && s.status !== 'INACTIVE'
 const fromCala = details.filter(Boolean).filter((s) => s.sector || isStartup(s))
 const seedList = [...seeds.values()]
 // Our startups whose details are not fetched yet keep their previous record, under the resolved id.
-const waiting = seedList.filter((seed, i) => !details[i] && seed.old).map((seed) => ({ ...seed.old, id: seed.id, slush: slush.has(seed.id) }))
+const waiting = seedList.filter((seed, i) => !details[i] && seed.old)
+  .map((seed) => (mismatched.has(seed.id) ? { ...seed.old, slush: false } : { ...seed.old, id: seed.id, slush: slush.has(seed.id) }))
 const startups = [...fromCala, ...waiting, ...keptUnlinked.map((s) => ({ ...s, slush: false }))]
 if (broke) console.log(`credits ran out: ${seedList.filter((seed, i) => !details[i] && !seed.old).length} Slush companies still to fetch; rerun when topped up`)
-writeFileSync(OUT, JSON.stringify(startups))
-console.log(`wrote ${startups.length} startups: ${fromCala.length} detailed from Cala, ${waiting.length} awaiting details (${fromCala.filter((s) => s.slush).length} at Slush, ${fromCala.filter((s) => s.totalFunding).length} with funding), ${keptUnlinked.length} unlinked kept`)
+// Sources go to their own file: they are a third of the data and the page loads them after first paint.
+const PROV = new URL('../src/data/prov.json', import.meta.url)
+// Startups kept from the previous file carry no prov any more: keep their earlier sources.
+const earlier = existsSync(PROV) ? JSON.parse(readFileSync(PROV, 'utf8')) : {}
+const prov = Object.fromEntries(startups.map((s) => [s.id, s.prov && Object.keys(s.prov).length ? s.prov : earlier[s.id]]).filter(([, p]) => p))
+writeFileSync(OUT, JSON.stringify(startups.map(({ prov: _, sources: __, industries: ___, ...s }) => s)))
+writeFileSync(PROV, JSON.stringify(prov))
+console.log(`${mismatched.size} name matches rejected (founding year does not fit)`)
+console.log(`wrote ${startups.length} startups: ${fromCala.length} detailed from Cala, ${waiting.length - mismatched.size} awaiting details (${fromCala.filter((s) => s.slush).length} at Slush, ${fromCala.filter((s) => s.totalFunding).length} with funding), ${keptUnlinked.length} unlinked kept`)

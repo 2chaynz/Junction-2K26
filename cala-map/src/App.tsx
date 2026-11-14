@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { IS_MOCK, SECTORS, STAGES, STARTUPS, SUMMARIES } from './data/load'
+import { IS_MOCK, SECTORS, STAGES, STARTUPS, loadProvenance, loadSummaries, type Summary } from './data/load'
+import type { Provenance } from './data/types'
 import type { Startup } from './data/types'
 import type { Tile } from './layout'
 import { useStored } from './useStored'
@@ -72,6 +73,10 @@ export default function App() {
   const [hideSeen, setHideSeen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [allInvestors, setAllInvestors] = useState(false)
+  const [summaries, setSummaries] = useState<Record<string, Summary>>({})
+  useEffect(() => { loadSummaries().then(setSummaries) }, [])
+  const [provenance, setProvenance] = useState<Provenance>({})
+  useEffect(() => { loadProvenance().then(setProvenance) }, [])
   const [hopAt, setHopAt] = useState(now)
 
   const tile = BY_ID.get(selectedId)!
@@ -200,6 +205,7 @@ export default function App() {
     ...(funded ? [{ key: 'funded' as const, value: 'funded', text: 'funded' }] : []),
     ...(selected.slush ? [{ key: 'slush' as const, value: 'Slush 2026', text: 'at Slush 2026' }] : []),
   ]
+  const prov = provenance[selected.id]
   const partner = ISLANDS.find((i) => i.sector === PARTNER.get(selected.id))
   const copyLink = () => { navigator.clipboard?.writeText(location.href); setCopied(true); setTimeout(() => setCopied(false), 1500) }
 
@@ -382,27 +388,27 @@ export default function App() {
 
         <section className="block about card-in" key={`about-${selected.id}`}>
           <div className="section-title">About</div>
-          {SUMMARIES[selected.id] ? (
+          {summaries[selected.id] ? (
             <>
-              <p className="pitch">{SUMMARIES[selected.id].summary}</p>
+              <p className="pitch">{summaries[selected.id].summary}</p>
               <p className="ai-note">
-                <Icon name="spark" size={11} /> Gemini, from the web
-                {SUMMARIES[selected.id].sources.map((s) => <a key={s.uri} href={s.uri} target="_blank" rel="noreferrer">{s.title}</a>)}
+                <Icon name="spark" size={11} /> {summaries[selected.id].grounded === false ? 'Gemini, from Cala facts' : 'Gemini, from the web'}
+                {summaries[selected.id].sources.map((s) => <a key={s.uri} href={s.uri} target="_blank" rel="noreferrer">{s.title}</a>)}
               </p>
               {selected.description && <p className="cala-line"><span>Cala</span> {selected.description}</p>}
             </>
           ) : <p className="pitch">{selected.description || 'No description yet.'}</p>}
           <dl>
             {selected.totalFunding
-              ? <><dt>raised</dt><dd>{money(selected.totalFunding.value, selected.totalFunding.units)} <Src s={selected.prov?.total_funding} /></dd></>
+              ? <><dt>raised</dt><dd>{money(selected.totalFunding.value, selected.totalFunding.units)} <Src s={prov?.total_funding} /></dd></>
               : selected.funding && <><dt>raised</dt><dd>{selected.funding}</dd></>}
-            {selected.stage !== 'Unknown' && <><dt>stage</dt><dd>{selected.stage} <Src s={selected.prov?.funding_stage} /></dd></>}
-            {selected.headcount && <><dt>team</dt><dd>{selected.headcount} people <Src s={selected.prov?.employee_count_range} /></dd></>}
-            {selected.founded && <><dt>founded</dt><dd>{selected.founded} <Src s={selected.prov?.founding_date} /></dd></>}
-            {selected.hq && <><dt>hq</dt><dd>{selected.hq.replace(/^[\s,]+/, '')} <Src s={selected.prov?.headquarters_address} /></dd></>}
+            {selected.stage !== 'Unknown' && <><dt>stage</dt><dd>{selected.stage} <Src s={prov?.funding_stage} /></dd></>}
+            {selected.headcount && <><dt>team</dt><dd>{selected.headcount} people <Src s={prov?.employee_count_range} /></dd></>}
+            {selected.founded && <><dt>founded</dt><dd>{selected.founded} <Src s={prov?.founding_date} /></dd></>}
+            {selected.hq && <><dt>hq</dt><dd>{selected.hq.replace(/^[\s,]+/, '')} <Src s={prov?.headquarters_address} /></dd></>}
             {selected.ceo?.length ? <><dt>ceo</dt><dd>{selected.ceo.map((f) => f.name).join(', ')}</dd></> : null}
             {selected.founders.length > 0 && <><dt>founders</dt><dd>{selected.founders.map((f) => f.name).join(', ')}</dd></>}
-            {selected.status && selected.status !== 'ACTIVE' && <><dt>status</dt><dd>{selected.status.toLowerCase()} <Src s={selected.prov?.operational_status} /></dd></>}
+            {selected.status && selected.status !== 'ACTIVE' && <><dt>status</dt><dd>{selected.status.toLowerCase()} <Src s={prov?.operational_status} /></dd></>}
           </dl>
           <div className="section-title">Backed by</div>
           <div className="chips">

@@ -27,14 +27,25 @@ Known facts: ${s.description || 'none'}${s.totalFunding ? `; raised ${s.totalFun
 Search the web for this exact company. Write 2-3 plain sentences, max 70 words: what it sells and to whom, traction or funding if known, and one reason an investor might care.
 No headings, no markdown, no hype. If you can't find this company, say only what the known facts support.`
 
+// Google Search grounding has its own daily quota; once it is spent, summaries are written from
+// Cala's facts alone and say so (no web sources).
+let grounded = true
 async function summarize(s) {
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
       method: 'POST',
       headers: { 'x-goog-api-key': KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt(s) }] }], tools: [{ google_search: {} }] }),
-    })
-    if ((res.status === 429 || res.status >= 500) && attempt < 5) {
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: grounded ? prompt(s) : prompt(s).replace('Search the web for this exact company. ', '') }] }],
+        ...(grounded ? { tools: [{ google_search: {} }] } : {}),
+      }),
+    }).catch((e) => (attempt < 5 ? null : Promise.reject(e)))
+    if (res?.status === 429 && grounded && /quota/i.test(await res.clone().text())) {
+      grounded = false
+      console.warn('search grounding quota spent: writing the rest from Cala facts only')
+      continue
+    }
+    if (!res || ((res.status === 429 || res.status >= 500) && attempt < 5)) {
       await new Promise((r) => setTimeout(r, 2000 * 2 ** attempt))
       continue
     }
@@ -45,7 +56,7 @@ async function summarize(s) {
     if (!summary) throw new Error(`${s.name}: empty answer`)
     const sources = (cand.groundingMetadata?.groundingChunks ?? [])
       .map((c) => c.web).filter(Boolean).slice(0, 3).map((w) => ({ title: w.title, uri: w.uri }))
-    return { summary, sources, model: MODEL }
+    return { summary, sources, model: MODEL, grounded }
   }
 }
 

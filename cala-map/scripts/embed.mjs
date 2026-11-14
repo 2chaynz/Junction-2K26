@@ -29,17 +29,24 @@ const text = (s) => `${s.name}. ${s.description}. ${summaries[s.id]?.summary ?? 
 const hash = (t) => createHash('sha1').update(t).digest('hex').slice(0, 12)
 const normalise = (v) => { const n = Math.hypot(...v) || 1; return v.map((x) => x / n) }
 
+// Retries network errors and rate limits: one dropped request should not lose a whole run.
 async function geminiEmbed(texts) {
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${EMBED_MODEL}:batchEmbedContents`, {
-    method: 'POST',
-    headers: { 'x-goog-api-key': KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      requests: texts.map((t) => ({ model: `models/${EMBED_MODEL}`, content: { parts: [{ text: t }] }, taskType: 'RETRIEVAL_DOCUMENT', outputDimensionality: EMBED_DIM })),
-    }),
-  })
-  const body = await res.json()
-  if (!res.ok) throw new Error(`embed: ${res.status} ${body.error?.message}`)
-  return body.embeddings.map((e) => normalise(e.values))
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${EMBED_MODEL}:batchEmbedContents`, {
+      method: 'POST',
+      headers: { 'x-goog-api-key': KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requests: texts.map((t) => ({ model: `models/${EMBED_MODEL}`, content: { parts: [{ text: t }] }, taskType: 'RETRIEVAL_DOCUMENT', outputDimensionality: EMBED_DIM })),
+      }),
+    }).catch((e) => (attempt < 5 ? null : Promise.reject(e)))
+    if (!res || ((res.status === 429 || res.status >= 500) && attempt < 5)) {
+      await new Promise((r) => setTimeout(r, 2000 * 2 ** attempt))
+      continue
+    }
+    const body = await res.json()
+    if (!res.ok) throw new Error(`embed: ${res.status} ${body.error?.message}`)
+    return body.embeddings.map((e) => normalise(e.values))
+  }
 }
 
 async function embedAll() {
@@ -171,3 +178,5 @@ writeFileSync(data('positions.json'), JSON.stringify(positions))
 const bridges = findBridges(vec)
 writeFileSync(data('bridges.json'), JSON.stringify(bridges))
 console.log(`${gemini ? 'gemini' : 'tf-idf'}: positions for ${Object.keys(positions).length}, ${bridges.length} bridges`)
+// The layout depends on positions and bridges, so refresh the precomputed one.
+await import('./layout.mjs')

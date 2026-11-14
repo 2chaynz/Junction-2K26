@@ -3,7 +3,9 @@ export type Stage = 'Unknown' | 'No rounds' | 'Pre-seed' | 'Seed' | 'Series A' |
 export interface Ref { id: string; name: string }
 
 // Strongest source behind a fact; rank is Cala's FILING | PRIMARY | PRESS | AGGREGATOR.
+// Loaded lazily from data/prov.json, keyed by startup id then Cala property name.
 export interface Source { name: string; url: string; date: string | null; rank: string | null }
+export type Provenance = Record<string, Record<string, Source>>
 
 export interface Startup {
   id: string
@@ -27,7 +29,5 @@ export interface Startup {
   investors: Ref[]
   founders: Ref[]
   ceo?: Ref[]
-  // Keyed by Cala property name, e.g. total_funding.
-  prov?: Record<string, Source>
-  sources: string[]
+  sources?: string[]
 }

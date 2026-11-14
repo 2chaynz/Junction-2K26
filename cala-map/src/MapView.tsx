@@ -6,6 +6,7 @@ import type { Tile } from './layout'
 import { useClock, useVoyage } from './anim'
 import { iconUrl } from './icons'
 import { sigilUrl } from './Logo'
+import { SIGILS, type Sigils } from './sigils'
 import { BOUNDS, ISLANDS, PARTNER, SEA, TILES } from './world'
 
 const MAX_ZOOM = 7.5
@@ -29,9 +30,13 @@ const SPRITE = {
 const STARTUP_TILES = TILES.filter((t) => t.startup)
 const BARE_LAND = TILES.filter((t) => !t.startup)
 const square = (t: Tile, h = 0.47) => [[t.x - h, t.y - h], [t.x + h, t.y - h], [t.x + h, t.y + h], [t.x - h, t.y + h]]
-const emblem = (t: Tile) => ({ url: sigilUrl(t.startup!.name, t.color), width: 70, height: 70, id: `s-${t.startup!.id}` })
 
 type View = { target: [number, number, number]; zoom: number } & Partial<typeof FLY>
+// Built once: new objects here on every render make deck.gl reset its camera and controller.
+const VIEWS = new OrthographicView({ flipY: true })
+const CONTROLLER = { inertia: 300 }
+const cursor = ({ isHovering, isDragging }: { isHovering: boolean; isDragging: boolean }) => (isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab')
+
 export interface FlyRequest { x: number; y: number; zoom?: number; seq: number }
 
 // Keeps the camera inside the sea: no zooming out or panning past its edges.
@@ -64,7 +69,16 @@ export const MapView = memo(function MapView({ tile, visible, hideSeen, discover
   const box = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 800, h: 600 })
   const [view, setView] = useState<View>({ target: [tile.x, tile.y, 0], zoom: 4.2 })
-  const clock = useClock()
+  // Smooth frames only while the boat sails; idle bobbing and glints need far fewer.
+  const [sailing, setSailing] = useState(true)
+  useEffect(() => {
+    setSailing(true)
+    const t = setTimeout(() => setSailing(false), 1800)
+    return () => clearTimeout(t)
+  }, [tile])
+  const clock = useClock(sailing ? 30 : 8)
+  const [sigils, setSigils] = useState<Sigils | null>(null)
+  useEffect(() => { SIGILS.then(setSigils) }, [])
   const voyage = useVoyage([tile.x, tile.y], clock)
 
   useEffect(() => {
@@ -83,10 +97,6 @@ export const MapView = memo(function MapView({ tile, visible, hideSeen, discover
   useEffect(() => setView((v) => clamp(v, size.w, size.h)), [size])
 
   const zoomedIn = view.zoom >= 3
-  // Viewport in tile units, rounded so the emblem set only changes when a new row/column scrolls in.
-  const half = { x: Math.ceil(size.w / 2 / 2 ** view.zoom) + 1, y: Math.ceil(size.h / 2 / 2 ** view.zoom) + 1 }
-  const cx = Math.round(view.target[0])
-  const cy = Math.round(view.target[1])
   const showEmblems = view.zoom >= EMBLEM_ZOOM
 
   const tilesLayer = useMemo(() => new PolygonLayer<Tile>({
@@ -95,7 +105,7 @@ export const MapView = memo(function MapView({ tile, visible, hideSeen, discover
     getPolygon: (t) => square(t),
     getFillColor: (t) => {
       const id = t.startup!.id
-      const dim = hideSeen && discovered.has(id) && t !== tile ? 0.3 : 1
+      const dim = hideSeen && discovered.has(id) ? 0.3 : 1
       return [t.color[0] * dim, t.color[1] * dim, t.color[2] * dim, visible.has(id) ? 255 : 45]
     },
     stroked: false,
@@ -103,9 +113,10 @@ export const MapView = memo(function MapView({ tile, visible, hideSeen, discover
     autoHighlight: true,
     highlightColor: [255, 255, 255, 90],
     transitions: { getFillColor: 400 },
-    updateTriggers: { getFillColor: [visible, hideSeen, discovered, tile] },
+    // Selecting a startup must not recolour every tile: `discovered` only matters while dimming.
+    updateTriggers: { getFillColor: [visible, hideSeen && discovered] },
     onClick: ({ object }) => object && onPick(object.startup!.id),
-  }), [visible, hideSeen, discovered, tile, onPick])
+  }), [visible, hideSeen, hideSeen && discovered, onPick])
 
   // Bare land in the middle of a neck is scenery, so it does not react to the pointer.
   const bareLayer = useMemo(() => new PolygonLayer<Tile>({
@@ -149,19 +160,33 @@ export const MapView = memo(function MapView({ tile, visible, hideSeen, discover
     visible: labelOpacity > 0,
   }), [labelOpacity])
 
-  const emblemsLayer = useMemo(() => new IconLayer<Tile>({
+  // One prebuilt atlas holds every emblem; the GPU culls what is off screen, so panning costs nothing.
+  const emblemsLayer = useMemo(() => sigils && new IconLayer<Tile>({
     id: 'emblems',
-    data: showEmblems
-      ? TILES.filter((t) => t.startup && Math.abs(t.x - cx) <= half.x && Math.abs(t.y - cy) <= half.y && (!visible.size || visible.has(t.startup.id)))
-      : [tile],
+    data: STARTUP_TILES,
+    iconAtlas: sigils.atlas,
+    iconMapping: sigils.mapping,
+    // Nearest-neighbour keeps the pixel art crisp when zoomed in.
+    textureParameters: { minFilter: 'nearest', magFilter: 'nearest' },
+    getIcon: (t) => t.startup!.id,
     getPosition: (t) => [t.x, t.y],
-    getIcon: emblem,
-    getSize: (t) => (t === tile ? 1.15 : 0.82),
+    getSize: (t) => (t === tile ? 0 : 0.82),
+    getColor: (t) => [255, 255, 255, visible.has(t.startup!.id) ? 255 : 40],
+    sizeUnits: 'common',
+    visible: showEmblems,
+    updateTriggers: { getSize: tile, getColor: visible },
+  }), [sigils, tile, showEmblems, visible])
+
+  // The selected startup's emblem, drawn on its own so it shows at every zoom and before the atlas is ready.
+  const selectedEmblem = useMemo(() => new IconLayer<Tile>({
+    id: 'selected-emblem',
+    data: [tile],
+    getIcon: (t) => ({ url: sigilUrl(t.startup!.name, t.color), width: 70, height: 70, id: t.startup!.id }),
+    getPosition: (t) => [t.x, t.y],
+    getSize: 1.15,
     sizeUnits: 'common',
     sizeMinPixels: 6,
-    updateTriggers: { getSize: tile },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [showEmblems, cx, cy, half.x, half.y, tile, visible])
+  }), [tile])
 
   const spritesLayer = useMemo(() => new IconLayer<Tile>({
     id: 'sprites',
@@ -188,6 +213,7 @@ export const MapView = memo(function MapView({ tile, visible, hideSeen, discover
     tilesLayer,
     selectionLayer,
     emblemsLayer,
+    selectedEmblem,
     spritesLayer,
     labelsLayer,
     // Thin fading line: one segment per wake point so the tail can fade out.
@@ -218,16 +244,16 @@ export const MapView = memo(function MapView({ tile, visible, hideSeen, discover
   return (
     <div ref={box} className="deck-box">
       <DeckGL
-        views={new OrthographicView({ flipY: true })}
+        views={VIEWS}
         viewState={view}
-        controller={{ inertia: 300 }}
+        controller={CONTROLLER}
         // Drop the flight transition, or every scroll and drag would replay a 1.2s animation.
         onViewStateChange={({ viewState }) => {
           const v = viewState as View
           setView(clamp({ target: v.target, zoom: v.zoom }, size.w, size.h))
         }}
         layers={layers}
-        getCursor={({ isHovering, isDragging }) => (isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab')}
+        getCursor={cursor}
         getTooltip={({ object }) => {
           const s = (object as Tile)?.startup
           return s ? { html: `<b>${s.name}</b><div>${s.sector}${PARTNER.has(s.id) ? ` ⇄ ${PARTNER.get(s.id)}` : ''} · ${s.country}${s.founded ? ` · ${s.founded}` : ''}</div>`, className: 'map-tip', style: {} } : null

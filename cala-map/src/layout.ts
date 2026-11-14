@@ -233,3 +233,36 @@ function assign(members: Startup[], cells: { x: number; y: number }[], positions
   }
   return out
 }
+
+// Fingerprint of everything the layout depends on, so a precomputed layout is only reused for
+// the exact same data.
+export function layoutKey(startups: Startup[], positions: Positions, links: BridgeLink[]) {
+  const text = JSON.stringify([startups.map((s) => [s.id, s.sector]), positions, links])
+  let h = 2166136261
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619)
+  return `${startups.length}-${(h >>> 0).toString(36)}`
+}
+
+type Layout = ReturnType<typeof layoutIslands>
+export interface PackedLayout {
+  key: string
+  tiles: [number, number, string, string | null, number, number, number][]
+  islands: Island[]
+  partner: [string, string][]
+}
+
+export const packLayout = (key: string, l: Layout): PackedLayout => ({
+  key,
+  tiles: l.tiles.map((t) => [t.x, t.y, t.sector, t.startup?.id ?? null, ...t.color.map(Math.round)] as PackedLayout['tiles'][number]),
+  islands: l.islands,
+  partner: [...l.partnerOf],
+})
+
+export function unpackLayout(p: PackedLayout, startups: Startup[]): Layout {
+  const byId = new Map(startups.map((s) => [s.id, s]))
+  return {
+    tiles: p.tiles.map(([x, y, sector, id, r, g, b]) => ({ x, y, sector, startup: id ? byId.get(id) : undefined, color: [r, g, b] })),
+    islands: p.islands,
+    partnerOf: new Map(p.partner),
+  }
+}

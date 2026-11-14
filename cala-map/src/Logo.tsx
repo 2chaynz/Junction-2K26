@@ -3,7 +3,7 @@ import { useState } from 'react'
 const hash = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)
 
 // Mirrored 5x5 pixel sigil, unique per startup, for companies without a known website.
-function sigilCells(seed: string) {
+export function sigilCells(seed: string) {
   let h = hash(seed)
   const cells: [number, number][] = []
   for (let y = 0; y < 5; y++) {
