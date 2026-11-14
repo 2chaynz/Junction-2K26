@@ -8,7 +8,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T1 Project scaffold + CONTRACT.md + Run section | setup |  | johanseneuson | done | johanseneuson/T1-scaffold |  |  |
 | T2 Demo video, README, pitch | pitch | T1 |  | todo |  |  |  |
 | T3 Vector path: Swiss + opening_design | ai | T1 | johanseneuson | done | johanseneuson/T3-vector-fixes |  |  |
-| T4 IFC path: counts, lengths, volumes, text | ai | T1 |  | todo |  |  |  |
+| T4 IFC path: counts, lengths, volumes, text | ai | T1 | johanseneuson | doing | johanseneuson/T4-ifc |  |  |
 | T5 Train symbol detector on CubiCasa5K | train | T1 | johanseneuson | doing | johanseneuson/T5-detector |  |  |
 | T6 Detector path: raster counts with boxes | ai | T1 | johanseneuson | doing | johanseneuson/T6-detector-path |  |  |
 | T7 VLM path: frontier baseline + fallback | ai | T1 |  | todo |  |  |  |
