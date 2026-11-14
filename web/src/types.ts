@@ -13,7 +13,7 @@ export type Check = { expected: unknown; unit: string | null; match: boolean | n
 export type Answer = {
   value: unknown;
   unit: string | null;
-  method: string;
+  method: string; // ifc | vector | detector | vlm | general | none
   confidence: number;
   cost_eur: number;
   evidence: Evidence[];
@@ -21,8 +21,16 @@ export type Answer = {
   time_s: number;
   view: string;
   check?: Check;
+  tried?: string[];
 };
 
 export type KeyQuestion = { question: string; answer: unknown; unit: string | null; type: string };
 
 export type Drawing = { path: string; source: string; view: string; questions: KeyQuestion[] };
+
+export type Msg =
+  | { kind: "user"; path: string; text: string }
+  | { kind: "answer"; path: string; question: string; answer: Answer }
+  | { kind: "pending"; path: string }
+  | { kind: "error"; path: string; text: string }
+  | { kind: "switch"; path: string };

@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import data_root
-from .router import answer
+from .router import PATHS, _load, answer
 
 WEB = Path(__file__).resolve().parent.parent / "web" / "dist"
 IMAGE_EXT = {".png", ".jpg", ".jpeg"}
@@ -104,16 +104,57 @@ class Ask(BaseModel):
     question: str
 
 
+GENERAL_PROMPT = """You are SiteLens, a tool that answers questions about construction drawings and BIM models.
+It reads each file with the cheapest exact method first: IFC models with ifcopenshell, vector PDFs as text and
+geometry, scanned plans with a trained symbol detector, and a vision model only as a last resort. Every answer
+shows where it comes from on the plan and what it cost. The user has "{name}" open.
+If the question needs facts read from that drawing, set "general" to false. Otherwise answer it in at most
+3 short sentences, plain text, no markdown.
+Question: {q}
+Reply with JSON only: {{"general": true or false, "text": "..."}}"""
+
+
+def _general(path: str, question: str) -> dict | None:
+    """Questions no path answers and that aren't about the drawing (e.g. 'how does this work?')."""
+    import os
+    import urllib.request
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        return None
+    model = os.environ.get("SITELENS_GEMINI_MODEL", "gemini-2.5-flash")
+    body = {"contents": [{"parts": [{"text": GENERAL_PROMPT.format(name=Path(path).name, q=question)}]}],
+            "generationConfig": {"temperature": 0, "responseMimeType": "application/json"}}
+    req = urllib.request.Request(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+        data=json.dumps(body).encode(), headers={"Content-Type": "application/json", "x-goog-api-key": key})
+    try:
+        r = json.load(urllib.request.urlopen(req, timeout=30))
+        d = json.loads(r["candidates"][0]["content"]["parts"][0]["text"])
+    except Exception:
+        return None
+    if not d.get("general") or not d.get("text"):
+        return None
+    from .paths.vlm import GEMINI_EUR_PER_MTOK
+    u = r.get("usageMetadata", {})
+    cost = (u.get("promptTokenCount", 0) * GEMINI_EUR_PER_MTOK[0]
+            + (u.get("candidatesTokenCount", 0) + u.get("thoughtsTokenCount", 0)) * GEMINI_EUR_PER_MTOK[1]) / 1e6
+    return {"value": d["text"], "unit": None, "method": "general", "confidence": 0.0, "cost_eur": round(cost, 6),
+            "evidence": [], "trace": [f"no path answered; {model} answered as a general question"]}
+
+
 @app.post("/api/ask")
 def ask(req: Ask):
     _safe(req.path)
     t = time.time()
     a = answer(req.path, req.question).to_dict()
+    if a["value"] is None:
+        a["tried"] = [n.rsplit(".", 1)[1] for n in PATHS if _load(n) is not None]
+        a = _general(req.path, req.question) or a
     a["time_s"] = round(time.time() - t, 3)
     a["view"] = _view_of(req.path)
     # When the question is one of Stoa's, show their answer next to ours.
     key = next((q for q in _questions().get(req.path, []) if q["question"].strip() == req.question.strip()), None)
-    if key:
+    if key and a["method"] != "general":
         from eval.score import grade
         a["check"] = {"expected": key["answer"], "unit": key["unit"], "match": grade(key, a["value"])}
     return a
