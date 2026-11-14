@@ -2,6 +2,10 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 21:15 · johanseneuson · johanseneuson: detector round done. Merged PR #87 (NMS IoU 0.4): cubicasa dev 82.8 -> 83.6%. Measured on the clean preview plans and NOT adopted: YOLO11x on all data 79.4% (bigger model = no gain, we are label/data-bound), YOLO11m->l retrain on 74% data 77.7%, 1536/1600px inference, flip-TTA, per-style thresholds, count-averaging two models. Weighted-box fusion of two models is +1.1 dev / +0.7 tuning but 2x inference + 114MB second model: available if we want it (weights in junction-data/weights). H100 about to be deleted
+- 2026-11-14 20:41 · ccolver · T65 PR #84: MSD overlap benchmark on 29 plans; geometry improved kitchen counts, default unchanged.
+- 2026-11-14 20:40 · ccolver · T66: PR #85 passes local checks; blocked after second cross-review on plan-tag placement and multi-tag lookup. Stoa preview has no matching questions.
+- 2026-11-14 20:39 · 2chaynz · T67 PR #86: highlight on scans reads labels with rotation-aware OCR (OH/MH/ET/K on colorful-2002, EUR 0, ~1.5s). Found: rapidocr missing from local venv, OCR silently off. T68 = same rotation for whole-sheet counts
 - 2026-11-14 20:30 · Asif · T61: merged PR #83: Projects tab, project-scoped explorer (typed subfolders), Ask sessions saved per project (/api/session). Restart the server to get the new routes
 - 2026-11-14 20:28 · Asif · video: T2 demo video is built by Claude with Remotion (real UI screen captures + code overlays); Higgsfield only for short b-roll, never to fake product UI
 - 2026-11-14 20:21 · ccolver · T64: merged PR #81 for device-language BIM floors and unquoted IFC questions.
