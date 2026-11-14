@@ -64,3 +64,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T57 dev.mjs: friendly error when port 8000 is busy | setup |  | Asif | done | asif/T57-dev-port-check |  |  |
 | T58 Deploy the demo to a public URL | setup |  | johanseneuson | done | johanseneuson/T58-deploy |  |  |
 | T59 Zoom the Building view with the mouse wheel | app |  | ccolver | done | ccolver/T59-stack-zoom |  |  |
+| T60 Link drawings and BIM and group tools | app |  |  | todo |  |  |  |
