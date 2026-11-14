@@ -12,7 +12,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T5 Train symbol detector on CubiCasa5K | train | T1 | johanseneuson | doing | johanseneuson/T5-detector |  |  |
 | T6 Detector path: raster counts with boxes | ai | T1 | johanseneuson | doing | johanseneuson/T6-detector-path |  |  |
 | T7 VLM path: frontier baseline + fallback | ai | T1 | johanseneuson | review | johanseneuson/T7-vlm-pr |  |  |
-| T8 Demo server + UI | app | T1 |  | todo |  |  |  |
+| T8 Demo server + UI | app | T1 | 2chaynz | doing | 2chaynz/T8-server-ui |  |  |
 | T9 Architecture diagram for README and pitch | pitch |  | 2chaynz | done | 2chaynz/T9-diagram-clarify |  |  |
 | T10 Comparable scores: full preview + official split | eval |  |  | todo |  |  |  |
 | T11 opening_design: read schedule tables | ai |  |  | todo |  |  |  |
