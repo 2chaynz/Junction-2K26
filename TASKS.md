@@ -26,4 +26,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T19 Room-label OCR: bedrooms, baths, WCs, room counts | ai | T6 | ccolver | review | ccolver/T19-room-ocr |  |  |
 | T20 Hot-swappable VLM backends: Gemini, Gemma, Nemotron | ai | T7 | Asif | doing | asif/T20-vlm-backends |  |  |
 | T21 UI v2: drawing + chat redesign | app | T8 | 2chaynz | review | 2chaynz/T21-ui-v2 |  |  |
-| T22 Reliable heartbeats: retry on failure, beat the claimed ticket | setup | T16 | Asif | doing | asif/T22-reliable-beats |  |  |
+| T22 Reliable heartbeats: retry on failure, beat the claimed ticket | setup | T16 | Asif | review | asif/T22-reliable-beats |  |  |
