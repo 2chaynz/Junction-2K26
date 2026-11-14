@@ -58,12 +58,13 @@ function toGeometry(v: Float32Array, idx: Uint32Array, m: number[], c: { x: numb
   return g;
 }
 
-async function load(path: string, root: THREE.Group): Promise<Map<string, Elem>> {
+async function load(path: string, root: THREE.Group, alive: () => boolean): Promise<Map<string, Elem>> {
   const [a, buf] = await Promise.all([ifcApi(), fetch(`/api/ifc?path=${encodeURIComponent(path)}`).then((r) => {
     if (!r.ok) throw new Error(`ifc: ${r.status}`);
     return r.arrayBuffer();
   })]);
   await new Promise((r) => setTimeout(r, 30)); // let "Loading" paint: streaming blocks the thread
+  if (!alive()) return new Map();
   const id = a.OpenModel(new Uint8Array(buf), { COORDINATE_TO_ORIGIN: true });
   const out = new Map<string, Elem>();
   try {
@@ -234,7 +235,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
     setStatus("Loading model…");
     for (const m of [...s.root.children] as THREE.Mesh[]) m.geometry.dispose();
     s.root.clear();
-    load(path, s.root)
+    load(path, s.root, () => !dead)
       .then((m) => {
         if (dead) return;
         const box = new THREE.Box3();
@@ -253,6 +254,8 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
       .catch((e) => !dead && setStatus(`Could not load the model: ${String(e)}`));
     return () => {
       dead = true;
+      for (const m of [...s.root.children] as THREE.Mesh[]) m.geometry.dispose();
+      s.root.clear();
     };
   }, [path]);
 
