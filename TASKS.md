@@ -12,3 +12,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T5 Train symbol detector on CubiCasa5K | train | T1 |  | todo |  |  |  |
 | T6 Detector path: raster counts with boxes | ai | T1 |  | todo |  |  |  |
 | T7 VLM path: frontier baseline + fallback | ai | T1 |  | todo |  |  |  |
+| T8 Demo server + UI | app | T1 |  | todo |  |  |  |
