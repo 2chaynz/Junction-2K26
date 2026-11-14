@@ -298,5 +298,11 @@
   "branch": "ccolver/T59-stack-zoom",
   "text": "Add wheel zoom to the stacked floor viewer.",
   "at": "2026-11-14T17:59:05.918Z"
+ },
+ "T60": {
+  "who": "ccolver",
+  "branch": "main",
+  "text": "claimed",
+  "at": "2026-11-14T18:06:13.366Z"
  }
 }
