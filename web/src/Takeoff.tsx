@@ -120,7 +120,7 @@ function useCountUp(target: number, ms = 600) {
 function Card({ value, label, digits, i, on }: { value: number; label: string; digits: number; i: number; on: boolean }) {
   const v = useCountUp(value);
   return <div className={`tk-card${on ? " on" : ""}`} style={{ "--i": i } as React.CSSProperties}>
-    <b>{v.toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: digits })}</b><span>{label}</span>
+    <b>{v.toLocaleString("en", { maximumFractionDigits: digits, minimumFractionDigits: digits })}</b><span>{label}</span>
   </div>;
 }
 
@@ -138,33 +138,10 @@ const url = (path: string, csv = false) => `/api/takeoff?path=${encodeURICompone
 const evidenceUrl = (e: Evidence) => "/api/file?" + new URLSearchParams({
   path: e.file, page: String(e.page), clip: e.bbox.join(","), pad: ".5", scale: "2",
 });
-const num = (v: number, d = 1) => (v ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : "");
+const num = (v: number, d = 1) => (v ? v.toLocaleString("en", { maximumFractionDigits: d }) : "");
 
-const PROJECT_LANGUAGES: Record<string, string> = { "bsc-esplanades": "et" };
-
-export function projectLanguage(path: string, fallback = document.documentElement.lang || "en") {
-  const project = Object.keys(PROJECT_LANGUAGES).find((name) => path.split("/").pop()?.startsWith(name + "_"));
-  return project ? PROJECT_LANGUAGES[project] : fallback;
-}
-
-export function levelLabel(name: string, language: string) {
-  const locale = language.split("-")[0];
-  const labels: Record<string, string[]> = {
-    en: ["Floor", "Roof", "Foundation"], et: ["Korrus", "Katus", "Vundament"],
-    fi: ["Kerros", "Katto", "Perustus"], de: ["Geschoss", "Dach", "Fundament"],
-    fr: ["Étage", "Toit", "Fondation"], da: ["Etage", "Tag", "Fundament"],
-    uk: ["Поверх", "Дах", "Фундамент"],
-  };
-  const [floor, roof, foundation] = labels[locale] ?? labels.en;
-  const n = name.match(/^(?:floor|level)\s+(\d+)$/i) ?? name.match(/^(\d+)\.\s*korrus$/i);
-  if (n) return locale === "et" ? `${n[1]}. korrus` : `${floor} ${n[1]}`;
-  if (/^(roof|katus)$/i.test(name)) return roof;
-  if (/^(foundation|vundament)$/i.test(name)) return foundation;
-  return name;
-}
-
-function ItemDetails({ row, language, onShow }: {
-  row: Row; language: string; onShow: (r: Row, instance?: number) => void;
+function ItemDetails({ row, onShow }: {
+  row: Row; onShow: (r: Row, instance?: number) => void;
 }) {
   const [index, setIndex] = useState(0);
   const instances = row.evidence.map((item, i) => item.ifc_guid ? { item, i } : null).filter((item) => item !== null);
@@ -172,7 +149,7 @@ function ItemDetails({ row, language, onShow }: {
   return (
     <div className="tk-detail">
       <strong>{row.type}</strong>
-      <p>{[row.size, `${row.count} items`, row.levels.map((name) => levelLabel(name, language)).join(", ")].filter(Boolean).join(" · ")}</p>
+      <p>{[row.size, `${row.count} items`, row.levels.join(", ")].filter(Boolean).join(" · ")}</p>
       <button className="btn" onClick={() => onShow(row)}>{instances.length ? "Show group in BIM" : "Show on drawing"}</button>
       {instances.length > 0 && <div className="tk-instances">
         <label>Element <select value={index} onChange={(e) => setIndex(Number(e.target.value))}>
@@ -184,8 +161,8 @@ function ItemDetails({ row, language, onShow }: {
   );
 }
 
-export default function Takeoff({ path, name, language, onShow }: {
-  path: string; name: string; language: string; onShow: (r: Row, instance?: number) => void;
+export default function Takeoff({ path, name, onShow }: {
+  path: string; name: string; onShow: (r: Row, instance?: number) => void;
 }) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState("");
@@ -213,7 +190,6 @@ export default function Takeoff({ path, name, language, onShow }: {
   }, [path]);
 
   const all = data?.rows ?? [];
-  const label = (n: string) => levelLabel(n, language);
   // Count on the picked level when the row knows its split; lengths, areas and volumes stay whole-group.
   const countOf = (r: Row) => (level !== ALL && r.by_level?.[level] !== undefined ? r.by_level[level] : r.count);
 
@@ -226,7 +202,7 @@ export default function Takeoff({ path, name, language, onShow }: {
   const options = (skip: string, keys: (r: Row) => string[], allText: string, show = (k: string) => k): [string, string][] => {
     const m = new Map<string, number>();
     for (const r of all) if (match(r, skip)) for (const k of keys(r)) m.set(k, (m.get(k) ?? 0) + (skip === "level" ? (r.by_level?.[k] ?? r.count) : countOf(r)));
-    return [[ALL, allText], ...[...m].map(([k, n]): [string, string] => [k, `${show(k)} (${n.toLocaleString(language)})`])];
+    return [[ALL, allText], ...[...m].map(([k, n]): [string, string] => [k, `${show(k)} (${n.toLocaleString("en")})`])];
   };
 
   const categories = useMemo(() => new Set(all.map((r) => r.category)), [all]);
@@ -238,7 +214,7 @@ export default function Takeoff({ path, name, language, onShow }: {
   const sorted = [...rows].sort((a, b) =>
     sort === "size" ? value(b) - value(a) :
     sort === "type" ? a.type.localeCompare(b.type) :
-    sort === "sizeName" ? (a.size || "~").localeCompare(b.size || "~", undefined, { numeric: true }) : 0);
+    sort === "sizeName" ? (a.size || "~").localeCompare(b.size || "~", "en", { numeric: true }) : 0);
   const max = Math.max(0, ...sorted.map(value));
   const sum = (k: Quantity) => rows.reduce((s, r) => s + (k === "count" ? countOf(r) : r[k]), 0);
   const filtered = category !== ALL || type !== ALL || size !== ALL || level !== ALL;
@@ -265,7 +241,7 @@ export default function Takeoff({ path, name, language, onShow }: {
           <Pick label="Size" value={size} onChange={set(setSize)}
             options={options("size", (r) => [r.size || "Unknown"], "All sizes")} />
           <Pick label="Level" value={level} onChange={set(setLevel)}
-            options={options("level", (r) => [...new Set([...r.levels, ...Object.keys(r.by_level ?? {})])], "All levels", label)} />
+            options={options("level", (r) => [...new Set([...r.levels, ...Object.keys(r.by_level ?? {})])], "All levels")} />
           <label>Quantity
             <select value={q} onChange={(e) => setQuantity(e.target.value as Quantity)}>
               {available.map(({ key, label: l, unit }) => <option key={key} value={key}>{l} ({unit})</option>)}
@@ -279,7 +255,7 @@ export default function Takeoff({ path, name, language, onShow }: {
           {filtered && <button className="btn tk-reset" onClick={reset}>Clear filters</button>}
         </div>
         <div className="tk-cards">
-          <Card i={0} value={sum("count")} label={level !== ALL ? `items on ${label(level)}` : "items"} digits={0} on={q === "count"} />
+          <Card i={0} value={sum("count")} label={level !== ALL ? `items on ${level}` : "items"} digits={0} on={q === "count"} />
           <Card i={1} value={rows.length} label={rows.length === 1 ? "group" : "groups"} digits={0} on={false} />
           {shown.map(({ key, label: l, unit }, i) => <Card key={key} i={i + 2} value={sum(key)} label={`${l} (${unit})`} digits={1} on={q === key} />)}
         </div>
@@ -313,14 +289,14 @@ export default function Takeoff({ path, name, language, onShow }: {
                   )}
                 </td>
                 <td className="r mono tk-q">{countOf(r)}{bar("count")}</td>
-                <td className="dim">{levels.length > 1 ? levels.map(([n, c]) => `${label(n)} (${c})`).join(" · ") : r.levels.map(label).join(", ") || "—"}</td>
+                <td className="dim">{levels.length > 1 ? levels.map(([n, c]) => `${n} (${c})`).join(" · ") : r.levels.join(", ") || "—"}</td>
                 {shown.map(({ key }) => <td key={key} className="r mono tk-q">{num(r[key], 2) || "—"}{bar(key)}</td>)}
               </tr>
-              {detail === index && <tr><td colSpan={4 + shown.length}><ItemDetails row={r} language={language} onShow={onShow} /></td></tr>}
+              {detail === index && <tr><td colSpan={4 + shown.length}><ItemDetails row={r} onShow={onShow} /></td></tr>}
             </tbody>;
           })}
         </table></div>}
-        {level !== ALL && shown.length > 0 && <p className="dim tk-notes">Count is for {label(level)}; length, area and volume are for the whole group.</p>}
+        {level !== ALL && shown.length > 0 && <p className="dim tk-notes">Count is for {level}; length, area and volume are for the whole group.</p>}
         {data && data.notes.length > 0 && <details className="tk-notes"><summary>Measurement notes</summary><ul>{data.notes.map((note) => <li key={note}>{note}</li>)}</ul></details>}
       </>}
     </div>

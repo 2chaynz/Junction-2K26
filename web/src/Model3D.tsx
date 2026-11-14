@@ -12,7 +12,7 @@ import {
 import wasmUrl from "web-ifc/web-ifc.wasm?url";
 import "./model3d.css";
 import type { Answer } from "./types";
-import { levelLabel } from "./Takeoff";
+import { toEnglish } from "./translate";
 
 type Props = {
   path: string;
@@ -22,7 +22,6 @@ type Props = {
   onHover: (i: number | null) => void;
   onFocus: (i: number | null) => void;
   busy: boolean;
-  language?: string;
   demo?: { url: string; baseline: string; overview: boolean; removedIds: ReadonlySet<string>; onReady: (ready: boolean) => void };
 };
 
@@ -40,19 +39,9 @@ type Elem = {
   id: number; guid: string; type: number; cat: Cat; storey: number | null;
   meshes: THREE.Mesh[]; base: THREE.Material[]; box: THREE.Box3;
 };
-type Storey = { id: number; name: string; base: number; cut: number; count: number };
+type Storey = { id: number; name: string; label: string; base: number; cut: number; count: number };
 type Model = { id: number; elems: Map<string, Elem>; storeys: Storey[]; box: THREE.Box3 };
 type Info = { title: string; rows: [string, string][] };
-
-const FLOOR_LABELS = {
-  en: { floors: "Floors", all: "All", level: "Floor", roof: "Roof", foundation: "Foundation" },
-  et: { floors: "Korrused", all: "Kõik", level: "Korrus", roof: "Katus", foundation: "Vundament" },
-  fi: { floors: "Kerrokset", all: "Kaikki", level: "Kerros", roof: "Katto", foundation: "Perustus" },
-  da: { floors: "Etager", all: "Alle", level: "Etage", roof: "Tag", foundation: "Fundament" },
-  de: { floors: "Geschosse", all: "Alle", level: "Geschoss", roof: "Dach", foundation: "Fundament" },
-  fr: { floors: "Étages", all: "Tous", level: "Étage", roof: "Toit", foundation: "Fondation" },
-  uk: { floors: "Поверхи", all: "Усі", level: "Поверх", roof: "Дах", foundation: "Фундамент" },
-};
 
 let api: Promise<IfcAPI> | null = null;
 function ifcApi() {
@@ -220,9 +209,12 @@ async function load(url: string, root: THREE.Group, alive: () => boolean, sample
       const es = by.get(s)!;
       const starts = es.filter((e) => e.cat === "walls" || e.cat === "spaces").map((e) => e.box.min.y);
       const base = quantile(starts.length ? starts : es.map((e) => e.box.min.y), 0.2);
-      return { id: s, name: a.GetLine(id, s).Name?.value || `Storey #${s}`, base, cut: base + 1.2, count: es.length };
+      const name = a.GetLine(id, s).Name?.value || `Storey #${s}`;
+      return { id: s, name, label: name, base, cut: base + 1.2, count: es.length };
     })
     .sort((x, y) => y.base - x.base);
+  const labels = await toEnglish(storeys.map((s) => s.name));
+  storeys.forEach((s, i) => { s.label = labels[i]; });
   const box = new THREE.Box3();
   elems.forEach((e) => e.cat !== "spaces" && box.union(e.box));
   return { id, elems, storeys, box };
@@ -240,7 +232,7 @@ async function info(a: IfcAPI, m: Model, e: Elem): Promise<Info | null> {
   const st = m.storeys.find((s) => s.id === e.storey);
   if (l.Name?.value) rows.push(["Name", String(l.Name.value)]);
   if (l.LongName?.value) rows.push(["Long name", String(l.LongName.value)]);
-  if (st) rows.push(["Storey", st.name]);
+  if (st) rows.push(["Storey", st.label]);
   rows.push(["GUID", e.guid]);
   try {
     const sets = await a.properties.getPropertySets(m.id, e.id, true);
@@ -257,13 +249,16 @@ async function info(a: IfcAPI, m: Model, e: Elem): Promise<Info | null> {
   } catch {
     // property sets are a bonus; the element itself is already identified
   }
-  return { title: a.GetNameFromTypeCode(e.type) || "Element", rows: rows.slice(0, 18) };
+  const shown = rows.slice(0, 18);
+  // keys and text values to English; GUIDs and numbers as they are
+  const texts = shown.flatMap(([k, v]) => [k, k === "GUID" ? "" : v]);
+  const en = await toEnglish(texts);
+  return { title: a.GetNameFromTypeCode(e.type) || "Element",
+    rows: shown.map(([k, v], i) => [en[2 * i], k === "GUID" ? v : en[2 * i + 1]]) };
 }
 const fmt = (v: unknown) => (typeof v === "number" ? String(Math.round(v * 1000) / 1000) : String(v));
 
-export default function Model3D({ path, answer, hover, focus, onHover, onFocus, busy, demo, language }: Props) {
-  const locale = (language ?? navigator.language).split("-")[0] as keyof typeof FLOOR_LABELS;
-  const floorLabels = FLOOR_LABELS[locale] ?? FLOOR_LABELS.en;
+export default function Model3D({ path, answer, hover, focus, onHover, onFocus, busy, demo }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const tags = useRef<HTMLDivElement>(null);
   const three = useRef<{
@@ -705,16 +700,16 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
       </div>
 
       {model && model.storeys.length > 0 && (
-        <nav className="m3-floors" aria-label={floorLabels.floors}>
-          <span className="m3-label">{floorLabels.floors}</span>
+        <nav className="m3-floors" aria-label="Floors">
+          <span className="m3-label">Floors</span>
           {!flat && (
             <button className={floor === null ? "on" : ""} onClick={() => setFloor(null)}>
-              {floorLabels.all}{cited.size > 0 && <i>{cited.size}</i>}
+              All{cited.size > 0 && <i>{cited.size}</i>}
             </button>
           )}
           {model.storeys.map((s) => (
-            <button key={s.id} className={floor === s.id ? "on" : ""} onClick={() => setFloor(s.id)} title={levelLabel(s.name, locale)}>
-              <span className="ellipsis">{levelLabel(s.name, locale)}</span>
+            <button key={s.id} className={floor === s.id ? "on" : ""} onClick={() => setFloor(s.id)} title={s.label}>
+              <span className="ellipsis">{s.label}</span>
               {marksOn.get(s.id) ? <i>{marksOn.get(s.id)}</i> : null}
             </button>
           ))}
@@ -764,7 +759,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
       )}
       <div className="viewer-hint mono">
         {flat && floor !== null
-          ? `plan cut 1.2 m above ${storey ? levelLabel(storey.name, locale) : floorLabels.level.toLowerCase()} · drag to pan · scroll to zoom · click for properties`
+          ? `plan cut 1.2 m above ${storey ? storey.label : "the floor"} · drag to pan · scroll to zoom · click for properties`
           : "drag to orbit · right-drag to pan · scroll to zoom · click for properties"}
       </div>
     </div>
