@@ -105,6 +105,23 @@ class DrawingTakeoff(unittest.TestCase):
                     self.assertEqual(row["evidence"][0]["page"], int(layout == "later page"))
                     self.assertEqual(row["dimension_evidence"][-1]["page"], int(layout == "later schedule"))
 
+    def test_two_endpoint_dimension_line_does_not_calibrate_window_span(self):
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"STOA_DATA": d, "SITELENS_STORE": d}):
+            path = "Plan.pdf"
+            with pymupdf.open() as doc:
+                page = doc.new_page()
+                for x, label in [(100, "0"), (200, "4"), (220, "m")]:
+                    page.insert_text((x - 2, 300), label, fontsize=8)
+                page.draw_line((100, 303), (200, 303))
+                doc.save(Path(d) / path)
+            window = ("Windows", Evidence(path, [300, 100, 330, 104]), "Detected symbol", None)
+            with patch.object(takeoff_2d, "_detected", return_value=[window]):
+                result = takeoff.takeoff(path)
+            row, = result["rows"]
+            self.assertEqual(row["count"], 1)
+            self.assertEqual(row["size"], "")
+            self.assertIn("Dimensions could not be inferred.", row["reason"])
+
     def test_disagreeing_scale_bars_do_not_produce_dimensions(self):
         from sitelens.measure import Scale
 

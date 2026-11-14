@@ -141,14 +141,16 @@ def _pdf_bars(path, page, words):
                     continue
                 a, z, sy = stroke
                 inner = [(n, bb, tx) for n, bb, tx, ty in nearby if x < tx < xx and abs(ty - y) <= h / 2]
-                if any(not 0 < n < last or abs((tx - a) / (z - a) - n / last) > 0.08 for n, _, tx in inner):
+                if not inner or any(
+                    not 0 < n < last or abs((tx - a) / (z - a) - n / last) > 0.08 for n, _, tx in inner
+                ):
                     continue
                 mpu = last * measure.UNIT_WORD[unit] / (z - a)
                 key = (round(mpu, 7), round(a), round(sy))
                 if key in seen:
                     continue
                 seen.add(key)
-                box = measure._union([b, end, ub, [a, sy, z, sy]])
+                box = measure._union([b, end, ub, [a, sy, z, sy], *(bb for _, bb, _ in inner)])
                 text = f"Graphic scale: {last:g} {unit.lower()} over {z - a:.2f} PDF points"
                 bars.append(measure.Scale(f"bar:{key}", mpu, "bar", text, 0.8,
                                           [measure.Ref(path, page.number, box, text, "bar")]))
