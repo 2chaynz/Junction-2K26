@@ -14,7 +14,7 @@ import json
 import os
 import re
 import urllib.request
-from functools import lru_cache
+from ..cache import pdf_text
 
 from .. import data_root
 from ..answer import Answer, Evidence
@@ -69,11 +69,10 @@ def _swiss(path: str):
 
 def _sheet_words(path: str) -> list[str]:
     """Title block / annotation text of a PDF (scale, project, floor name)."""
-    import pymupdf
     full = data_root() / path
     if not str(full).lower().endswith(".pdf") or not full.exists():
         return []
-    txt = pymupdf.open(full)[0].get_text()
+    txt, _, _ = pdf_text(full)
     keep = [l.strip() for l in txt.splitlines() if re.search(r"(?i)scale|massstab|échelle|scala|1:\d+|grundriss|plan|floor|"
                                                                r"geschoss|étage|piano|project|projekt|site", l)]
     return list(dict.fromkeys(keep))[:15]
@@ -100,18 +99,12 @@ def _raster(path: str):
     return out
 
 
-@lru_cache(maxsize=4)
-def _ifc_open(fn: str):
-    import ifcopenshell
-    return ifcopenshell.open(fn)
-
-
 def _ifc(path: str):
     from . import ifc as I
     fn = I.model_path(path)
     if fn is None:
         return []
-    f = _ifc_open(str(fn))
+    f = I._file(str(fn))
     rel = str(fn.relative_to(data_root())).replace("\\", "/")
     out = []
     storeys = sorted(f.by_type("IfcBuildingStorey"), key=lambda s: float(getattr(s, "Elevation", 0) or 0))

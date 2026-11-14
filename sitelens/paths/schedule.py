@@ -39,10 +39,12 @@ class Table:
 
 def _words(path: str):
     import pymupdf
-    page = pymupdf.open(data_root() / path)[0]
-    M = page.rotation_matrix
+    from ..cache import pdf_text
+
+    _, words, rotation = pdf_text(data_root() / path)
+    M = pymupdf.Matrix(*rotation)
     out = []
-    for w in page.get_text("words"):
+    for w in words:
         r = pymupdf.Rect(w[:4]) * M
         out.append((r.x0, r.y0, r.x1, r.y1, w[4]))
     return out
