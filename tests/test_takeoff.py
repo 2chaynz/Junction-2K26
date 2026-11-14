@@ -39,6 +39,17 @@ with tempfile.TemporaryDirectory() as d:
     assert tk.takeoff("data/opening_design/P/missing.pdf")["source"] == "none"
     print("schedule takeoff ok")
 
+    # chat listing: doors of one room, with sizes, as a cited table
+    a = tk.answer(rel, "How many doors are in the office and what are their dimensions?")
+    assert a is not None and a.value == 2 and a.unit == "count", a
+    assert len(a.table["rows"]) == len(a.evidence) == 2 and "WIDTH" in a.table["columns"], a.table
+    a = tk.answer(rel, "What are the sizes of the doors in the gym?")
+    assert a.value == "1 door: 1 × 6'-0\" × 8'-0\"", a.value
+    for q in ("What is the width of door 101.A?", "What is the average door width?", "How many doors are there?",
+              "What is the thickness of the external walls?"):
+        assert tk.answer(rel, q) is None, q   # single elements, aggregates and plain counts stay with other paths
+    print("listing ok")
+
 if real and (Path(real) / "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc").exists():
     os.environ["STOA_DATA"] = real
     tk._cached.cache_clear()
@@ -48,4 +59,9 @@ if real and (Path(real) / "data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc").exis
     assert {r["size"] for r in t["rows"] if r["category"] == "Walls"} == {"240 mm thick", "300 mm thick"}
     assert all(e["ifc_guid"] for r in t["rows"] for e in r["evidence"])
     print("ifc takeoff ok")
+    a = tk.answer("data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc", "Which doors are in the Wohnen room and what size are they?")
+    assert a.value == "1 door: 1 × 2010 × 2375 mm" and a.evidence[0].ifc_guid, a.value
+    a = tk.answer("data/ifc_models/bsc-duplex_duplex-a-20110907.ifc", "How many doors are in bedroom 2 and their dimensions?")
+    assert a.value == 2 and "2 rooms" in a.table["title"], (a.value, a.table["title"])   # units A and B
+    print("ifc listing ok")
 print("takeoff ok")

@@ -31,6 +31,7 @@ Core = drawing Q&A with evidence, measured by `eval/score.py` on Stoa's answer k
 - `kind: "ifc"` evidence has `bbox: []` and an `ifc_guid` instead (no 2D drawing); the UI shows it as a model element.
 - `bbox` units: PDF points for PDFs (PyMuPDF page coords), pixels for images. `kind`: box | polygon | text | ifc.
 - Counts: one Evidence per counted object, so the UI can show every hit.
+- `table` (optional): `{"title", "columns", "rows"}` for listing answers ("doors in room X and their sizes", `method: "takeoff"`). Row i is cited by `evidence[i]`; the UI shows it under the answer with a CSV download.
 - `candidates` (optional list of Evidence, T42): objects seen but NOT counted (detections just under the confidence cut, label `near-miss <class> <conf>`). Draw dashed; a human can promote them in review mode. Never part of `value`.
 
 ### Path module

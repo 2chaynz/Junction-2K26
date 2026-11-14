@@ -182,7 +182,7 @@ export default function App() {
     if (r.evidence.some((e) => e.ifc_guid)) setMode("3d");
     setMsgs((m) => {
       setActive(m.length + 1);
-      return [...m, { kind: "user", path, text: `Takeoff: ${label}` }, { kind: "answer", path, question: label, answer: a }];
+      return [...m, { kind: "user", path, text: `Takeoff: ${label}` }, { kind: "answer", path, question: label, answer: a, steps: [] }];
     });
   }
 
