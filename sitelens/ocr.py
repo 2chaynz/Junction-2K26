@@ -21,6 +21,11 @@ LEXICON: dict[str, set[str]] = {
     "kitchen": {"K", "KEITTIO", "KT", "TK", "AK", "KK", "KEITTOKOMERO", "TUPAKEITTIO", "AVOKEITTIO", "CUISINE",
                 "KITCHEN", "KUCHE", "CUCINA", "KOKKEN", "KOOK", "KOOGINURK"},
     "balcony": {"PARVEKE", "PARV", "LASITETTU", "BALCON", "BALCONY", "BALKON", "BALCONE", "ALTAN", "RODU"},
+    # not used for counts (detector.OCR_RULES), only to name a highlighted room
+    "living room": {"OH", "OLOHUONE", "SEJOUR", "SALON", "LIVING", "WOHNEN", "WOHNZIMMER", "SOGGIORNO", "STUE",
+                    "ELUTUBA"},
+    "hall": {"ET", "ETEINEN", "ENTREE", "HALL", "FLUR", "DIELE", "INGRESSO", "KORIDOR", "KORRIDOR"},
+    "walk-in closet": {"VH", "VAATEHUONE", "DRESSING", "WIC"},
 }
 AREA = re.compile(r"\d+[.,]\d+\s*M\W?2?\b|\d+[.,]\d+\s*M[²2?]")
 MIN_CONF = 0.5
@@ -31,11 +36,16 @@ def _norm(s: str) -> str:
     return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().upper()
 
 
-def room_type(text: str) -> str | None:
+def room_type(text: str, mirrored: bool = False) -> str | None:
+    """mirrored: also try the first word reversed ("HO" → OH), for labels read off rotated or mirrored crops."""
     words = re.findall(r"[A-Z]+", _norm(text))
     if not words:
         return None
-    return next((t for t, toks in LEXICON.items() if words[0] in toks), None)
+    for w in (words[0], words[0][::-1]) if mirrored else (words[0],):
+        hit = next((t for t, toks in LEXICON.items() if w in toks), None)
+        if hit:
+            return hit
+    return None
 
 
 @lru_cache(maxsize=1)
@@ -85,3 +95,40 @@ def areas(path: str) -> list[tuple[str, float, tuple]]:
         if not any(_near(h[2], k[2], d) for k in keep):
             keep.append(h)
     return keep
+
+
+def read_crop(img, min_side: int = 400) -> list[tuple[str, float, tuple]]:
+    """OCR a small PIL crop at 0/90/180/270°: many scans are rotated, and sideways short labels are missed.
+    Small crops are upscaled. One reading per spot: a room or area label beats any other text, then confidence."""
+    import numpy as np
+    from PIL import Image
+    img = img.convert("RGB")
+    w, h = img.size
+    up = max(1, min(3, round(min_side / max(1, min(w, h)))))
+    found = []
+    for rot in (0, 90, 270, 180):
+        r = img.rotate(rot, expand=True)
+        r = r.resize((r.width * up, r.height * up), Image.LANCZOS)
+        res, _ = _engine()(np.array(r))
+        for quad, text, conf in res or []:
+            pts = [_unrotate(x / up, y / up, rot, w, h) for x, y in quad]
+            xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+            useful = room_type(text, mirrored=True) is not None or bool(AREA.search(_norm(text)))
+            found.append((useful, float(conf), text, (min(xs), min(ys), max(xs), max(ys))))
+    d = 0.1 * max(w, h)
+    keep: list = []
+    for useful, conf, text, b in sorted(found, key=lambda x: (not x[0], -x[1])):
+        if conf >= MIN_CONF and not any(_near(b, k[2], d) for k in keep):
+            keep.append((text, conf, tuple(round(v, 1) for v in b)))
+    return keep
+
+
+def _unrotate(u: float, v: float, rot: int, w: int, h: int) -> tuple[float, float]:
+    """Point in a crop rotated by PIL (counter-clockwise, expand=True) → point in the original w×h crop."""
+    if rot == 90:
+        return w - v, u
+    if rot == 270:
+        return v, h - u
+    if rot == 180:
+        return w - u, h - v
+    return u, v

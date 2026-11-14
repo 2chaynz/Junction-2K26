@@ -18,10 +18,14 @@ from .answer import Answer, Evidence
 
 AREA_Q = re.compile(r"(?i)\barea\b|m²|m2|fläche|superficie|surface|pinta-ala|how big|size")
 COUNT_Q = re.compile(r"(?i)how many|number of|count|wie viele|anzahl|combien|quant[ie]|kuinka monta")
-AREA_LABEL = re.compile(r"(\d+(?:[.,]\d+)?)\s*m(?:²|2)\b")
+AREA_LABEL = re.compile(r"(\d+(?:[.,]\d+)?)\s*m(?:²|2)\b", re.I)
 # "in this area", "here": they point at the mark, they don't ask for an area
 DEICTIC = re.compile(r"(?i)\s*\b(?:in|inside|within|on|of)\s+(?:this|the marked|the highlighted|that)\s+"
                      r"(?:area|region|spot|part|zone|bit)\b|\s*\bhere\b")
+# "what is this?", "which room?": the only questions a room label alone answers
+IDENTITY_Q = re.compile(r"(?i)^\W*(?:what(?:'s| is)? (?:this|that|it)\b|what(?:'s| is)?\W*$|what room|which room|"
+                        r"what kind of room|was ist (?:das|hier)|welcher raum|qu'est-ce|quelle pi[eè]ce|"
+                        r"che cos|che stanza|mik[aä] (?:t[aä]m[aä]|huone))")
 PAD = 0.15  # crop margin around the mark, as a share of its size
 
 PROMPT = """You are reading a construction drawing. The user painted over one spot of it and asks about that spot.
@@ -109,6 +113,63 @@ def _words(path: str, m: Mark) -> list[tuple[str, list[float]]]:
     return [(w[4], list(w[:4])) for w in words if m.covers_box(w[:4])]
 
 
+def _ocr_words(path: str, m: Mark) -> list[tuple[str, list[float]]]:
+    """Scans (images, PDFs without a text layer): OCR only the marked crop, at every rotation."""
+    from PIL import Image
+    try:
+        from . import ocr
+    except ImportError:
+        return []
+    pad = m.r
+    x0, y0, x1, y1 = m.bbox[0] - pad, m.bbox[1] - pad, m.bbox[2] + pad, m.bbox[3] + pad
+    if path.lower().endswith(".pdf"):
+        import pymupdf
+        z = 3  # PDF points → pixels: small scanned labels need the resolution
+        with pymupdf.open(data_root() / path) as doc:
+            pix = doc[m.page].get_pixmap(matrix=pymupdf.Matrix(z, z), clip=pymupdf.Rect(x0, y0, x1, y1))
+        img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
+        x0, y0 = pix.x / z, pix.y / z
+    elif path.lower().endswith((".png", ".jpg", ".jpeg")):
+        z = 1
+        with Image.open(data_root() / path) as full:
+            x0, y0 = max(0, int(x0)), max(0, int(y0))
+            x1, y1 = min(full.width, int(x1)), min(full.height, int(y1))
+            if x1 - x0 < 4 or y1 - y0 < 4:  # mark outside the image
+                return []
+            img = full.crop((x0, y0, x1, y1)).copy()
+    else:
+        return []
+    try:
+        read = ocr.read_crop(img)
+    except Exception:  # rapidocr missing or failed: the VLM still answers
+        return []
+    out = []
+    for text, _, b in read:
+        box = [x0 + b[0] / z, y0 + b[1] / z, x0 + b[2] / z, y0 + b[3] / z]
+        if m.covers_box(box):
+            out.append((text, box))
+    return out
+
+
+def _named(path: str, q: str, words, page: int, how: str) -> Answer | None:
+    """A room label inside the mark ("MH 1", "Küche") names the room; an area label next to it adds the m²."""
+    if not IDENTITY_Q.search(q):
+        return None
+    from .ocr import room_type
+    rooms = [(w.strip(" /\\|-_.:"), b, t) for w, b in words if (t := room_type(w, mirrored=how == "ocr"))]
+    if not rooms:
+        return None
+    w, b, t = rooms[0]
+    ev = [Evidence(file=path, page=page, bbox=b, label=f"{t}: {w}", kind="text")]
+    value = f"{t[0].upper()}{t[1:]} ({w})"
+    area = next(((x, bb, h) for x, bb in words if (h := AREA_LABEL.search(x))), None)
+    if area:
+        value += f" · {float(area[2].group(1).replace(',', '.'))} m²"
+        ev.append(Evidence(file=path, page=page, bbox=area[1], label=area[0], kind="text"))
+    return Answer(value=value, unit=None, method=how, confidence=0.75, evidence=ev,
+                  trace=[f"room label inside your mark: '{w}' = {t}"] + ([f"area label: {area[0]}"] if area else []))
+
+
 def _rooms(path: str, q: str, m: Mark) -> Answer | None:
     """Swiss plans: the rooms whose label or centre is under the mark."""
     if m.page != 0 or "/swiss_dwellings/" not in path or not (AREA_Q.search(q) or re.search(r"(?i)\broom|zimmer|pièce|stanza", q)):
@@ -158,7 +219,7 @@ def _label(path: str, q: str, words, page: int) -> Answer | None:
         return None
     for i, (w, b) in enumerate(words):
         nxt = words[i + 1][0] if i + 1 < len(words) else ""
-        hit = AREA_LABEL.match(w) or AREA_LABEL.match(f"{w} {nxt}")
+        hit = AREA_LABEL.search(w) or AREA_LABEL.search(f"{w} {nxt}")
         if hit:
             v = float(hit.group(1).replace(",", "."))
             return Answer(value=v, unit="m2", method="region", confidence=0.8,
@@ -240,11 +301,19 @@ def answer(path: str, question: str, region: dict, on_step=None, view: str | Non
             on_step({"kind": kind, "path": "region", "text": text, "t": 0})
 
     step("try", "Looking only at the spot you marked.")
-    words = _words(view, m)
+    words, how = _words(view, m), "region"
     if words:
         step("trace", f"Text inside your mark: {' '.join(w for w, _ in words)[:120]}")
-    a = _count(path, view, whole, m, on_step) or _rooms(view, whole, m) or _label(view, whole, words, m.page) \
-        or _vlm(view, question, m, words)
+    a = _count(path, view, whole, m, on_step) or _rooms(view, whole, m)
+    if a is None and not words:
+        words, how = _ocr_words(view, m), "ocr"
+        if words:
+            step("trace", f"OCR of your mark (every rotation, on this computer, €0): {' '.join(w for w, _ in words)[:120]}")
+    if a is None:
+        a = _label(view, whole, words, m.page) or _named(view, whole, words, m.page, how) \
+            or _vlm(view, question, m, words)
+        if a is not None and a.method == "region" and how == "ocr":
+            a.method = "ocr"
     if a is None:
         a = Answer(value=None, unit=None, method="region", confidence=0.0,
                    trace=["nothing readable under your mark and no VLM configured"])

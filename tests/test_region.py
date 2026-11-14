@@ -31,4 +31,18 @@ try:
     raise AssertionError("empty mark accepted")
 except ValueError:
     pass
+# OCR helpers (no rapidocr needed): rotated-crop boxes map back, mirrored labels still match
+from sitelens.ocr import _unrotate, room_type  # noqa: E402
+w, h = 100, 40
+assert _unrotate(0, 0, 0, w, h) == (0, 0)
+assert _unrotate(10, 20, 90, w, h) == (80, 10)    # PIL 90° ccw: (x, y) → (y, w - x)
+assert _unrotate(20, 90, 270, w, h) == (90, 20)   # 270° ccw: (x, y) → (h - y, x)
+assert _unrotate(10, 5, 180, w, h) == (90, 35)
+assert room_type("MH 1") == "bedroom" and room_type("OH") == "living room"
+assert room_type("HO") is None and room_type("HO", mirrored=True) == "living room"
+from sitelens.region import IDENTITY_Q  # noqa: E402
+for q in ["What is this?", "what's this room?", "What room is this?", "Which room?", "Mikä tämä on?", "what is it", "What?"]:
+    assert IDENTITY_Q.search(q), q
+for q in ["What is the wall type here?", "Door width here?", "What is the area of this room?", "How many doors?"]:
+    assert not IDENTITY_Q.search(q), q
 print("region ok")
