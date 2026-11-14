@@ -292,7 +292,7 @@ export default function App() {
             <div className="filter-tools">
               <button className={`chip ${showFilters ? 'active' : ''}`} onClick={() => setShowFilters(!showFilters)}><Icon name="down" size={10} /> filters</button>
               <button className={`chip ${hideSeen ? 'active' : ''}`} title="Dim the startups you have already opened" onClick={() => setHideSeen(!hideSeen)}><Icon name="dots" /> dim seen</button>
-              {spotlight.length > 0 && <button className="chip active" title="Show all startups again" onClick={() => setSpotlight([])}><Icon name="spark" /> {spotlight.length} from Gemini ✕</button>}
+              {spotlight.length > 0 && <button className="chip active" title="Show all startups again" onClick={() => setSpotlight([])}><Icon name="spark" /> {spotlight.length} from your question ✕</button>}
               {filtering && <span className="chip count">{visible.size} startups</span>}
               {filtering && <button className="chip" onClick={() => setFilters(NO_FILTERS)}>clear ✕</button>}
               {filtering && <button className="chip" title="Save these filters" onClick={() => setSavedFilters([...savedFilters, filters])}><Icon name="save" /> save</button>}

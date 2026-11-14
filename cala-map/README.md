@@ -17,6 +17,8 @@ npm run dev
 - Box at the top of the map: plain-language questions, e.g. "a startup doing food and AI".
 - `POST /api/ask` runs inside the Vite server (`server/ask.mjs`), so `GEMINI_API_KEY` never reaches the browser. Works in `npm run dev` and `npm run preview`; a static deploy needs its own function.
 - Flow: query embedding vs `.cache/embeddings.json` → top 30 → Gemini picks up to 8 and says why → picks light up on the map.
+- In parallel, Cala answers live (`POST /v1/knowledge/search`, needs `CALA_API_KEY` with credits): sourced prose, its sources, and the startups it names light up if they are on the map. If Cala fails (e.g. no credits), the card says why and the map answer still shows.
+- Cala MCP for Claude Code while building: `claude mcp add -s local --transport http cala https://api.cala.ai/mcp/ --header "X-API-KEY: <key>"`.
 
 ## Land necks
 - `scripts/embed.mjs` flags startups whose embedding sits almost as close to another sector's centroid as to their own (`src/data/bridges.json`, up to 8 per island pair).

@@ -1,13 +1,17 @@
-// POST /api/ask {question} -> {answer, picks: [{id, why}]}. Runs inside the Vite server so the
-// Gemini key never reaches the browser. Retrieval: query embedding vs .cache/embeddings.json
-// (written by scripts/embed.mjs), then Gemini picks and explains from the top matches.
-import { existsSync, readFileSync, statSync } from 'node:fs'
+// POST /api/ask {question} -> {answer, picks: [{id, why}]}: Gemini picks from our map (query
+// embedding vs .cache/embeddings.json, from scripts/embed.mjs).
+// POST /api/cala {question} -> {answer, sources, entities}: Cala's live, sourced answer. Separate
+// because Cala takes up to a minute; the map answer must not wait for it.
+// Both run inside the Vite server so the keys never reach the browser.
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 
 const MODEL = 'gemini-3.8-flash'
 const EMBED_MODEL = 'gemini-embedding-001'
 const EMBED_DIM = 768
 const SHORTLIST = 30
 const API = 'https://generativelanguage.googleapis.com/v1beta/models'
+const CALA = 'https://api.cala.ai/v1'
 
 const file = (p) => new URL(`../${p}`, import.meta.url)
 const loaded = new Map()
@@ -31,6 +35,41 @@ async function gemini(key, path, body) {
   const out = await res.json()
   if (!res.ok) throw new Error(`gemini ${res.status}: ${out.error?.message}`)
   return out
+}
+
+// Cala's sourced answer; failures come back as {error}. Answers are cached on disk so a
+// repeated question (e.g. during the demo) is instant and costs no credits.
+async function calaSearch(question, key) {
+  if (!key) return { error: 'CALA_API_KEY missing in .env' }
+  const cached = file(`.cache/cala-answers/${createHash('sha1').update(question.toLowerCase()).digest('hex')}.json`)
+  if (existsSync(cached)) return JSON.parse(readFileSync(cached, 'utf8'))
+  try {
+    const res = await fetch(`${CALA}/knowledge/search`, {
+      method: 'POST',
+      headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: question, return_entities: true }),
+      signal: AbortSignal.timeout(120000),
+    })
+    const body = await res.json()
+    if (!res.ok) return { error: `Cala ${res.status}: ${body.detail ?? res.statusText}` }
+    const sources = new Map()
+    for (const bit of body.context ?? []) {
+      for (const o of bit.origins ?? []) {
+        const ref = o.document?.url ? o.document : o.source
+        if (ref?.url && !sources.has(ref.url)) sources.set(ref.url, { name: ref.name || ref.url.replace(/^https?:\/\//, '').split('/')[0], url: ref.url })
+      }
+    }
+    const out = {
+      answer: body.content ?? '',
+      sources: [...sources.values()].slice(0, 6),
+      entities: (body.entities ?? []).map((e) => ({ id: e.id, name: e.name, type: e.entity_type })),
+    }
+    mkdirSync(file('.cache/cala-answers/'), { recursive: true })
+    writeFileSync(cached, JSON.stringify(out))
+    return out
+  } catch (e) {
+    return { error: `Cala: ${e.message}` }
+  }
 }
 
 export async function ask(question, key) {
@@ -76,18 +115,25 @@ export async function ask(question, key) {
   return { answer: parsed.answer ?? '', picks: (parsed.picks ?? []).filter((p) => valid.has(p.id)).slice(0, 8), model: MODEL }
 }
 
-// Vite plugin: same endpoint in `vite` and `vite preview`.
-export function askPlugin(key) {
+// Vite plugin: same endpoints in `vite` and `vite preview`.
+export function askPlugin({ gemini: key, cala: calaKey }) {
+  const routes = {
+    '/api/ask': (q) => {
+      if (!key) throw new Error('GEMINI_API_KEY missing in .env')
+      return ask(q, key)
+    },
+    '/api/cala': (q) => calaSearch(q, calaKey),
+  }
   const handler = async (req, res, next) => {
-    if (req.url !== '/api/ask' || req.method !== 'POST') return next()
+    const route = routes[req.url]
+    if (!route || req.method !== 'POST') return next()
     let raw = ''
     for await (const chunk of req) raw += chunk
     res.setHeader('Content-Type', 'application/json')
     try {
       const question = String(JSON.parse(raw || '{}').question ?? '').trim().slice(0, 500)
-      if (!key) throw new Error('GEMINI_API_KEY missing in .env')
       if (!question) throw new Error('empty question')
-      res.end(JSON.stringify(await ask(question, key)))
+      res.end(JSON.stringify(await route(question)))
     } catch (e) {
       res.statusCode = 500
       res.end(JSON.stringify({ error: e.message }))
