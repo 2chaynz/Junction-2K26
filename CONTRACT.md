@@ -53,11 +53,17 @@ GET  /api/file?path=data/…&page=0                     → PNG render of the dr
 GET  /api/drawings                                    → [{"path", "source", "view", "questions": [...]}]
 GET  /api/ifc?path=data/…ifc                          → raw IFC bytes (3D viewer)
 GET  /api/random                                      → {"path", "question"} from questions.jsonl
+GET  /api/measure?path=…&page=0                       → {scale, candidates, ask, options, known, project, calibrations, measurements, auto}
+POST /api/measure {"path","kind":length|area|count,"points":[[x,y]…],"label"} → stored takeoff (uses the scale nearest the shape)
+DELETE /api/measure?path=…&id=…                       → {"deleted"}
+POST /api/measure/calibrate {"path","points","length":"12'-6\"" | "3.5 m" | "15.9 m2","known_id"?} → stored scale
+POST /api/measure/scale {"path","scale_id"}           → pick a candidate (answer to `ask`); no scale_id = reset
 ```
 - `/api/ask` adds `time_s`, `view` (file the UI shows; IFC → its rendered plan) and, when the question is Stoa's, `check: {expected, unit, match}`.
 - No path answers → `/api/ask` adds `tried: [path names]`. With `GEMINI_API_KEY` set, a question that isn't about the drawing gets `method: "general"`, text `value`, no evidence, no `check`.
 - Step: `{"kind": try|skip|fail|found|trace|general|check, "path": "ifc"|"", "text": "plain words", "t": seconds}`. `trace` steps are the winning path's trace lines. Python: `router.answer(path, q, on_step)`.
 - `/api/file` takes optional `scale` (default 1 = bbox coords).
+- Measure (`sitelens/measure.py`): points in bbox units. Scale = `m_per_unit` + `source` (dxf | sibling | note | bar | sheet_size | manual) + `refs: [{file, page, bbox, text, kind}]` (file may be another sheet of the project). `scale: null` → `ask` + `options`. Stored per drawing in `SITELENS_STORE`.
 - Run: `STOA_DATA=… python -m sitelens.server` (serves `web/dist` after `cd web && npm ci && npm run build`). Dev: `npm run dev` in `web/` proxies `/api` to :8000.
 
 ## Hardware
@@ -76,4 +82,5 @@ GET  /api/random                                      → {"path", "question"} f
 | `NVIDIA_API_KEY` | vlm path (nemotron) | build.nvidia.com key. Default model `nvidia/nemotron-3.5-super-vl-120b-a12b`; `SITELENS_VLM_THINKING=1` turns reasoning on |
 | `SITELENS_VLM_URL` / `_MODEL` / `_KEY` | vlm path (nemotron, vllm) | OpenAI-compatible server, e.g. `http://localhost:8001/v1`. Required for `vllm`; model defaults to the served one |
 | `SITELENS_VLM_EUR_MTOK` | vlm path (nemotron, vllm) | `"in,out"` EUR per Mtok. Unset on `vllm` → cost = wall time × `SITELENS_GPU_EUR_H` |
+| `SITELENS_STORE` | measure | calibrations + manual takeoffs, one JSON per drawing (default `.sitelens/measure/`, self-gitignored) |
 | `SITELENS_MODELS` | detector path | folder with detector weights (default `models/`, gitignored) |
