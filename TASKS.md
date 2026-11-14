@@ -27,4 +27,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T20 Hot-swappable VLM backends: Gemini, Gemma, Nemotron | ai | T7 | Asif | doing | asif/T20-vlm-backends |  |  |
 | T21 UI v2: drawing + chat redesign | app | T8 | 2chaynz | review | 2chaynz/T21-ui-v2 |  |  |
 | T22 Reliable heartbeats: retry on failure, beat the claimed ticket | setup | T16 | Asif | review | asif/T22-reliable-beats |  |  |
-| T23 Revision quantities: how much changed between issues | ai | T15 |  | todo |  |  |  |
+| T23 Revision quantities: how much changed between issues | ai | T15 | ccolver | doing | ccolver/T23-revision-quantities |  |  |
