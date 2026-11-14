@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 11:36 · 2chaynz · 2chaynz: Spread round 'Sat 09:00' played with dispatch.py (+supply decline): rank 55/181, EUR 24.2k over 5 weeks, all ranked. Same 4 seeds: dispatch_asif.py EUR 35.7k vs dispatch.py EUR 20.8k -> use Asif's bot for next rounds + final
 - 2026-11-14 11:30 · ccolver · ccolver: problem-space outreach questions for Stoa/site users (ideas/ccolver-outreach.md): users, features they'd use, what a good doc summary needs
 - 2026-11-14 11:13 · 2chaynz · UI design locked in grill session (ideas/2chaynz-ui.md): blueprint+redline, 3D Esplanades build-up, Ask/How/Benchmark tabs. T8 split to confirm with team
 - 2026-11-14 04:22 · johanseneuson · johanseneuson (A100): PR #17 T7 baseline, same 40 dev Qs/source: cubicasa ours 85% vs Gemma 4 12B whole-sheet 55%; swiss ours 100% vs 50% (Gemma areas 0%); ours ~EUR 0.00001/answer vs Gemma EUR 0.003-0.005. opening_design: both 0%, no path yet (schedule tables) - open gap
