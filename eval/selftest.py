@@ -12,4 +12,13 @@ assert drawing_id("data/ifc_models/m_plan-02-x.pdf") == drawing_id("data/ifc_mod
 assert split_of("data/swiss_dwellings/a.pdf") == split_of("data/swiss_dwellings/a.dxf")
 assert Answer(1, evidence=[Evidence("f", [0, 0, 1, 1])]).to_dict()["evidence"][0]["bbox"] == [0, 0, 1, 1]
 assert in_split("data/cubicasa5k/colorful-11260.png", "test") and not in_split("data/swiss_dwellings/a.pdf", "test")
+from sitelens.paths import vlm
+try:
+    vlm.get("nope")
+    raise AssertionError("unknown VLM backend accepted")
+except ValueError as e:
+    assert "gemini" in str(e) and "nemotron" in str(e)
+with vlm.use_backend("nemotron"):
+    assert vlm._override.get() == "nemotron"
+assert vlm._override.get() is None
 print("selftest ok")
