@@ -421,10 +421,16 @@ def _unbounded_schedule(text, tables, has_plan, bounded=False):
 
 def _plan_heading_count(labels, width, height):
     headings = [box for label, box in labels if PLAN_TITLE.fullmatch(label)]
+    metadata = [box for label, box in labels
+                if re.match(r"(?i)^\s*(?:sheet|drawing)[ \t]+(?:no\.?|number|id)[ \t]*:", label)]
     outside_title_block = []
     for box in headings:
         x, y = measure._centre(box)
-        if x <= .6 * width or y <= .88 * height:
+        near_sheet_id = any(
+            mx > .6 * width and my > .88 * height and abs(my - y) < .06 * height
+            for mx, my in map(measure._centre, metadata)
+        )
+        if x <= .6 * width or y <= .88 * height or not near_sheet_id:
             outside_title_block.append(box)
     return len(outside_title_block or headings)
 

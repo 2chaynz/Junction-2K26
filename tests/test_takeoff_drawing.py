@@ -218,6 +218,7 @@ class DrawingTakeoff(unittest.TestCase):
                 page = doc.new_page()
                 page.insert_text((50, 50), "FLOOR PLAN - LEVEL 1")
                 page.insert_text((430, 800), "LEVEL 01")
+                page.insert_text((430, 815), "SHEET NO: A-101")
                 page.draw_rect(pymupdf.Rect(330, 70, 570, 240))
                 page.insert_text((340, 95), "DOOR SCHEDULE")
                 for y, row in [(115, ("MARK", "TYPE", "WIDTH")),
@@ -294,7 +295,7 @@ class DrawingTakeoff(unittest.TestCase):
             with pymupdf.open() as doc:
                 page = doc.new_page()
                 page.insert_text((50, 50), "GROUND FLOOR PLAN")
-                page.insert_text((350, 50), "FIRST FLOOR PLAN")
+                page.insert_text((430, 800), "FIRST FLOOR PLAN")
                 page.insert_text((50, 70), "Scale 1:100")
                 doc.save(Path(d) / path)
             windows = [("Windows", Evidence(path, box), "Detected symbol", None)
@@ -318,7 +319,9 @@ class DrawingTakeoff(unittest.TestCase):
         self.assertFalse(takeoff_2d._outside_schedule([420, 100, 450, 105], regions))
         self.assertIn("multiple views", issue)
         title_block = ("LEVEL 01", [430, 560, 500, 575])
-        _, excluded, issue = takeoff_2d._scan_metadata([plan, title_block], lambda: image)
+        _, excluded, issue = takeoff_2d._scan_metadata(
+            [plan, title_block, ("SHEET NO: A-101", [430, 577, 520, 590])], lambda: image
+        )
         self.assertFalse(excluded)
         self.assertEqual(issue, "")
         repeated = (plan[0], [25, 300, 125, 310])
