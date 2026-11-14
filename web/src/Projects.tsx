@@ -24,11 +24,38 @@ const ModelGlyph = () => (
   </svg>
 );
 
-function Thumb({ p }: { p: Proj }) {
+// BIM projects: a clay turntable of the model, pre-rendered by scripts/render_turntables.py.
+const spinOf = (p: Proj) => {
+  const m = p.kind === "BIM" ? p.items.find((d) => d.path.toLowerCase().endsWith(".ifc")) : undefined;
+  return m ? `/turntables/${(m.path.split("/").pop() ?? "").replace(/\.ifc$/i, "")}` : null;
+};
+
+function Still({ p, scale }: { p: Proj; scale: number }) {
   const v = thumbOf(p.cover);
+  return v ? <img src={fileUrl(v, isImage(v) ? scale * 0.6 : scale)} loading="lazy" alt="" /> : <ModelGlyph />;
+}
+
+function Spin({ p }: { p: Proj }) {
+  const base = spinOf(p);
+  const [ok, setOk] = useState(true);
+  if (!base || !ok) return <Still p={p} scale={0.2} />;
+  return (
+    <video className="pspin" src={`${base}.webm`} poster={`${base}.jpg`} autoPlay muted loop playsInline
+      preload="metadata" onError={() => setOk(false)} aria-label={`${p.name}, 3D model`} />
+  );
+}
+
+function Mini({ p }: { p: Proj }) {
+  const base = spinOf(p);
+  const [ok, setOk] = useState(true);
+  if (!base || !ok) return <Still p={p} scale={0.08} />;
+  return <img className="pspin" src={`${base}.jpg`} alt="" loading="lazy" onError={() => setOk(false)} />;
+}
+
+function Thumb({ p }: { p: Proj }) {
   return (
     <span className="pthumb">
-      {v ? <img src={fileUrl(v, isImage(v) ? 0.12 : 0.2)} loading="lazy" alt="" /> : <ModelGlyph />}
+      <Spin p={p} />
       <span className="pkind mono">{p.kind === "BIM" ? "BIM" : p.kind === "Sheet set" ? "SET" : p.kind === "Portfolio" ? "PORT" : "ARCH"}</span>
       {p.featured && <span className="pdemo">demo</span>}
     </span>
@@ -128,7 +155,7 @@ export default function Projects({ projects, overview, recent, current, onOpen }
               return (
                 <button key={p.key} className={`prow ${p.key === current ? "on" : ""}`} onClick={() => onOpen(p.key, r?.path)}>
                   <span className="pmini">
-                    {thumbOf(p.cover) ? <img src={fileUrl(thumbOf(p.cover)!, 0.08)} alt="" loading="lazy" /> : <ModelGlyph />}
+                    <Mini p={p} />
                   </span>
                   <span className="pbody">
                     <span className="pname ellipsis">{p.name}</span>
