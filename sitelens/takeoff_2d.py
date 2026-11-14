@@ -79,6 +79,7 @@ def _specs(path, page_tables):
 def _associate(objects, words, specs):
     """Accept only an unambiguous nearby exact tag, never a fuzzy schedule match."""
     out = defaultdict(list)
+    candidate_counts = {}
     for cat, ev, *_ in objects:
         if cat not in ("Doors", "Windows"):
             continue
@@ -96,18 +97,16 @@ def _associate(objects, words, specs):
             matches = marked or specs.get((cat, token, False))
             if matches:
                 matching.append((token, box, matches, bool(marked)))
-        if len(matching) == 1:
-            token, box, matches, mark = matching[0]
+        candidate_counts[id(ev)] = len(matching)
+        for token, box, matches, mark in matching:
             out[tuple(box)].append((ev, token, matches, mark, cat))
     marks = defaultdict(int)
     for items in out.values():
-        if len(items) == 1:
-            _, token, _, mark, cat = items[0]
-            if mark:
-                marks[cat, token] += 1
+        for cat, token in {(cat, token) for _, token, _, mark, cat in items if mark}:
+            marks[cat, token] += 1
     return {id(ev): (token, matches, Evidence(ev.file, list(box), page=ev.page, label=f"Plan tag {token}", kind="text"))
             for box, items in out.items() if len(items) == 1 for ev, token, matches, mark, cat in items
-            if not mark or marks[cat, token] == 1}
+            if candidate_counts[id(ev)] == 1 and (not mark or marks[cat, token] == 1)}
 
 
 def _words(page):

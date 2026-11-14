@@ -213,6 +213,12 @@ class DrawingTakeoff(unittest.TestCase):
             self.assertEqual(row["size"], "")
             self.assertTrue(any("not-to-scale" in line for line in row["reason"]))
 
+    def test_shared_plan_tag_stays_ambiguous(self):
+        doors = [("Doors", Evidence("plan.pdf", box)) for box in ([0, 0, 20, 10], [18, 0, 38, 10])]
+        words = [("D1", [18, 2, 20, 4]), ("D2", [0, 2, 2, 4])]
+        specs = {("Doors", tag, True): [tag] for tag in ("D1", "D2")}
+        self.assertEqual(takeoff_2d._associate(doors, words, specs), {})
+
     def test_disagreeing_scale_bars_do_not_produce_dimensions(self):
         from sitelens.measure import Scale
 
