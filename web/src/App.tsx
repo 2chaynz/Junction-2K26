@@ -301,22 +301,24 @@ export default function App() {
     setMark(null);
     setPen(false);
     activate(null);
-    setMsgs((m) => [...m, { kind: "user", path: p, text: q, mark: region }, { kind: "pending", path: p, steps: [] }]);
+    // The conversation can change while this runs (new session, other project): only fill our own bubble.
+    const id = newSessionId();
+    setMsgs((m) => [...m, { kind: "user", path: p, text: q, mark: region }, { kind: "pending", path: p, steps: [], id }]);
     const steps: Step[] = [];
     let next: Msg;
     try {
       const answer = await askStream(p, q, (s) => {
         steps.push(s);
         const snap = [...steps];
-        setMsgs((m) => m.map((x) => (x.kind === "pending" ? { ...x, steps: snap } : x)));
+        setMsgs((m) => m.map((x) => (x.kind === "pending" && x.id === id ? { ...x, steps: snap } : x)));
       }, region);
       next = { kind: "answer", path: p, question: q, answer, steps, mark: region };
     } catch (e) {
       next = { kind: "error", path: p, text: `Something broke: ${String(e)}` };
     }
     setMsgs((m) => {
-      const i = m.findIndex((x) => x.kind === "pending");
-      if (i < 0) return m; // the conversation was switched while this was answering
+      const i = m.findIndex((x) => x.kind === "pending" && x.id === id);
+      if (i < 0) return m;
       const out = [...m];
       out[i] = next;
       if (next.kind === "answer") {

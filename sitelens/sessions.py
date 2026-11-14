@@ -8,10 +8,12 @@ import hashlib
 import json
 import os
 import re
+import threading
 import time
 from pathlib import Path
 
 MAX_MSGS = 400  # a session is a working conversation, not an archive
+_lock = threading.Lock()  # one project file is rewritten whole: serialize load-modify-save
 
 
 def _dir() -> Path:
@@ -71,6 +73,11 @@ def get(project: str, sid: str) -> dict | None:
 def put(project: str, sid: str, msgs: list[dict], title: str | None = None) -> dict:
     if not re.fullmatch(r"[\w-]{4,64}", sid):
         raise ValueError("bad session id")
+    with _lock:
+        return _put(project, sid, msgs, title)
+
+
+def _put(project: str, sid: str, msgs: list[dict], title: str | None) -> dict:
     data = _load(project)
     now = time.time()
     s = data.get(sid) or {"id": sid, "project": project, "created": now}
@@ -85,11 +92,12 @@ def put(project: str, sid: str, msgs: list[dict], title: str | None = None) -> d
 
 
 def delete(project: str, sid: str) -> bool:
-    data = _load(project)
-    if data.pop(sid, None) is None:
-        return False
-    _save(project, data)
-    return True
+    with _lock:
+        data = _load(project)
+        if data.pop(sid, None) is None:
+            return False
+        _save(project, data)
+        return True
 
 
 def overview() -> dict[str, dict]:
