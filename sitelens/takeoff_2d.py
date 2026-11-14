@@ -125,7 +125,7 @@ NON_PLAN_VIEW = re.compile(
 )
 PLAN_TITLE = re.compile(
     r"(?im)^[ \t]*(?![^\r\n]*\bschedules?\b)(?:[\w-]+[ \t]+){0,5}"
-    r"(?:floor plans?|level plans?|ground plans?|grundriss|pohjapiirustus|storeys?|stories|story|floors?|levels?|(?:level|floor|storey|story)[ \t]+-?\d+[A-Z]?)"
+    r"(?:floor plans?|level plans?|ground plans?|basement plans?|roof plans?|grundriss|pohjapiirustus|storeys?|stories|story|floors?|levels?|(?:level|floor|storey|story)[ \t]+-?\d+[A-Z]?)"
     r"(?:[ \t]+(?:[-??][ \t]+)?[\w-]+){0,4}[ \t]*$"
 )
 UNKNOWN_VIEW_SCALE = "This sheet has a not-to-scale label; the applicable scale is unknown."
@@ -420,13 +420,13 @@ def _unbounded_schedule(text, tables, has_plan, bounded=False):
 
 
 def _plan_heading_count(labels, width, height):
-    headings = [(label.strip().casefold(), box) for label, box in labels if PLAN_TITLE.fullmatch(label)]
-    counts = Counter(label for label, _ in headings)
-    for label, box in headings:
+    headings = [box for label, box in labels if PLAN_TITLE.fullmatch(label)]
+    outside_title_block = []
+    for box in headings:
         x, y = measure._centre(box)
-        if x > .6 * width and y > .88 * height and counts[label] > 1:
-            counts[label] -= 1
-    return sum(counts.values())
+        if x <= .6 * width or y <= .88 * height:
+            outside_title_block.append(box)
+    return len(outside_title_block or headings)
 
 
 def _scan_metadata(labels, load_image, native_text="", has_schedule=False, bounded_schedule=False, allow_unlabeled=False):

@@ -148,7 +148,7 @@ class DrawingTakeoff(unittest.TestCase):
             path = "Plan.pdf"
             with pymupdf.open() as doc:
                 page = doc.new_page()
-                page.insert_text((50, 60), "GROUND FLOOR PLAN")
+                page.insert_text((50, 60), "BASEMENT PLAN")
                 for x, label in [(100, "0"), (150, "2"), (200, "4"), (220, "m")]:
                     page.insert_text((x - 2, 300), label, fontsize=8)
                 page.draw_line((100, 303), (200, 303))
@@ -217,7 +217,7 @@ class DrawingTakeoff(unittest.TestCase):
             with pymupdf.open() as doc:
                 page = doc.new_page()
                 page.insert_text((50, 50), "FLOOR PLAN - LEVEL 1")
-                page.insert_text((430, 800), "FLOOR PLAN - LEVEL 1")
+                page.insert_text((430, 800), "LEVEL 01")
                 page.draw_rect(pymupdf.Rect(330, 70, 570, 240))
                 page.insert_text((340, 95), "DOOR SCHEDULE")
                 for y, row in [(115, ("MARK", "TYPE", "WIDTH")),
