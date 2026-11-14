@@ -1,872 +1,429 @@
-"""The starter: a whole dispatch system that you can read in five minutes, then change. HANDBOOK.md says
-what it does and how to run it (`spread-starter --help` lists the options).
+"""Spread dispatcher: the kit starter plus adaptive quotes and OR-Tools gig pairing.
 
-To change it, copy this file and run the copy: python dispatch.py
+Run: python dispatch.py --level 8 --seed s1   (needs SPREAD_URL, SPREAD_KEY)
 """
 from __future__ import annotations
 
 import argparse
-import contextlib
-import re
+import math
 import sys
-import time
-from typing import NamedTuple, Optional
+from dataclasses import dataclass
+from typing import Optional
 
-from spread.client import Client, SpreadError, Unreachable, World
-from spread.types import (
-    Action, ActionResult, Audience, DeskEvent, DeskEventKind, DeskSnapshot, FeeStep, Gig, Note, Order, PostAction, PriceRequest,
-    Score, StopRef, TimeWindow,
-)
-
-import json, math, os
-HOUR, DAY = 60, 24 * 60
-P = {"qm": 1.0, "opt": "first", "f0": 1.0, "fstep": 0.10, "fn": 6, "fint": 60, "s0": 1.5, "sstep": 0.25, "sn": 5, "sint": 30, "trust": 0.0, "ramp": 0, "f1": 1.4, "rn": 8, "minslack": 0, "lowslack": 600, "lowmult": 1.0, "suplo": 0, "supmult": 1.3, "supdecl": 0, "offer": 0, "ofee": 0.6, "orad": 30, "onear": 30, "omax": 6, "rq": 0, "model": 0, "cc": 1.1, "eta": 0.08, "mmin": 0.9, "cm": 0, "ccm": 1.0, "lam": 0.5, "u": 0, "ra": 0.0, "tvk": 0.0, "tvp": 12500, "resc": 0, "rescfee": 1.5, "rescn": 3, "sd": 0, "sdslack": 480, "sdmult": 1.15, "sdsup": 40, "etad": 0.0, "etap": 0.0, "r0": 0.04, "u1": 1.3, "u2": 1.7, "u3": 2.2, "t1": 600, "t2": 420, "t3": 300}
-_best = os.path.join(os.path.dirname(os.path.abspath(__file__)), "best_params.json")
-if "SPREAD_PARAMS" not in os.environ and os.path.exists(_best):
-    P.update(json.load(open(_best)))
-P.update(json.loads(os.environ.get("SPREAD_PARAMS", "{}")))
-WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-# The events that need an answer. Views and account lines arrive with the next event that needs an answer.
-QUIET = bool(os.environ.get("SPREAD_QUIET"))
-WAKE_ON: list[DeskEventKind] = ["offer_answered", "price_request", "order_won", "order_changed", "order_cancelled", "visit_failed", "gig_expired", "deadline_close"]
+from ortools.sat.python import cp_model
+from spread import starter
+from spread.client import Client, SpreadError, World
+from spread.starter import DAY, HOUR, WAKE_ON, WEEKDAYS, Desk, report, stops_for, Retry, without_windows
+from spread.types import FeeStep, Order, PriceRequest
 
 
-class Retry(NamedTuple):
-    """How to post a leg again after a failed visit."""
-    pickup_from: int = 0
-    manual_licence: bool = False
-    plates: bool = False
+@dataclass
+class Params:
+    # Competitor sits 26-54% above list at level 8, 12-38% at level 7.
+    markup: dict[int, float]
+    fee_base: dict[int, float]
+    win_step: float = 1.02
+    loss_step: float = 0.97
+    min_markup: float = 0.9
+    max_markup: float = 1.8
+    # Decline when the expected driver cost eats this share of the price.
+    max_cost_share: float = 0.85
+    batch: bool = True
+    hold: int = 30
+    max_link: int = 75
+    combine: float = 0.85
+    winprob: bool = True
+    win_scale: float = 0.08
+    win_lr: float = 0.03
+    ramp: bool = True
+    ramp_open: float = 1.0
+    ramp_close: float = 1.6
+    ramp_lead: int = 8 * HOUR
+    on_time_target: float = 0.95
+    caution_gain: float = 10.0
+    town_risk: float = 0.0
+    min_slack: int = 3 * HOUR
+    urgent_lead: int = 6 * HOUR
+    max_backlog: int = 15
+    backlog_free: int = 5
+    backlog_cost: float = 0.05
 
 
-ROADS: dict = {}
+def default_params() -> Params:
+    return Params(
+        markup={1: 1.0, 2: 1.0, 3: 1.0, 4: 1.05, 5: 1.05, 6: 1.08, 7: 1.3, 8: 1.45},
+        fee_base={1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 5: 1.0, 6: 1.05, 7: 1.3, 8: 1.35},
+    )
 
 
-def road_minutes(a: str, b: str) -> int:
-    if not ROADS:
-        from spread.client import Client as _C
-        for r in _C().map()["roads"]:
-            ROADS[(r["from"], r["to"])] = r["minutes"]
-    return ROADS.get((a, b), 0)
+class WinModel:
+    """Online logistic model: P(win) = sigmoid((threshold - price/list) / scale).
+    Threshold = base + offsets for dealer, pickup place and delivery place, as the
+    competitor's price is list x lane x day factors and dealers differ."""
+
+    def __init__(self, base: float, scale: float, lr: float):
+        self.base, self.scale, self.lr = base, scale, lr
+        self.offset: dict[str, float] = {}
+
+    @staticmethod
+    def keys(request: PriceRequest) -> list[str]:
+        leg = request["legs"][0]
+        return [f"d:{request['dealerId']}", f"p:{leg['pickup']['placeId']}", f"q:{leg['delivery']['placeId']}"]
+
+    def threshold(self, keys: list[str]) -> float:
+        return self.base + sum(self.offset.get(k, 0.0) for k in keys)
+
+    def p_win(self, keys: list[str], x: float) -> float:
+        z = (self.threshold(keys) - x) / self.scale
+        return 1 / (1 + math.exp(-max(-30.0, min(30.0, z))))
+
+    def update(self, keys: list[str], x: float, won: bool) -> None:
+        grad = (float(won) - self.p_win(keys, x)) * self.lr
+        # The base moves with the day factor and price war; offsets learn lanes and dealers.
+        self.base += grad
+        for k in keys:
+            self.offset[k] = self.offset.get(k, 0.0) + grad
 
 
-PLACES: dict = {}
+class Roads:
+    def __init__(self, world_map: dict):
+        self.minutes = {(r["from"], r["to"]): r["minutes"] for r in world_map["roads"]}
+
+    def __call__(self, a: str, b: str) -> int:
+        return self.minutes.get((a, b), 10**6)
 
 
-def supply(world, place: str) -> int:
-    """Drivers living within 80 km of a place (straight line); the roster is fetched once per run."""
-    import math
-    cache = getattr(world, "_supply", None)
-    if cache is None:
-        if not PLACES:
-            from spread.client import Client as _C
-            for p in _C().map()["places"]:
-                PLACES[p["id"]] = p
-        homes = [d["homePlaceId"] for d in world.roster()]
-        cache = world._supply = {}
-        for pid, a in PLACES.items():
-            n = 0
-            for h in homes:
-                b = PLACES[h]
-                x = (a["lon"] - b["lon"]) * math.cos(math.radians((a["lat"] + b["lat"]) / 2))
-                if 111 * math.hypot(x, a["lat"] - b["lat"]) <= 80:
-                    n += 1
-            cache[pid] = n
-    return cache.get(place, 0)
+class SmartDesk(Desk):
+    def __init__(self, world: World, level: int, now: int, params: Params, roads: Roads):
+        super().__init__(world, level, now)
+        self.p, self.roads = params, roads
+        self.dealer_markup: dict[str, float] = {}
+        self.model = WinModel(params.markup[level] + 0.05, params.win_scale, params.win_lr)
+        self.on_time, self.late = 0, 0
+        self.stress: dict[str, int] = {}  # pickup place -> times its cars struggled to find a driver
+        self.fee_ratio = params.fee_base[level]  # booked fee / typical fee, learned
+        self.quoted: dict[str, float] = {}  # request id -> lowest quoted price/list ratio
+        self.held: dict[str, int] = {}  # order id -> minute won, waiting for a partner
+        self.paired = 0
 
+    # --- quotes -------------------------------------------------------------
 
-def km(a: str, b: str) -> float:
-    import math
-    if not PLACES:
-        from spread.client import Client as _C
-        for p in _C().map()["places"]:
-            PLACES[p["id"]] = p
-    A, B = PLACES[a], PLACES[b]
-    x = (A["lon"] - B["lon"]) * math.cos(math.radians((A["lat"] + B["lat"]) / 2))
-    return 111 * math.hypot(x, A["lat"] - B["lat"])
-
-
-MODEL: dict = {}
-
-
-def load_model() -> dict:
-    if not MODEL:
-        import pathlib
-        MODEL.update(json.loads((pathlib.Path(__file__).with_name("model.json")).read_text()))
-    return MODEL
-
-
-CM: dict = {}
-
-
-def cost_model():
-    if not CM:
-        import pathlib, pickle
-        CM["m"] = pickle.loads(pathlib.Path(__file__).with_name("cost_model.pkl").read_bytes())
-    return CM["m"]
-
-
-def predict_cost(world, request) -> tuple[float, float]:
-    """Expected all-in cost as a multiple of the typical fee, and the chance the order is late."""
-    import collections
-    import featlib
-    cache = getattr(world, "_homes", None)
-    if cache is None:
-        supply(world, request["legs"][0]["pickup"]["placeId"])
-        cache = world._homes = collections.Counter(d["homePlaceId"] for d in world.roster())
-        for r in __import__("spread.client", fromlist=["Client"]).Client().map()["roads"]:
-            ROADS[(r["from"], r["to"])] = r["minutes"]
-    reg, clf = cost_model()
-    x = [featlib.feats(request, cache, PLACES, ROADS)]
-    return float(reg.predict(x)[0]), float(clf.predict_proba(x)[0][1])
-
-
-class Desk:
-    """What the starter remembers, and its answer to each event. The answers wait in the outbox
-    until the starter sends them, and the world applies them at the current minute."""
-
-    def __init__(self, world: World, level: int, now: int):
-        self.world, self.level, self.now = world, level, now
-        self.outbox: list[Action] = []  # the actions decided since the starter last sent
-        self.requests: dict[str, PriceRequest] = {}
-        self.orders: dict[str, Order] = {}  # the orders won and not cancelled
-        self.leg_gigs: dict[str, dict[int, str]] = {}  # order id -> leg -> the gig that carries the leg
-        self.booked: set[str] = set()  # the gigs that a driver holds now
-        self.posts: dict[str, PostAction] = {}  # gig id -> the post that made it
-        self.urgent: set[str] = set()  # the orders whose deadline warning has come
-        self.trust: dict[str, int] = {}  # dealer id -> orders delivered on time (level 8 trust count)
-        self.late_seen: set[str] = set()
-        self.at_risk: set[str] = set()
-        self.won_n = 0
-        self.bias = 0.0
-        self.dealer_reqs: dict[str, int] = {}
-        self.bias_d: dict[int, float] = {}
-        self.bias_p: dict[tuple, float] = {}
-        self.pending_q: dict[str, tuple] = {}
-        self.offer_queue: dict[str, list[str]] = {}
-        self.offer_fee: dict[str, int] = {}
-        self.offers_day: dict = {}
-        self.drivers_home: Optional[list] = None
-        self.dealer_of: dict[str, str] = {}
-
-    def rejoin(self, snapshot: DeskSnapshot, history: list[DeskEvent]) -> None:
-        """Rebuilds what it knows from the world, so a starter that stopped keeps its orders. Then answers
-        what it missed: open requests, orders without a gig, failed visits without a new gig, and the
-        deadline warnings, so the orders that had one keep their steep fees."""
-        posted: dict[str, list[Gig]] = {}  # order id -> its gigs, oldest first
-        self.booked = {gig["id"] for gig in snapshot["gigs"] if gig["status"] in ("booked", "working", "done")}
-        for gig in snapshot["gigs"]:
-            posted.setdefault(gig["stops"][0]["orderId"], []).append(gig)
-            if gig["status"] in ("open", "booked", "working"):
-                self.carry({"type": "post", "stops": gig["stops"], "audience": gig["audience"], "schedule": gig["schedule"]}, gig["id"])
-        self.requests = {e["request"]["id"]: e["request"] for e in history if e["kind"] == "price_request"}
-        self.dealer_of = {rid: r["dealerId"] for rid, r in self.requests.items()}
-        for e in history:
-            if e["kind"] == "ledger":
-                self.ledger(e["line"])
-        self.urgent = {e["orderId"] for e in history if e["kind"] == "deadline_close"}
-        self.orders = {o["id"]: o for o in snapshot["orders"] if o["id"] in self.requests and o["status"] != "cancelled"}
-        for order in self.orders.values():
-            if order["status"] == "waiting" and not self.gigs_of(order["id"]):
-                self.post(order, undelivered(order))
-        for event in history:
-            order = self.orders.get(event.get("orderId", ""))
-            if order is None:
-                continue
-            if event["kind"] == "visit_failed" and order["deliveredAt"][event["leg"]] is None:
-                later = [g for g in posted.get(order["id"], []) if g["postedAt"] >= event["at"] and g["id"] != event["gigId"]]
-                if not any(stop["leg"] == event["leg"] for gig in later for stop in gig["stops"]):
-                    self.retry(order["id"], event["leg"], event["reason"])
-        for request in snapshot["openRequests"]:
-            self.quote(request)
-
-    def handle(self, event: DeskEvent) -> None:
-        if event["kind"] == "price_request":
-            self.quote(event["request"])
-        elif event["kind"] == "order_won":
-            self.win(event["order"])
-        elif event["kind"] == "order_changed":
-            self.change(event["order"])
-        elif event["kind"] == "order_cancelled":  # the world has stopped the car and told each of its gigs what happens
-            for books in (self.orders, self.leg_gigs):
-                books.pop(event["orderId"], None)
-        elif event["kind"] == "visit_failed":
-            self.retry(event["orderId"], event["leg"], event["reason"])
-        elif event["kind"] == "gig_expired":
-            self.repost(event["gigId"])
-        elif event["kind"] == "deadline_close":  # it comes again when a driver drops the car after the first warning
-            self.raise_fees(event["orderId"])
-        elif event["kind"] == "gig_booked":
-            post = self.posts.get(event["gigId"])
-            if post:
-                self.at_risk.discard(post["stops"][0]["orderId"])
-            self.booked.add(event["gigId"])
-            self.offer_queue.pop(event["gigId"], None)
-        elif event["kind"] == "offer_answered":
-            if event["answer"] != "accepted" and event["gigId"] not in self.booked:
-                self.next_offer(event["gigId"])
-        elif event["kind"] in ("gig_dropped", "no_show"):  # after a no-show the gig is open again; a late driver still comes
-            self.booked.discard(event["gigId"])
-        elif event["kind"] == "order_lost" and event["requestId"] in self.pending_q:
-            self.learn(event["requestId"], 0.0)
-        elif event["kind"] == "ledger":
-            self.ledger(event["line"])
-        elif event["kind"] == "delivered":
-            self.delivered(event["orderId"], event["leg"], event["at"])
-
-    def ledger(self, line) -> None:
-        oid = line.get("orderId")
-        order = self.orders.get(oid) if oid else None
-        dealer = order["dealerId"] if order else self.dealer_of.get(oid)
-        if dealer is None:
-            return
-        if line["kind"] == "revenue":
-            self.trust[dealer] = min(25, self.trust.get(dealer, 0) + 1)
-        elif line["kind"] == "late_refund" and oid not in self.late_seen:
-            self.late_seen.add(oid)
-            self.trust[dealer] = max(0, self.trust.get(dealer, 0) - 1) // 2
-
-    def risk(self) -> float:
-        return (len(self.late_seen) + len(self.at_risk)) / max(40, self.won_n)
-
-    def delivered(self, order_id: str, leg: int, at: int) -> None:
-        self.at_risk.discard(order_id)
-        self.leg_gigs.get(order_id, {}).pop(leg, None)
-        if order_id in self.orders:
-            self.orders[order_id]["deliveredAt"][leg] = at
+    def markup_for(self, dealer: str) -> float:
+        return self.dealer_markup.get(dealer, self.p.markup[self.level])
 
     def quote(self, request: PriceRequest) -> None:
         self.requests[request["id"]] = request
-        self.dealer_of[request["id"]] = request["dealerId"]
-        self.dealer_reqs[request["dealerId"]] = self.dealer_reqs.get(request["dealerId"], 0) + 1
-        opts = request["options"]
-        chosen = opts[:1] if P["opt"] == "first" else opts[-1:] if P["opt"] == "last" else opts
-        if P["opt"] == "nosame":
-            chosen = [o for o in opts if o["kind"] != "same_day"]
-        # estimated slack: time from when a driver could start to the last pickup that still delivers by the deadline
-        def slack_of(o):
-            leg0 = request["legs"][0]
-            drive = sum(road_minutes(l["pickup"]["placeId"], l["delivery"]["placeId"]) for l in request["legs"])
-            start = max(request["respondBy"] + 15, leg0["pickup"]["window"]["from"])
-            return min(o["deadline"] - drive, leg0["pickup"]["window"]["to"]) - (request["respondBy"] + 15)
-        kept = []
-        mults = {}
-        for o in chosen:
-            sl = slack_of(o)
-            if sl < P["minslack"]:
-                continue
-            kept.append(o)
-            mults[o["kind"]] = P["lowmult"] if sl < P["lowslack"] else 1.0
-        chosen = kept
-        if P["suplo"] or P["supdecl"]:
-            n80 = supply(self.world, request["legs"][0]["pickup"]["placeId"])
-            if n80 < P["supdecl"]:
-                chosen = []
-            elif n80 < P["suplo"]:
-                mults = {k: v * P["supmult"] for k, v in mults.items()}
-        if not chosen:
-            self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {opts[0]["kind"]: opts[0]["listPriceCents"] * 5}})
-            return
-        if P["model"] and chosen:
-            mdl = load_model()
-            leg0 = request["legs"][0]
-            o0 = chosen[0]
-            feats = [f"dealer:{request['dealerId']}", f"pk:{leg0['pickup']['placeId']}", f"dl:{leg0['delivery']['placeId']}", f"k:{o0['kind']}", f"day:{request['arrivedAt'] // DAY}"]
-            day = request["arrivedAt"] // DAY
-            pkey = (day, leg0["pickup"]["placeId"])
-            base = mdl["icpt"] + sum(mdl["w"].get(f, 0.0) for f in feats) + self.bias + self.bias_d.get(day, 0.0) + self.bias_p.get(pkey, 0.0)
-            tr = 1 + P["trust"] * self.trust.get(request["dealerId"], 0) / 100
-            cost = request["referenceFeeCents"] * P["cc"] * max(mults.values())
-            if P["suplo"] and supply(self.world, leg0["pickup"]["placeId"]) < P["suplo"]:
-                cost *= P["supmult"]
-            plate = 0.0
-            if P["cm"]:
-                pc, plate = predict_cost(self.world, request)
-                cost = request["referenceFeeCents"] * pc * P["ccm"] * (1 + P["ra"] * max(0.0, self.risk() - P["r0"]))
-            tv = 0.0
-            if P["tvk"] and self.trust.get(request["dealerId"], 0) < 25:
-                dayf = request["arrivedAt"] / DAY
-                per_day = self.dealer_reqs.get(request["dealerId"], 1) / max(0.5, dayf - 0.33)
-                tv = P["tvk"] * 0.01 * per_day * max(0.0, 4.75 - dayf) * 0.25 * P["tvp"]
-            best, bm = 0.0, None
-            for i in range(0, 160):
-                m = P["mmin"] + i * 0.01
-                p = 1 / (1 + math.exp(-(base + mdl["slope"] * math.log(m / tr))))
-                gain = (m * o0["listPriceCents"] * (1 - P["lam"] * plate) - cost + tv * (1 - plate)) * p
-                if gain > best:
-                    best, bm = gain, m
-            self.pending_q[request["id"]] = (base, math.log(bm / tr) if bm else None, day, pkey)
-            if bm is None:
-                self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {o0["kind"]: o0["listPriceCents"] * 5}})
-                return
-            prices = {o["kind"]: int(o["listPriceCents"] * bm) for o in chosen}
-            if P["sd"]:
-                sdo = next((o for o in opts if o["kind"] == "same_day"), None)
-                if sdo is not None and slack_of(sdo) >= P["sdslack"] and supply(self.world, leg0["pickup"]["placeId"]) >= P["sdsup"] and not leg0["pickup"]["privateAddress"] and not leg0["delivery"]["privateAddress"] and len(request["legs"]) == 1:
-                    prices["same_day"] = int(sdo["listPriceCents"] * bm * P["sdmult"])
+        if self.level <= 3:
+            return super().quote(request)
+        if self.p.winprob:
+            return self.quote_winprob(request)
+        m = self.markup_for(request["dealerId"])
+        cost = request["referenceFeeCents"] * self.p.fee_base[self.level]
+        prices = {}
+        for option in request["options"]:
+            price = int(option["listPriceCents"] * m)
+            prices[option["kind"]] = price if cost <= self.p.max_cost_share * price else option["listPriceCents"] * 10
+        self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
+
+    def quote_winprob(self, request: PriceRequest) -> None:
+        """Quotes the price/list ratio that maximises P(win) x (price - cost)."""
+        backlog = self.backlog()
+        if backlog >= self.p.max_backlog:
+            prices = {o["kind"]: o["listPriceCents"] * 10 for o in request["options"]}
             self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
             return
-        if P["rq"]:
-            import random
-            m = math.exp(random.Random(request["id"] + str(request["arrivedAt"])).uniform(math.log(1.0), math.log(2.4)))
-            self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {o["kind"]: int(o["listPriceCents"] * m) for o in chosen}})
-            return
-        self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {o["kind"]: int(o["listPriceCents"] * P["qm"] * mults[o["kind"]] * (1 + P["trust"] * self.trust.get(request["dealerId"], 0) / 100)) for o in chosen}})
+        crowd = (1 + self.p.backlog_cost * max(0, backlog - self.p.backlog_free)) * self.caution()
+        place = request["legs"][0]["pickup"]["placeId"]
+        crowd *= 1 + self.p.town_risk * self.stress.get(place, 0)
+        cost = request["referenceFeeCents"] * self.fee_ratio * crowd / self.p.max_cost_share
+        keys = self.model.keys(request)
+        prices = {}
+        leg = request["legs"][0]
+        drive = sum(self.roads(l["pickup"]["placeId"], l["delivery"]["placeId"]) for l in request["legs"])
+        ready = leg["pickup"]["window"]["from"]
+        for option in request["options"]:
+            listed = option["listPriceCents"]
+            best, best_x = 0.0, None
+            if option["deadline"] - max(ready, self.now) - drive < self.p.min_slack:
+                prices[option["kind"]] = listed * 10
+                continue
+            for i in range(56):
+                x = 0.9 + i * 0.02
+                gain = self.model.p_win(keys, x) * (x * listed - cost)
+                if gain > best:
+                    best, best_x = gain, x
+            prices[option["kind"]] = int(listed * best_x) if best_x else listed * 10
+        self.quoted[request["id"]] = min(prices[o["kind"]] / o["listPriceCents"] for o in request["options"])
+        self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
 
-    def learn(self, rid: str, won: float) -> None:
-        base, lmeff, day, pkey = self.pending_q.pop(rid)
-        if lmeff is None:
-            return
-        mdl = load_model()
-        p = 1 / (1 + math.exp(-(base + mdl["slope"] * lmeff)))
-        self.bias += P["eta"] * (won - p)
-        self.bias = max(-2.0, min(2.0, self.bias))
-        if P["etad"]:
-            self.bias_d[day] = max(-2.0, min(2.0, self.bias_d.get(day, 0.0) + P["etad"] * (won - p)))
-        if P["etap"]:
-            self.bias_p[pkey] = max(-2.0, min(2.0, self.bias_p.get(pkey, 0.0) + P["etap"] * (won - p)))
+    def order_of(self, gig_id) -> str:
+        action = self.posts.get(gig_id or "")
+        return action["stops"][0]["orderId"] if action else ""
 
-    def win(self, order: Order) -> None:
-        self.won_n += 1
-        if order["id"] in self.pending_q:
-            self.learn(order["id"], 1.0)
-        if order["id"] in self.requests and order["id"] not in self.orders:  # rejoin can know it already
-            self.orders[order["id"]] = order
-            self.post(order, undelivered(order))
+    def caution(self) -> float:
+        """Above 1 when our own on-time share drifts under target: costs look higher, so we win fewer, safer cars."""
+        done = self.on_time + self.late
+        if done < 15:
+            return 1.0
+        return 1 + self.p.caution_gain * max(0.0, self.p.on_time_target - self.on_time / done)
 
-    def change(self, order: Order) -> None:
-        if order["id"] in self.orders:
-            self.orders[order["id"]] = order
-            if self.withdraw(order["id"]):
-                self.post(order, undelivered(order))
-
-    def repost(self, gig_id: str) -> None:
-        """Posts a gig again when one of its windows ended before a driver booked it."""
-        action = self.posts.get(gig_id)
-        # A gig the starter has already taken off and posted again, after a change of plan, needs nothing.
-        if action is None or not any(self.leg_gigs.get(s["orderId"], {}).get(s["leg"]) == gig_id for s in action["stops"]):
-            return
-        for stop in action["stops"]:
-            self.leg_gigs.get(stop["orderId"], {}).pop(stop["leg"], None)
-        order = self.orders.get(action["stops"][0]["orderId"])
-        if order is None:
-            return
-        # One of its windows has ended, perhaps at a site's closing time before the window's own end: post without its own stop windows.
-        stops = without_windows(action["stops"], float("inf"))
-        self.outbox.append({**action, "stops": stops, "schedule": self.fees_for(order, pickups(action))})
-
-    def raise_fees(self, order_id: str) -> None:
-        """From the order's deadline warning on, its gigs that no driver holds go at the steep fees."""
+    def record_delivery(self, order_id: str, at: int) -> None:
         order = self.orders.get(order_id)
-        if order is None:
+        if order is None or any(d is None for d in order["deliveredAt"]):
             return
-        self.urgent.add(order_id)
-        self.at_risk.add(order_id)
-        self.send_post_of(order_id)
-        for gig_id in self.gigs_of(order_id):
-            if gig_id not in self.booked:
-                self.outbox.append({"type": "reprice", "gigId": gig_id, "schedule": self.fees_for(order, pickups(self.posts[gig_id]))})
-                if P["resc"]:
-                    self.rescue(order, gig_id)
+        if at <= order["deadline"]:
+            self.on_time += 1
+        else:
+            self.late += 1
+
+    def backlog(self) -> int:
+        """Won orders still waiting for a driver: more of them means late cars."""
+        waiting = 0
+        for oid, order in self.orders.items():
+            if all(d is not None for d in order["deliveredAt"]):
+                continue
+            gigs = self.gigs_of(oid)
+            if oid in self.held or not gigs or not all(g in self.booked for g in gigs):
+                waiting += 1
+        return waiting
+
+    def learn_fee(self, gig_id: str, fee: int) -> None:
+        action = self.posts.get(gig_id)
+        if action is None:
+            return
+        ref = sum(self.requests[s["orderId"]]["referenceFeeCents"] / len(self.requests[s["orderId"]]["legs"])
+                  for s in action["stops"] if s["kind"] == "pickup" and s["orderId"] in self.requests)
+        if ref > 0:
+            self.fee_ratio += 0.1 * (fee / ref - self.fee_ratio)
+
+    def learn(self, request_id: str, won: bool) -> None:
+        request = self.requests.get(request_id)
+        if request is None or self.level <= 3:
+            return
+        x = self.quoted.get(request_id)
+        if x is not None and x < 5:
+            self.model.update(self.model.keys(request), x, won)
+        m = self.markup_for(request["dealerId"]) * (self.p.win_step if won else self.p.loss_step)
+        self.dealer_markup[request["dealerId"]] = min(self.p.max_markup, max(self.p.min_markup, m))
+
+    def handle(self, event) -> None:
+        if event["kind"] == "order_lost":
+            self.learn(event["requestId"], False)
+        elif event["kind"] == "order_won":
+            self.learn(event["order"]["id"], True)
+        elif event["kind"] == "delivered":
+            super().handle(event)
+            return self.record_delivery(event["orderId"], event["at"])
+        elif event["kind"] in ("deadline_close", "gig_expired", "no_show"):
+            order = self.orders.get(event.get("orderId") or self.order_of(event.get("gigId")))
+            if order is not None:
+                place = order["legs"][0]["pickup"]["placeId"]
+                self.stress[place] = self.stress.get(place, 0) + 1
+        elif event["kind"] == "gig_booked":
+            self.learn_fee(event["gigId"], event["feeCents"])
+        elif event["kind"] == "order_cancelled":
+            self.held.pop(event["orderId"], None)
+        elif event["kind"] == "order_changed":
+            # A held order has no gig yet: the base change() posts it, so it must stop waiting.
+            self.held.pop(event["order"]["id"], None)
+        super().handle(event)
+
+    # --- fees ---------------------------------------------------------------
 
     def fees_for(self, order: Order, cars: int) -> list[FeeStep]:
-        """The fees for some of the order's cars from now: rising, or steep once its deadline warning has come."""
-        fee = self.requests[order["id"]]["referenceFeeCents"] * cars / len(order["legs"])
-        if P["ramp"] and order["id"] not in self.urgent:
-            end = order["lastPickupAt"] - 180
-            n = P["rn"]
-            if end - self.now < 30:
-                return [{"at": self.now, "feeCents": max(1, int(fee * P["f1"] + 0.5))}]
-            return [{"at": int(self.now + k * (end - self.now) / (n - 1)), "feeCents": max(1, int(fee * (P["f0"] + (P["f1"] - P["f0"]) * k / (n - 1)) + 0.5))} for k in range(n)]
+        fee = self.requests[order["id"]]["referenceFeeCents"] * cars / len(order["legs"]) * self.p.fee_base[self.level]
         if order["id"] in self.urgent:
-            return steep(self.now, fee, self.level)
-        base = rising(self.now, fee, self.level)
-        if P["u"]:
-            last = order["lastPickupAt"]
-            top = base[-1]["feeCents"]
-            for mult, lead in ((P["u1"], P["t1"]), (P["u2"], P["t2"]), (P["u3"], P["t3"])):
-                at = last - lead
-                f = int(fee * mult + 0.5)
-                if at > base[-1]["at"] and f >= top:
-                    base.append({"at": at, "feeCents": f})
-                    top = f
-        return base
+            return starter.steep(self.now, fee, self.level)
+        if self.p.ramp and self.level >= 2:
+            return self.ramp(fee / self.p.fee_base[self.level], order["lastPickupAt"])
+        return starter.rising(self.now, fee, self.level)
 
-    def retry(self, order_id: str, leg: int, reason: str) -> None:
-        if order_id in self.orders:
-            order = self.orders[order_id]
-            self.leg_gigs.get(order_id, {}).pop(leg, None)  # the world has taken the car out of the failed gig
-            car_not_there = reason in ("not_ready", "closed")
-            pickup_from = retry_from(order, self.requests[order_id], leg, self.now) if car_not_there else 0
-            self.post(order, [leg], Retry(pickup_from, manual_licence=reason == "licence", plates=reason == "no_plates"))
+    def ramp(self, ref: float, last_pickup: int) -> list[FeeStep]:
+        """Opens low and climbs to a high fee 4h before the last pickup, in 30-min steps.
+        Cheap nearby drivers book early; a slow climb keeps drivers from learning big raises."""
+        end = max(self.now + HOUR, last_pickup - self.p.ramp_lead)
+        steps = max(1, min(48, (end - self.now) // 30))
+        c = self.caution()
+        lo, hi = self.p.ramp_open * ref * c, self.p.ramp_close * ref * c
+        return [{"at": self.now + k * (end - self.now) // steps, "feeCents": max(1, int(lo + (hi - lo) * k / steps))}
+                for k in range(steps + 1)][:48]
 
-    def post(self, order: Order, legs: list[int], retry: Retry = Retry()) -> None:
-        # A premium car needs an experienced driver: the fine is €150 a car.
-        request = self.requests[order["id"]]
-        manual, _, _ = note_flags(request)
-        audience: Audience = {"experienced": any(leg["car"]["premium"] for leg in order["legs"]), "manualLicence": retry.manual_licence or manual}
-        stops = without_windows(stops_for(order, legs, request, retry), self.now)
-        self.outbox.append({"type": "post", "stops": stops, "audience": audience, "schedule": self.fees_for(order, len(legs))})
-        if len(legs) == 1:
+    # --- batching -------------------------------------------------------------
+
+    def win(self, order: Order) -> None:
+        if order["id"] not in self.requests or order["id"] in self.orders:
             return
-        # A trade-in over the 12-hour limit for a gig with two cars goes as one gig per car.
-        self.send()
-        if not self.gigs_of(order["id"]):
-            for leg in legs:
-                self.post(order, [leg], retry)
+        self.orders[order["id"]] = order
+        if self.can_pair(order):
+            self.held[order["id"]] = self.now
+        else:
+            self.post(order, starter.undelivered(order))
 
-    def start_offers(self, action: PostAction, gig_id: str) -> None:
-        """Direct offers to drivers who live near the delivery but not near the pickup: the app does not notify them, and the trip home is free."""
-        if self.drivers_home is None:
-            self.drivers_home = [(d["id"], d["homePlaceId"]) for d in self.world.roster()]
-        order = self.orders.get(action["stops"][0]["orderId"])
-        if order is None:
-            return
-        pick = next(s_ for s_ in action["stops"] if s_["kind"] == "pickup")
-        dele = next(s_ for s_ in action["stops"] if s_["kind"] == "delivery")
-        pp = order["legs"][pick["leg"]]["pickup"]["placeId"]
-        dp = order["legs"][dele["leg"]]["delivery"]["placeId"]
-        if km(pp, dp) < P["onear"]:
-            return
-        cands = sorted((km(h, dp), d) for d, h in self.drivers_home if km(h, dp) <= P["orad"] and km(h, pp) > 30)
-        self.offer_queue[gig_id] = [d for _, d in cands][: P["omax"] * 4]
-        self.offer_fee[gig_id] = max(1, int(self.requests[order["id"]]["referenceFeeCents"] * pickups(action) / len(order["legs"]) * P["ofee"]))
-        for _ in range(3):
-            self.next_offer(gig_id)
+    def can_pair(self, order: Order) -> bool:
+        if not self.p.batch or self.level < 3 or len(order["legs"]) != 1 or self.requests[order["id"]]["note"]:
+            return False
+        leg = order["legs"][0]
+        if leg["pickup"]["privateAddress"] or leg["delivery"]["privateAddress"]:
+            return False
+        return order["lastPickupAt"] - self.now > self.p.hold + 6 * HOUR
 
-    def rescue(self, order: Order, gig_id: str) -> None:
-        """Offers an unbooked gig at a high fee to the drivers who live nearest its pickup."""
-        if self.drivers_home is None:
-            self.drivers_home = [(d["id"], d["homePlaceId"]) for d in self.world.roster()]
-        action = self.posts[gig_id]
-        pick = next(s_ for s_ in action["stops"] if s_["kind"] == "pickup")
-        pp = order["legs"][pick["leg"]]["pickup"]["placeId"]
-        cands = sorted((km(h, pp), d) for d, h in self.drivers_home if km(h, pp) <= 80)
-        self.offer_queue[gig_id] = [d for _, d in cands][:30]
-        self.offer_fee[gig_id] = max(1, int(self.requests[order["id"]]["referenceFeeCents"] * pickups(action) / len(order["legs"]) * P["rescfee"]))
-        for _ in range(P["rescn"]):
-            self.next_offer(gig_id)
+    def pair_cost(self, a: Order, b: Order) -> Optional[int]:
+        """Link minutes if one driver can take a then b inside both windows and the 12-hour rule."""
+        la, lb = a["legs"][0], b["legs"][0]
+        drive_a = self.roads(la["pickup"]["placeId"], la["delivery"]["placeId"])
+        link = self.roads(la["delivery"]["placeId"], lb["pickup"]["placeId"])
+        drive_b = self.roads(lb["pickup"]["placeId"], lb["delivery"]["placeId"])
+        if link > self.p.max_link or drive_a + link + drive_b > 12 * HOUR:
+            return None
+        start = max(self.now + HOUR, la["pickup"]["window"]["from"])
+        if start > la["pickup"]["window"]["to"]:
+            return None
+        arrive_a = start + drive_a
+        if arrive_a > a["deadline"]:
+            return None
+        pick_b = max(arrive_a + link, lb["pickup"]["window"]["from"])
+        # Waiting more than 2 hours between cars makes the pair worse than two gigs.
+        if pick_b > lb["pickup"]["window"]["to"] or pick_b - (arrive_a + link) > 2 * HOUR:
+            return None
+        if pick_b + drive_b > b["deadline"] - HOUR:
+            return None
+        return link
 
-    def next_offer(self, gig_id: str) -> None:
-        q = self.offer_queue.get(gig_id)
-        day = self.now // DAY
-        while q:
-            d = q.pop(0)
-            if self.offers_day.get((d, day), 0) >= 3:
+    def escalate(self) -> None:
+        """Steep fees from `urgent_lead` before the last pickup, earlier than the world's 3h warning."""
+        for oid, order in list(self.orders.items()):
+            if oid in self.urgent or oid in self.held or order["status"] != "waiting":
                 continue
-            self.offers_day[(d, day)] = self.offers_day.get((d, day), 0) + 1
-            self.outbox.append({"type": "offer", "gigId": gig_id, "driverId": d, "feeCents": self.offer_fee[gig_id]})
+            gigs = self.gigs_of(oid)
+            if gigs and not any(g in self.booked for g in gigs) and self.now >= order["lastPickupAt"] - self.p.urgent_lead:
+                self.raise_fees(oid)
+
+    def flush(self, force: bool = False) -> None:
+        """Pairs held orders with CP-SAT (max fee saved), posts pairs and orders held too long."""
+        live = {oid: t for oid, t in self.held.items() if oid in self.orders}
+        self.held = live
+        if not live:
             return
+        ids = list(live)
+        fee = {oid: self.requests[oid]["referenceFeeCents"] for oid in ids}
+        model = cp_model.CpModel()
+        pairs = {}
+        for a in ids:
+            for b in ids:
+                if a == b:
+                    continue
+                link = self.pair_cost(self.orders[a], self.orders[b])
+                if link is not None:
+                    gain = int((1 - self.p.combine) * (fee[a] + fee[b])) - link * 40
+                    if gain > 0:
+                        pairs[(a, b)] = (model.NewBoolVar(f"{a}>{b}"), gain)
+        chosen: list[tuple[str, str]] = []
+        if pairs:
+            for oid in ids:
+                model.AddAtMostOne([v for (a, b), (v, _) in pairs.items() if oid in (a, b)])
+            model.Maximize(sum(g * v for v, g in pairs.values()))
+            solver = cp_model.CpSolver()
+            solver.parameters.max_time_in_seconds = 0.5
+            if solver.Solve(model) in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+                chosen = [k for k, (v, _) in pairs.items() if solver.Value(v)]
+        for a, b in chosen:
+            self.post_pair(self.orders[a], self.orders[b])
+            self.held.pop(a), self.held.pop(b)
+        for oid, since in list(self.held.items()):
+            order = self.orders[oid]
+            if force or self.now - since >= self.p.hold or order["lastPickupAt"] - self.now < 6 * HOUR:
+                self.held.pop(oid)
+                self.post(order, starter.undelivered(order))
 
-    def gigs_of(self, order_id: str) -> list[str]:
-        """The gigs that carry the order's undelivered legs: one, or one for each leg of a split trade-in."""
-        return list(dict.fromkeys(self.leg_gigs.get(order_id, {}).values()))
+    def post_pair(self, a: Order, b: Order) -> None:
+        stops = stops_for(a, [0], None, Retry()) + stops_for(b, [0], None, Retry())
+        stops = without_windows(stops, self.now)
+        premium = a["legs"][0]["car"]["premium"] or b["legs"][0]["car"]["premium"]
+        fee = (self.requests[a["id"]]["referenceFeeCents"] + self.requests[b["id"]]["referenceFeeCents"]) * self.p.combine * self.p.fee_base[self.level]
+        self.outbox.append({"type": "post", "stops": stops, "audience": {"experienced": premium, "manualLicence": False},
+                            "schedule": starter.rising(self.now, fee, self.level)})
+        self.paired += 1
 
-    def carry(self, action: PostAction, gig_id: str) -> None:
-        """Remembers a gig that the world accepted: the post that made it, and the legs it carries."""
-        for stop in action["stops"]:
-            self.leg_gigs.setdefault(stop["orderId"], {})[stop["leg"]] = gig_id
-        self.posts[gig_id] = action
+    # A paired gig carries two orders: when one order needs it back, both go out again as single gigs.
 
     def withdraw(self, order_id: str) -> bool:
-        """Takes an order's gigs out of the drivers' app. False, and nothing withdrawn, when a driver holds one of them."""
         self.send_post_of(order_id)
         gigs = self.gigs_of(order_id)
-        if any(gig_id in self.booked for gig_id in gigs):
+        if any(g in self.booked for g in gigs):
             return False
-        self.leg_gigs.pop(order_id, None)
-        self.outbox += [{"type": "withdraw", "gigId": gig_id} for gig_id in gigs]
+        others = {s["orderId"] for g in gigs for s in self.posts[g]["stops"]} - {order_id}
+        for oid in [order_id, *others]:
+            self.leg_gigs.pop(oid, None)
+        self.outbox += [{"type": "withdraw", "gigId": g} for g in gigs]
+        for oid in others:
+            if oid in self.orders:
+                self.post(self.orders[oid], starter.undelivered(self.orders[oid]))
         return True
 
-    def send_post_of(self, order_id: str) -> None:
-        """A post of the order still in the outbox goes to the world now, so the starter knows its gig. Each gig carries one order."""
-        if any(action["type"] == "post" and action["stops"][0]["orderId"] == order_id for action in self.outbox):
-            self.send()
-
-    def send(self) -> None:
-        """Sends the outbox now. In practice, the outbox goes with the next advance instead. Offers that the
-        results start go out in the same call."""
-        for _ in range(4):
-            actions, self.outbox = self.outbox, []
-            if not actions:
-                return
-            for i in range(0, len(actions), 50):
-                chunk = actions[i : i + 50]
-                self.read_results(chunk, self.world.act(chunk))
-
-    def read_results(self, actions: list[Action], results: list[ActionResult]) -> None:
-        """Remembers the gig of each post that the world accepted."""
-        for action, result in zip(actions, results):
-            if action["type"] == "post" and result["ok"] is True:
-                self.carry(action, result["id"])
-                if P["offer"]:
-                    self.start_offers(action, result["id"])
-
-
-def retry_from(order: Order, request: PriceRequest, leg: int, now: int) -> int:
-    """When to try a car again after a visit found it not ready or the site closed: two hours on, or,
-    when the dealer moved the deadline for a car that is late, when the car should be ready by the
-    same delay."""
-    promised = next((o["deadline"] for o in request["options"] if o["kind"] == order["option"]), order["deadline"])
-    delay = max(0, order["deadline"] - promised)
-    return max(now + 2 * HOUR, order["legs"][leg]["pickup"]["window"]["from"] + delay)
-
-
-def undelivered(order: Order) -> list[int]:
-    return [leg for leg in range(len(order["legs"])) if order["deliveredAt"][leg] is None]
-
-
-def pickups(action: PostAction) -> int:
-    """The cars a post carries."""
-    return sum(1 for stop in action["stops"] if stop["kind"] == "pickup")
-
-
-def without_windows(stops: list[StopRef], before: float) -> list[StopRef]:
-    """Leaves out the stop windows that end before `before`, so the world's window applies: once the order's
-    window has ended, it runs to the end of the world."""
-    return [{k: v for k, v in stop.items() if k != "window"} if "window" in stop and stop["window"]["to"] < before else stop for stop in stops]
-
-
-def rising(now: int, fee: float, level: int) -> list[FeeStep]:
-    """The fee at once, then 10% of it more every hour: six steps, up to 1.5 times. Level 1 takes one fee only."""
-    # int(x + 0.5) rounds halves up, as JavaScript's Math.round does, so both starters post the same fees.
-    return [{"at": now + k * P["fint"], "feeCents": max(1, int(fee * (P["f0"] + k * P["fstep"]) + 0.5))} for k in range(1 if level == 1 else P["fn"])]
-
-
-def steep(now: int, fee: float, level: int) -> list[FeeStep]:
-    """1.5 times the fee at once, then a quarter of it more every half hour, up to 2.5 times. Level 1 takes one fee only."""
-    return [{"at": now + k * P["sint"], "feeCents": max(1, int(fee * (P["s0"] + k * P["sstep"]) + 0.5))} for k in range(1 if level == 1 else P["sn"])]
-
-
-def stops_for(order: Order, legs: list[int], request: PriceRequest, retry: Retry) -> list[StopRef]:
-    """A pickup and a delivery for each leg. A stop has its own window only when the note or the retry
-    makes it narrower. Without one, the world plans the pickup in the order's window and the delivery by
-    the deadline. A note that needs plates or a charge gets them on the first post."""
-    _, plates, low_battery_note = note_flags(request)
-    stops: list[StopRef] = []
-    for leg in legs:
-        car, pickup, delivery = order["legs"][leg]["car"], order["legs"][leg]["pickup"], order["legs"][leg]["delivery"]
-        noted = window_from_note(request, pickup["window"], "pickup")
-        start = max(noted["from"], retry.pickup_from)
-        pickup_window: TimeWindow = {"from": start, "to": max(noted["to"], start)}
-        delivery_base: TimeWindow = {"from": delivery["window"]["from"], "to": max(delivery["window"]["from"], order["deadline"])}
-        delivery_window = window_from_note(request, delivery_base, "delivery")
-        low_battery = car["electric"] and ((car["chargePercent"] is not None and car["chargePercent"] < 30) or low_battery_note)
-        first: StopRef = {"orderId": order["id"], "leg": leg, "kind": "pickup", "withPlates": retry.plates or plates, "withCharging": low_battery}
-        second: StopRef = {"orderId": order["id"], "leg": leg, "kind": "delivery"}
-        stops += [narrower(first, pickup_window, pickup["window"]), narrower(second, delivery_window, delivery_base)]
-    return stops
-
-
-def narrower(stop: StopRef, window: TimeWindow, base: TimeWindow) -> StopRef:
-    return {**stop, "window": window} if window["from"] > base["from"] or window["to"] < base["to"] else stop
-
-
-# Keywords, matched on lower-cased clauses. A closing word turns a time after it into the site's closing time.
-AFTER = re.compile(r"j.{0,2}keen|alkaen|aikaisintaan|\bafter\b|\bfrom\b|earliest|not before|ei ennen|valmi|\bready\b|efter|tidigast|inte före|\bklar\b|först|\bvasta\b|once paid|payment", re.ASCII)
-BEFORE = re.compile(r"ennen|mennessä|mennessa|viim|\bbefore\b|\bby\b|latest|ltaest|före|senast|\basti\b|\buntil\b|\btill\b|\btills\b|innan", re.ASCII)
-CLOSED = re.compile(r"kiinni|sulkee|suljet|\bcloses?\b|\bclosed\b|stänger|stängt|ei ketään|ei kukaan|nobody|no one|ingen", re.ASCII)
-DELIVERY = re.compile(r"toimit|perill|perila|perilä|peril[ae]|vastaanot|kohde|destination|dstination|deliver|arriv|receiv|leverera|leverans|framme|mottag", re.ASCII)
-PICKUP = re.compile(r"nou[dt]|hake|haett|hämt|\bhaku|collect|pick ?up|\bready\b|valmi|\bklar\b|luovut|handover|hand over|maks|maskaa|payment|pays|release", re.ASCII)
-CORRECTION = re.compile(r"korjaus|correction|corrected|\bcorr\b|ei kun|ei vaan|i mean|instead|rättelse", re.ASCII)
-HANDOVER = re.compile(r"vasta|maks|once paid|pays|payment|sitten|sen jälkeen|luovut", re.ASCII)
-DENIAL = re.compile(r"(?:\bnot|\binte|\bej|\bei)$", re.ASCII)
-# Opening hours as a range: "9-16", "klo 9.00-14.30", "kl 10-14".
-RANGE = re.compile(r"(?<![\d.:])(\d{1,2})(?:[.:](\d{2}))?\s*-\s*(\d{1,2})(?:[.:](\d{2}))?(?![\d])", re.ASCII)
-# A clock time: after klo/kl/kello/klockan/at, with a colon or dot, with am/pm, or next to a bound word.
-CLOCK = re.compile(
-    r"(?<![\w.:])(?:(?:klo|kl|kello|klockan|at)\.?\s*(\d{1,2})(?:[.:](\d{2}))?"
-    r"|(\d{1,2})[.:](\d{2})(?!\d)"
-    r"|(\d{1,2})(?=\s*(?:mennessä|mennessa|asti|alkaen|jälkeen|ennen|viimeistään|viim|latest|earliest|before|after|by)\b)"
-    r"|(\d{1,2})(?=\s*(?:am|pm)\b))(?:\s*(am|pm)\b)?",
-    re.ASCII,
-)
-DAY_WORDS = [
-    (re.compile(r"tänään|tanaan|\bidag\b|\btoday\b", re.ASCII), 0),
-    (re.compile(r"ylihuom\w*|i övermorgon|övermorgon|overmorgon|day after tomorrow", re.ASCII), 2),
-    (re.compile(r"\bhuom\w*n\w*|\bi morgon\b|\bimorgon\b|\btomorrow\b|\btomorow\b|\btmrw\b|\btmr\b|\btmw\b", re.ASCII), 1),
-]
-WEEKDAY = re.compile(
-    r"\b(maanantai\w*|måndag\w*|monday|mon|ma(?=\s+(?:klo|kl|\d))|mån(?=\s+(?:klo|kl|\d))"
-    r"|tiistai\w*|tisdag\w*|tuesday|tues?|ti(?=\s+(?:klo|kl|\d))"
-    r"|keskiviikko\w*|onsdag\w*|wednesday|wed|ke(?=\s+(?:klo|kl|\d))|ons(?=\s+(?:klo|kl|\d))"
-    r"|torstai\w*|torsdag\w*|thursday|thu|thurs|thur|to(?=\.?\s+(?:klo|kl|\d))|tors(?=\s+(?:klo|kl|\d))"
-    r"|perjantai\w*|fredag\w*|friday|fri|pe(?=\s+(?:klo|kl|\d))|fre(?=\s+(?:klo|kl|\d))"
-    r"|lauantai\w*|lördag\w*|saturday|sat|la(?=\s+(?:klo|kl|\d))"
-    r"|sunnuntai\w*|söndag\w*|sunday|sun|su(?=\s+(?:klo|kl|\d)))\b",
-    re.ASCII,
-)
-WORD_HOUR = re.compile(
-    r"(?<![a-zäöå])(?:(puoli|half)\s+)?"
-    r"(yhdentoista|kahdentoista|yhdelt[äa]|kahdelt[äa]|kolmelt[äa]|neljält[äa]|neljalt[äa]|viidelt[äa]|kuudelt[äa]|seitsemält[äa]|seitsemalt[äa]|kahdeksalt[äa]|kahdeksält[äa]"
-    r"|yhdeksält[äa]|yhdeksalt[äa]|kymmenelt[äa]|yhdeltätoista|kahdeltatoista"
-    r"|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|ett|två|tre|fyra|fem|sex|sju|åtta|nio|tio|elva|tolv)(?![a-zäöå])"
-)
-WORD_NUMBERS = {
-    "yhdeltä": 1, "yhdelta": 1, "yhdentoista": 11, "kahdentoista": 12, "kahdelta": 2, "kahdeltä": 2, "kolmelta": 3, "kolmeltä": 3, "neljältä": 4, "neljalta": 4,
-    "viideltä": 5, "viidelta": 5, "kuudelta": 6, "kuudeltä": 6, "seitsemältä": 7, "seitsemalta": 7, "kahdeksalta": 8, "kahdeksältä": 8,
-    "yhdeksältä": 9, "yhdeksalta": 9, "kymmeneltä": 10, "kymmenelta": 10, "yhdeltätoista": 11, "kahdeltatoista": 12,
-    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
-    "ett": 1, "två": 2, "tre": 3, "fyra": 4, "fem": 5, "sex": 6, "sju": 7, "åtta": 8, "nio": 9, "tio": 10, "elva": 11, "tolv": 12,
-}
-WEEKDAY_INDEX = [("maa", 0), ("ma", 0), ("mon", 0), ("mån", 0), ("tii", 1), ("tue", 1), ("tis", 1), ("ti", 1), ("kes", 2), ("wed", 2), ("ons", 2), ("ke", 2),
-                 ("tor", 3), ("thu", 3), ("tors", 3), ("to", 3), ("per", 4), ("fri", 4), ("fre", 4), ("pe", 4), ("lau", 5), ("sat", 5), ("lör", 5), ("la", 5),
-                 ("sun", 6), ("sön", 6), ("su", 6)]
-
-
-def note_flags(request: PriceRequest) -> tuple[bool, bool, bool]:
-    """What the note says about the car: a manual gearbox, no plates, a weak battery."""
-    text = ((request.get("note") or {}).get("text") or "").lower()
-    manual = bool(re.search(r"manuaa|manual|manuell|ei automaatti|stick shift", text))
-    plates = bool(re.search(r"kilpi|kilvet|kilpe|rekkar|rekisterikilv|skylt|plates|siirtokilv|koekilv|unregistered|number plate|registration plate", text))
-    low_battery = bool(re.search(r"akku|batter", text)) and bool(re.search(r"heikko|weak|low|tyhj|vähis|vähän|empty|dead|flat", text))
-    return manual, plates, low_battery
-
-
-def note_clauses(text: str) -> list[str]:
-    """Splits a note at sentences, commas and slashes, so that each clause has one stop."""
-    t = text.lower().replace("–", "-").replace("—", "-")
-    t = re.sub(r"\b(kl|klo|viim|n|ma|ti|ke|to|pe|la|su|mon|tue|wed|thu|fri|sat|sun|tmrw)\.(?=\s)", r"\1", t)
-    return [c.strip() for c in re.split(r"\.(?!\d)|[!;\n/,?]", t) if c.strip()]
-
-
-def clause_stop(clause: str) -> str:
-    """A pickup word wins. A clause with only a delivery word is for the delivery; the rest are for the pickup."""
-    if PICKUP.search(clause):
-        return "pickup"
-    return "delivery" if DELIVERY.search(clause) else "pickup"
-
-
-def weekday_offset(word: str, arrival_wd: int) -> int:
-    """A weekday name is 2 to 6 days after the request arrives, never the arrival day or the next."""
-    index = next((i for prefix, i in WEEKDAY_INDEX if word.startswith(prefix)), 0)
-    offset = (index - arrival_wd) % 7
-    return offset + 7 if offset < 2 else offset
-
-
-def clock_times(clause: str, arrived: int, handover: bool) -> list[tuple[str, int]]:
-    """The (bound, minute) pairs of a clause: 'from' for a time from which, 'to' for a time until which."""
-    arrival_day = arrived // DAY
-    day_marks: list[tuple[int, int]] = []
-    for pattern, offset in DAY_WORDS:
-        day_marks += [(m.start(), offset) for m in pattern.finditer(clause)]
-    day_marks += [(m.start(), weekday_offset(m.group(1), arrival_day % 7)) for m in WEEKDAY.finditer(clause)]
-    times: list[tuple[int, int, int]] = []  # position, minute of the day, end position
-    for m in CLOCK.finditer(clause):
-        hour = int(m.group(1) or m.group(3) or m.group(5) or m.group(6) or 0)
-        minute = int(m.group(2) or m.group(4) or 0)
-        meridiem = m.group(7)
-        if meridiem == "pm" and hour < 12:
-            hour += 12
-        elif meridiem == "am" and hour == 12:
-            hour = 0
-        if hour <= 24 and minute <= 59:
-            times.append((m.start(), hour * HOUR + minute, m.end()))
-    for m in WORD_HOUR.finditer(clause):
-        before = clause[max(0, m.start() - 14) : m.start()]
-        if not (m.group(1) or m.group(2).endswith(("lta", "ltä", "toista")) or re.search(r"klo|kl|kello|klockan|at|by|from|until|till|before|after|efter|före|senast|viim|ennen|jälkeen|alkaen|mennessä|asti|innan|earliest|latest", before)):
-            continue
-        hour = WORD_NUMBERS[m.group(2)]
-        hour = hour if hour >= 9 else hour + 12  # an hour in words is a working hour, from 9 to 17
-        minute = 0
-        if m.group(1):  # "half three" is 14:30
-            hour, minute = hour - 1, 30
-        times.append((m.start(), hour * HOUR + minute, m.end()))
-    out: list[tuple[str, int]] = []
-    for pos, minute_of_day, end in sorted(times):
-        whole = clause if len(times) == 1 else clause[max(0, pos - 30) : end + 30]
-        before = re.sub(r"(?:klo|kl|kello|klockan|at)\.?$", "", clause[:pos].rstrip()).rstrip()
-        if DENIAL.search(before):  # "ei kun klo 18" denies the time it names
-            continue
-        offset = 0
-        if day_marks:
-            near = min(day_marks, key=lambda mark: abs(mark[0] - pos))
-            if abs(near[0] - pos) < 60:
-                offset = near[1]
-        value = (arrival_day + offset) * DAY + minute_of_day
-        if CLOSED.search(whole):
-            out.append(("to", value))
-        elif AFTER.search(whole):
-            out.append(("from", value))
-        elif BEFORE.search(whole):
-            out.append(("to", value))
-        elif CORRECTION.search(clause):
-            out.append(("", value))  # a corrected time takes the bound of the time it corrects
-        elif handover:
-            out.append(("from", value))  # the car is handed over only from then on
-    if not times and day_marks and CORRECTION.search(clause):
-        out.append(("day", (arrival_day + min(day_marks)[1]) * DAY))  # "I mean Wednesday" moves the time before it
-    return out
-
-
-def window_from_note(request: PriceRequest, window: TimeWindow, stop: str) -> TimeWindow:
-    """Narrows a stop's window by the note: a ready time or a payment handover is a start, a deadline or
-    a closing time an end, and opening hours a range, "arkisin 9-16". Days count from the request's
-    arrival: "huomenna" is tomorrow, a weekday name 2 to 6 days on. A correction replaces what came before."""
-    note = request.get("note")
-    if not note:
-        return window
-    start, end = window["from"], window["to"]
-    constraints: list[tuple[str, int]] = []
-    handover = stop == "pickup" and bool(HANDOVER.search(note["text"].lower()))
-    previous = "pickup"
-    for clause in note_clauses(note["text"]):
-        has_word = PICKUP.search(clause) or DELIVERY.search(clause)
-        kind = previous if CORRECTION.search(clause) and not has_word else clause_stop(clause)  # a correction goes with what it corrects
-        previous = kind
-        if kind != stop:
-            continue
-        for match in RANGE.finditer(clause):
-            hours = (int(match[1]), int(match[2] or 0), int(match[3]), int(match[4] or 0))
-            if hours[0] > 24 or hours[2] > 24 or hours[1] > 59 or hours[3] > 59:
+    def repost(self, gig_id: str) -> None:
+        action = self.posts.get(gig_id)
+        if action is None:
+            return
+        orders = list(dict.fromkeys(s["orderId"] for s in action["stops"]))
+        if len(orders) == 1:
+            return super().repost(gig_id)
+        for oid in orders:
+            if self.leg_gigs.get(oid, {}).get(0) != gig_id or oid not in self.orders:
                 continue
-            opens, closes = hours[0] * HOUR + hours[1], hours[2] * HOUR + hours[3]
-            if opens >= closes:
-                continue
-            start = max(start, start // DAY * DAY + opens)  # opening hours hold every day
-            end = min(end, end // DAY * DAY + closes)
-        constraints += clock_times(RANGE.sub(" ", clause), request["arrivedAt"], handover)
-    rebased: list[tuple[str, int]] = []
-    for bound, value in constraints:
-        if bound == "day":
-            if rebased:
-                rebased[-1] = (rebased[-1][0], value + rebased[-1][1] % DAY)
-            continue
-        rebased.append((bound, value))
-    inherited = "to"
-    constraints = []
-    for bound, value in rebased:
-        inherited = bound or inherited
-        constraints.append((inherited, value))
-    if CORRECTION.search(note["text"].lower()):
-        constraints = list({bound: value for bound, value in constraints}.items())
-    for bound, value in constraints:
-        if bound == "from":
-            start = max(start, value)
-        else:
-            end = min(end, value)
-    if start <= end:
-        return {"from": start, "to": end}
-    # A ready time after the window's end: the pickup still runs to the window's own end.
-    return {"from": start, "to": max(start, window["to"])} if stop == "pickup" else window
+            self.leg_gigs[oid].pop(0, None)
+            order = self.orders[oid]
+            stops = without_windows(stops_for(order, [0], None, Retry()), float("inf"))
+            self.outbox.append({"type": "post", "stops": stops, "audience": {"experienced": order["legs"][0]["car"]["premium"], "manualLicence": False},
+                                "schedule": self.fees_for(order, 1)})
 
 
-def play_practice(world: World, level: int) -> None:
-    """Steps the world from one event that needs an answer to the next, and stops at each midnight for a report."""
+def play_practice(world: World, level: int, params: Params, roads: Roads, quiet: bool = False) -> dict:
     snapshot = world.snapshot()
-    desk, ends_at = Desk(world, level, snapshot["now"]), snapshot["endsAt"]
+    desk, ends_at = SmartDesk(world, level, snapshot["now"], params, roads), snapshot["endsAt"]
     while desk.now < ends_at:
         day, midnight = desk.now // DAY, (desk.now // DAY + 1) * DAY
-        # One request a step: the advance applies the outbox, then moves the clock.
+        desk.flush()
+        desk.escalate()
+        limit = min(ends_at, midnight, desk.now + 30)
+        if desk.held:
+            limit = min(limit, desk.now + 10)
         actions, desk.outbox = desk.outbox, []
-        step = world.advance(until=WAKE_ON, max=min(ends_at, midnight), actions=actions)
+        step = world.advance(until=WAKE_ON, max=limit, actions=actions)
         desk.read_results(actions, step["results"])
         desk.now = step["now"]
         for event in step["events"]:
             desk.handle(event)
-        if desk.now // DAY > day and not QUIET:
+        if desk.now // DAY > day and not quiet:
             report(WEEKDAYS[day % 7], world.score())
-
-
-def play_final(world: World, now_fn=None) -> None:
-    """Rebuilds the books, then answers events as they come. After a second without an event,
-    it reads the clock."""
-    history = world.events()
-    snapshot = world.snapshot()
-    if snapshot["now"] >= snapshot["endsAt"]:
-        return
-    level = next((w["level"] for w in world.client.worlds() if w["worldId"] == world.id), 8)
-    desk = Desk(world, level, snapshot["now"])
-    desk.rejoin(snapshot, history)
-    desk.send()
-    for event in world.stream(after=history[-1]["seq"] if history else -1, idle=1.0):
-        day = desk.now // DAY
-        desk.now = (now_fn() if now_fn else world.client.final()["now"]) if event is None else max(desk.now, event["at"])
-        if event is not None:
-            desk.handle(event)
-        desk.send()
-        if desk.now // DAY > day:
-            report(WEEKDAYS[day % 7], world.score())
-        if desk.now >= snapshot["endsAt"]:
-            return
-
-
-def report(label: str, score: Score) -> None:
-    orders = f"{score['wonOrders']:>4} orders  {score['onTimeShare']:6.1%} on time  {score['undeliveredShare']:5.1%} not delivered"
-    print(f"{label:<9}  margin €{score['marginCents'] / 100:>11,.2f}  revenue €{score['revenueCents'] / 100:>11,.2f}  {orders}", flush=True)
-
-
-def next_final(client: Client) -> World:
-    """Your copy of the final that is set or runs now. Waits while none is set and while the last one has
-    ended: the organisers set a test final 15 minutes before its start, and the final 30 minutes before."""
-    said = False
-    while True:
-        try:
-            world: Optional[World] = client.world(client.final()["worldId"])
-        except SpreadError as error:
-            if error.status != 404:
-                raise
-            world = None
-        if world is not None:
-            snapshot = world.snapshot()
-            if snapshot["now"] < snapshot["endsAt"]:
-                return world
-        if not said:
-            print("No final is set. Waiting for it: the organisers set a test final 15 minutes before its start, and the final 30 minutes before.", flush=True)
-            said = True
-        time.sleep(10)
+    score = world.score()
+    score["paired"] = desk.paired
+    return score
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Plays a Spread world with the starter. Set SPREAD_URL and SPREAD_KEY first.")
-    parser.add_argument("--level", type=int, choices=range(1, 9), default=8, help="the practice level, 1 to 8 (default 8)")
-    parser.add_argument("--seed", help="any text; the same seed gives the same world")
-    parser.add_argument("--board", action="store_true", help="play your next ranking run at the level; it counts in the practice rankings")
-    parser.add_argument("--final", action="store_true", help="play your copy of the final from the live stream")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--level", type=int, choices=range(1, 9), default=8)
+    parser.add_argument("--seed")
+    parser.add_argument("--board", action="store_true")
+    parser.add_argument("--no-batch", action="store_true")
     args = parser.parse_args()
+    params = default_params()
+    params.batch = not args.no_batch
     try:
         client = Client()
-        score = None
-        if args.final:
-            world = None
-            # A server restart drops every connection. The desk then rebuilds its books from the server, as after its own restart.
-            while True:
-                try:
-                    if world is None:
-                        world = next_final(client)
-                        print(f"Final world {world.id}.", flush=True)
-                    play_final(world)
-                    score = world.score()
-                    break
-                except Unreachable as error:
-                    print(f"spread: {error}. Trying again in 5 seconds.", file=sys.stderr, flush=True)
-                    time.sleep(5)
-        else:
-            world = client.create(level=args.level, seed=args.seed, board=args.board)
-            # A ranking run that a team deletes plays to its end without the team's system, and counts.
-            name = f"{'Ranking run' if args.board else 'Practice world'} {world.id}"
-            stops = "Ctrl-C or an error stops your system: the run then plays to its end without it, and counts." if args.board else "Ctrl-C or an error stops the run and deletes the world."
-            print(f"{name}, level {args.level}. {stops}", flush=True)
-            try:
-                play_practice(world, args.level)
-            except BaseException as error:  # a world left behind holds one of the team's eight practice slots
-                try:
-                    world.delete()
-                    deleted = True
-                except SpreadError:
-                    deleted = False
-                after = (f"{name} plays to its end without your system, and counts." if args.board
-                         else f"{name} is deleted." if deleted else f"{name} is not deleted: it holds one of your eight practice slots.")
-                if isinstance(error, KeyboardInterrupt):
-                    sys.exit(f"Stopped. {after}")
-                print(f"Stopped by the error below. {after}", file=sys.stderr)
-                raise
-        score = score or world.score()
+        roads = Roads(client.map())
+        world = client.create(level=args.level, seed=args.seed, board=args.board)
+        print(f"World {world.id}, level {args.level}, batch={params.batch}", flush=True)
+        try:
+            score = play_practice(world, args.level, params, roads)
+        except BaseException:
+            if not args.board:
+                world.delete()
+            raise
         report("End", score)
-        print("Ranked." if score["ranked"] else "Not ranked: no order won." if score["wonOrders"] == 0 else "Not ranked: the delivery minimum is 90% of the orders on time.")
+        print(f"paired gigs: {score['paired']}  ranked: {score['ranked']}")
     except SpreadError as error:
         sys.exit(f"spread: {error}")
-    except KeyboardInterrupt:
-        sys.exit("Stopped. The final world keeps running without your system; start it again with --final.")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # Agent instructions
 
-Shared by Claude Code (via CLAUDE.md) and Codex. Changes to this file go through a PR.
+Shared by Claude Code (via CLAUDE.md) and Codex. Every rule here binds both equally. Hooks and permissions in `.claude/` are only a convenience for Claude Code: Codex follows the same rules by hand. Changes to this file go through a PR.
 
 ## How to talk to us
 - Short, concise, direct. Answer first.
@@ -60,7 +60,9 @@ node scripts/status.mjs publish ideas/<name>.md context/...
 
 **During**
 - A `[team] main changed` notice → read the changed files from `origin/main`. Decision, contract or rules changed → rebase before continuing.
-- Codex: run `show` before each new step; you get no automatic notices.
+- All agents (Claude Code and Codex): before each new step run `node scripts/status.mjs watch --force`. It prints `[team] main changed` if main moved since you last looked. Silent means nothing new.
+- Claude Code does this by hook after every prompt and tool call, so it needs no manual run. Codex has no hooks, so it must run it.
+- A clean local `main` fast-forwards inside `watch`. Feature branches never do: rebase them yourself.
 
 **End** (or after any meaningful step)
 - `status.mjs set` your ticket. `status.mjs log` anything you decided, learned or abandoned.
@@ -97,7 +99,21 @@ network_access = true
 ```
 
 ## Run
-_TBD once medium and stack are chosen: setup, build, flash/deploy, run, test._
+Python 3.11+. Dataset stays outside the repo.
+```
+# once
+python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # (Linux/mac: .venv/bin/pip)
+curl -LO https://fwjydgxpttajiqpfmqtj.supabase.co/storage/v1/object/public/stoa-junction-2026/junction-dataset-preview.zip
+unzip junction-dataset-preview.zip -d ../junction-data/preview
+export STOA_DATA=../junction-data/preview/junction-dataset-preview
+
+# use
+python -m sitelens.router data/ifc_models/bsc-esplanades_1807-ep-ar-v18.ifc "What is the net floor area of the room 'KORIDOR (119)' on '1.korrus', in m²?"
+python -m eval.score                      # dev split, prints accuracy / evidence / €-per-answer
+python -m eval.score --source swiss_dwellings --split all
+bash scripts/check.sh                     # merge gate (PYTHON=.venv/Scripts/python on Windows)
+```
+New solver path: add `sitelens/paths/<name>.py` with `answer(path, question) -> Answer | None` (see `CONTRACT.md`).
 
 ## Commits
 - Format: `type: summary` — types: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`.

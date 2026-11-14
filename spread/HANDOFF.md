@@ -11,7 +11,7 @@ Goal: win Bahn Express "Spread" (hackjunction challenge 349). Final = Sun 15 Nov
 - `python diag.py <seed>` plays a world and dumps events/reveal/roster to data/ (then ana*.py)
 
 ## Files
-- `dispatch.py`: the bot (starter + our changes). Params via env SPREAD_PARAMS (JSON), defaults in dict `P`. Best params: `best_params.json`.
+- `dispatch_asif.py`: the bot (starter + our changes; `dispatch.py` is 2chaynz's OR-Tools variant). Params via env SPREAD_PARAMS (JSON), defaults in dict `P`. Best params: `best_params.json`.
 - `model.json` (P(win) logistic from `fit.py` on data/q_c*), `cost_model.pkl` (GBM cost/late from `fit2.py` on data/o_d*), `featlib.py` shared features.
 - `collect.py` (random-quote data), `collect2.py` (per-order cost data), data/ is gitignored.
 
