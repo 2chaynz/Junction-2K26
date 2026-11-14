@@ -92,6 +92,27 @@ function SheetInfo({ d, all, view, size, onModel }: {
   );
 }
 
+// Which sheet is open, inside its folder, with previous / next like a drawing set viewer.
+function SheetBar({ folder, items, path, code, onPick, onFolder }: {
+  folder: string; items: Drawing[]; path: string; code: string; onPick: (p: string) => void; onFolder: () => void;
+}) {
+  const i = items.findIndex((d) => d.path === path);
+  const d = items[i];
+  if (!d) return null;
+  return (
+    <div className="sheetbar">
+      <button className="crumb dim ellipsis" onClick={onFolder} title="Project overview">{folder}</button>
+      <span className="sep">/</span>
+      <span className="crumb cur ellipsis" title={d.path}>{sheetName(d)}</span>
+      <span className="mono dim">{code}</span>
+      <span className="spacer" />
+      <span className="mono dim">{i + 1} / {items.length}</span>
+      <button className="step" disabled={i <= 0} onClick={() => onPick(items[i - 1].path)} title="Previous sheet" aria-label="Previous sheet">‹</button>
+      <button className="step" disabled={i >= items.length - 1} onClick={() => onPick(items[i + 1].path)} title="Next sheet" aria-label="Next sheet">›</button>
+    </div>
+  );
+}
+
 export default function App() {
   const [tab, setTab] = useState<Tab>("Projects");
   const [drawings, setDrawings] = useState<SheetDrawing[]>([]);
@@ -118,6 +139,7 @@ export default function App() {
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [mpu, setMpu] = useState<number | null>(null);
   const [msHot, setMsHot] = useState<string | null>(null);
+  const [tkPath, setTkPath] = useState<string | null>(null); // takeoff of the project's model / schedule, not the open sheet
   const [zoomTo, setZoomTo] = useState<number[] | null>(null);
   const [sid, setSid] = useState(newSessionId);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -234,6 +256,7 @@ export default function App() {
 
   function select(p: string, to: Tab = "Drawings") {
     setTab(to);
+    setTkPath(null);
     if (p === path) return;
     setPath(p);
     setSize(null);
@@ -418,72 +441,58 @@ export default function App() {
 
   return (
     <div className={`app ${tab === "Drawings" ? "" : "paged"}`}>
-      <header className={`top ${inProject ? "inproj" : ""}`}>
-        <button className="brand" onClick={() => setTab("Projects")} title="Home: all projects">SiteLens</button>
-        {inProject && project ? (
-          <>
-            <nav className="crumbbar" aria-label="Breadcrumb">
-              <span className="sep">/</span>
-              <ProjectMenu
-                project={project}
-                projects={projects}
-                recent={recent}
-                onOpen={(k) => openProject(k)}
-                onHome={() => setTab("Projects")}
-              />
-              {tab === "Drawings" && drawing && folder && (
-                <>
-                  <span className="sep">/</span>
-                  <button className="crumb dim ellipsis" onClick={() => setTab("Overview")} title="Project overview">{folder.label}</button>
-                  <span className="sep">/</span>
-                  <span className="crumb cur ellipsis" title={drawing.path}>
-                    {sheetName(drawing)} <span className="mono dim">{sheetCode(allPaths, drawing.path, drawing.source)}</span>
-                  </span>
-                </>
-              )}
-            </nav>
-            <nav className="tabs">
-              {PROJECT_TABS.map((t) => (
-                <button key={t} className={t === tab ? "on" : ""} onClick={() => setTab(t)}>
-                  {t}
-                </button>
-              ))}
-            </nav>
-          </>
-        ) : (
-          <nav className="tabs">
-            {HOME_TABS.map((t) => (
-              <button key={t} className={t === tab ? "on" : ""} onClick={() => setTab(t)}>
-                {t}
-              </button>
-            ))}
+      <header className="shell">
+        <div className="top">
+          <nav className="crumbbar" aria-label="Breadcrumb">
+            <button className="brand" onClick={() => setTab("Projects")} title="Home: all projects">SiteLens</button>
+            {inProject && project && (
+              <>
+                <span className="sep">/</span>
+                <ProjectMenu
+                  project={project}
+                  projects={projects}
+                  recent={recent}
+                  onOpen={(k) => openProject(k)}
+                  onHome={() => setTab("Projects")}
+                />
+              </>
+            )}
           </nav>
-        )}
-        <span className="spacer" />
-        {!inProject && project && (
-          <button className="btn resume" onClick={() => setTab("Drawings")} title="Back to the open project">
-            Back to <span className="ellipsis">{project.name}</span> ›
-          </button>
-        )}
-        <VlmBadge />
+          <span className="spacer" />
+          {!inProject && project && (
+            <button className="btn resume" onClick={() => setTab("Drawings")} title="Back to the open project">
+              Back to <span className="ellipsis">{project.name}</span> ›
+            </button>
+          )}
+          <VlmBadge />
+        </div>
+        <nav className="tabs subnav">
+          {(inProject ? PROJECT_TABS : HOME_TABS).map((t) => (
+            <button key={t} className={t === tab ? "on" : ""} onClick={() => setTab(t)}>
+              {t}
+            </button>
+          ))}
+        </nav>
       </header>
 
       {tab === "Overview" && project && (
         <main className="pagewrap">
           <ProjectOverview
             project={project}
+            allPaths={allPaths}
             sessions={sessions}
             lastPath={recent[project.key]?.path ?? null}
             onOpen={(p) => select(p)}
-            onAsk={(p, q) => (select(p), setDraft(q))}
+            onModel={(p) => (select(p), setMsOn(false), setChOn(false), setMode("3d"))}
+            onChanges={(p) => (select(p), setMsOn(false), setChOn(true))}
             onSession={openSession}
-            onTakeoff={() => setTab("Takeoff")}
+            onTakeoff={(p) => (setTkPath(p), setTab("Takeoff"))}
           />
         </main>
       )}
       {tab === "Takeoff" && (
         <main className="pagewrap">
-          <Takeoff path={path} name={path.split("/").pop() ?? ""} onShow={showRow} />
+          <Takeoff path={tkPath ?? modelPath ?? path} name={(tkPath ?? modelPath ?? path).split("/").pop() ?? ""} onShow={showRow} />
         </main>
       )}
       {tab === "How it works" && <main className="pagewrap"><HowItWorks /></main>}
@@ -509,6 +518,16 @@ export default function App() {
           onDeleteSession={removeSession}
         />
         <main className="stage">
+          {drawing && folder && (
+            <SheetBar
+              folder={folder.label}
+              items={folder.items}
+              path={path}
+              code={sheetCode(allPaths, drawing.path, drawing.source)}
+              onPick={(p) => select(p)}
+              onFolder={() => setTab("Overview")}
+            />
+          )}
           <div className="canvas">
             {(hasPlan || floors.length > 1) && (
               <div className="modes">

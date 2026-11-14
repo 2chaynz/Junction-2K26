@@ -1,134 +1,146 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fileUrl, isImage } from "./api";
-import { fmtValue, isEnglishQuestion } from "./format";
+import { PAIRS } from "./Changes";
+import { fmtValue, sheetCode } from "./format";
+import type { Row } from "./Takeoff";
 import { KIND_LABEL, type Proj, type SessionSummary, ago, sheetName, thumbOf } from "./workspace";
 import type { Drawing } from "./types";
 
+// What a project team opens a project for: where they left off, the sheet register,
+// what the team already asked, quantities and what changed between issues. Nothing benchmark-only.
+
 type Props = {
   project: Proj;
+  allPaths: string[];
   sessions: SessionSummary[];
-  lastPath: string | null; // sheet open last time in this project
+  lastPath: string | null;
   onOpen: (path: string) => void;
-  onAsk: (path: string, question: string) => void;
+  onModel: (path: string) => void; // open a sheet in 3D
+  onChanges: (path: string) => void; // open a sheet with "What changed" on
   onSession: (id: string) => void;
-  onTakeoff: () => void;
+  onTakeoff: (path: string) => void;
 };
 
-const thumb = (d: Drawing, s = 0.1) => {
+type Linked = Drawing & { model?: string | null };
+type Qty = { category: string; count: number; measure: string };
+
+const PER_FOLDER = 8;
+const isIfc = (p: string) => p.toLowerCase().endsWith(".ifc");
+
+function Thumb({ d }: { d: Drawing }) {
   const v = thumbOf(d);
-  return v ? <img src={fileUrl(v, isImage(v) ? s : s * 1.5)} loading="lazy" alt="" /> : <span className="mono dim">IFC</span>;
-};
+  return <span className="ov-mini">{v ? <img src={fileUrl(v, isImage(v) ? 0.06 : 0.09)} loading="lazy" alt="" /> : <span className="mono dim">IFC</span>}</span>;
+}
 
-const label = (t: string) => t.replace(/[_-]+/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+const n = (v: number, unit: string) => `${v.toLocaleString(undefined, { maximumFractionDigits: v < 10 ? 1 : 0 })} ${unit}`;
 
-export default function Overview({ project: p, sessions, lastPath, onOpen, onAsk, onSession, onTakeoff }: Props) {
-  const last = p.items.find((d) => d.path === lastPath) ?? null;
-  const start = last ?? p.cover ?? p.items[0];
+/** Category totals from takeoff rows: count, plus the one measure that category has. */
+function totals(rows: Row[]): Qty[] {
+  const m = new Map<string, { count: number; len: number; area: number; vol: number }>();
+  for (const r of rows) {
+    const t = m.get(r.category) ?? { count: 0, len: 0, area: 0, vol: 0 };
+    t.count += r.count;
+    t.len += r.length_m;
+    t.area += r.area_m2;
+    t.vol += r.volume_m3;
+    m.set(r.category, t);
+  }
+  return [...m.entries()].map(([category, t]) => ({
+    category,
+    count: t.count,
+    measure: t.area ? n(t.area, "m²") : t.len ? n(t.len, "m") : t.vol ? n(t.vol, "m³") : "",
+  }));
+}
 
-  const mix = useMemo(() => {
+export default function Overview(props: Props) {
+  const { project: p, allPaths, sessions, lastPath, onOpen, onModel, onChanges, onSession, onTakeoff } = props;
+  const items = p.items as Linked[];
+  const last = items.find((d) => d.path === lastPath) ?? null;
+  const start = last ?? p.cover ?? items[0];
+  const model = items.find((d) => d.model)?.model ?? items.find((d) => isIfc(d.path))?.path ?? null;
+  const modelSheet = items.find((d) => d.model === model) ?? items.find((d) => d.path === model) ?? null;
+
+  // Quantities only make sense where one source covers the project: its BIM model or its schedule sheet.
+  const qtyPath = p.kind === "BIM" ? model
+    : p.kind === "Sheet set" ? p.folders.find((f) => f.code === "SCH")?.items[0]?.path ?? null
+    : null;
+  const [qty, setQty] = useState<{ rows: Qty[]; source: string } | "loading" | null>(null);
+  useEffect(() => {
+    if (!qtyPath) return setQty(null);
+    let stale = false;
+    setQty("loading");
+    fetch(`/api/takeoff?path=${encodeURIComponent(qtyPath)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => !stale && setQty(d?.rows?.length ? { rows: totals(d.rows), source: d.source } : null))
+      .catch(() => !stale && setQty(null));
+    return () => void (stale = true);
+  }, [qtyPath]);
+
+  const revisions = useMemo(() => items.filter((d) => PAIRS.has(d.path)).map((d) => ({ d, note: PAIRS.get(d.path)!.note })), [items]);
+  // How often the team already asked about each sheet: a sheet with questions is a sheet someone needed.
+  const asked = useMemo(() => {
     const m = new Map<string, number>();
-    for (const d of p.items) for (const q of d.questions) m.set(q.type, (m.get(q.type) ?? 0) + 1);
-    return [...m.entries()].sort((a, b) => b[1] - a[1]);
-  }, [p]);
-  const formats = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const d of p.items) {
-      const ext = d.path.split(".").pop()!.toUpperCase();
-      m.set(ext, (m.get(ext) ?? 0) + 1);
-    }
-    return [...m.entries()];
-  }, [p]);
-  // One starter question per question type, so the list shows what the project can answer.
-  const starters = useMemo(() => {
-    const out: { d: Drawing; q: string; type: string }[] = [];
-    const seen = new Set<string>();
-    const pool = p.cover ? [p.cover, ...p.items.filter((d) => d !== p.cover)] : p.items;
-    for (const d of pool.slice(0, 400)) {
-      for (const q of d.questions) {
-        if (out.length >= 5) break;
-        if (seen.has(q.type) || !isEnglishQuestion(q.question)) continue;
-        seen.add(q.type);
-        out.push({ d, q: q.question, type: q.type });
-      }
-    }
-    return out;
-  }, [p]);
-  const top = mix[0]?.[1] ?? 1;
+    for (const s of sessions) for (const x of s.paths) m.set(x, (m.get(x) ?? 0) + 1);
+    return m;
+  }, [sessions]);
+
+  const facts = [
+    p.plans ? `${p.plans.toLocaleString()} sheet${p.plans === 1 ? "" : "s"}` : "",
+    model ? "BIM model linked" : "",
+    `${p.folders.length} folder${p.folders.length === 1 ? "" : "s"}`,
+    revisions.length ? `${revisions.length} revised` : "",
+  ].filter(Boolean);
 
   return (
     <div className="page overview">
       <div className="ov-hero">
-        <button className="ov-cover" onClick={() => start && onOpen(start.path)} title="Open in Drawings">
-          {start ? thumb(start, 0.25) : null}
-        </button>
         <div className="ov-head">
-          <span className="ov-kind mono">{KIND_LABEL[p.kind]}</span>
+          <span className="ov-kind mono">{KIND_LABEL[p.kind]} · {p.org}</span>
           <h1>{p.name}</h1>
-          <p className="lede">{p.org}</p>
-          <div className="ov-stats">
-            {p.plans > 0 && <Stat n={p.plans} k={p.plans === 1 ? "sheet" : "sheets"} />}
-            {p.models > 0 && <Stat n={p.models} k={p.models === 1 ? "model" : "models"} />}
-            <Stat n={p.folders.length} k={p.folders.length === 1 ? "folder" : "folders"} />
-            <Stat n={p.questions} k="Stoa questions" />
-            <Stat n={sessions.length} k={sessions.length === 1 ? "session" : "sessions"} />
-          </div>
-          <div className="ov-actions">
-            {start && (
-              <button className="btn primary" onClick={() => onOpen(start.path)}>
-                {last ? "Continue on " : "Open "}<span className="ellipsis">{sheetName(start)}</span>
-              </button>
-            )}
-            <button className="btn" onClick={onTakeoff}>Takeoff list</button>
-          </div>
+          <p className="dim">{facts.join(" · ")}</p>
+        </div>
+        <div className="ov-actions">
+          {start && (
+            <button className="ov-resume" onClick={() => onOpen(start.path)}>
+              <Thumb d={start} />
+              <span className="ov-rbody">
+                <span className="k">{last ? "Continue where you left off" : "Start here"}</span>
+                <span className="ellipsis">{sheetName(start)}</span>
+              </span>
+              <span className="go">›</span>
+            </button>
+          )}
+          {model && modelSheet && <button className="btn" onClick={() => onModel(modelSheet.path)}>Open 3D model</button>}
         </div>
       </div>
 
       <div className="ov-cols">
         <section>
-          <h2>Folders</h2>
-          <div className="ov-folders">
-            {p.folders.map((f) => (
-              <button key={f.key} className="ov-folder" onClick={() => onOpen(f.items[0].path)} title={`Open ${f.label}`}>
-                <span className="fcode mono">{f.code}</span>
-                <span className="ov-fname ellipsis">{f.label}</span>
-                <span className="ov-strip">
-                  {f.items.slice(0, 4).map((d) => <span key={d.path} className="ov-mini">{thumb(d, 0.06)}</span>)}
-                </span>
-                <span className="mono dim">{f.items.length.toLocaleString()}</span>
-              </button>
-            ))}
-          </div>
-
-          {starters.length > 0 && (
-            <>
-              <h2>Try asking</h2>
-              <ul className="ov-asks">
-                {starters.map((s) => (
-                  <li key={s.q}>
-                    <button onClick={() => onAsk(s.d.path, s.q)}>
-                      <span className="ov-q">{s.q}</span>
-                      <span className="dim small ellipsis">{label(s.type)} · {sheetName(s.d)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
+          <h2>Sheet register</h2>
+          <table className="ov-reg">
+            <colgroup><col className="t" /><col className="code" /><col /><col className="r" /></colgroup>
+            <tbody>
+              {p.folders.map((f) => (
+                <FolderRows key={f.key} label={f.label} code={f.code} items={f.items} allPaths={allPaths}
+                  asked={asked} last={lastPath} onOpen={onOpen} />
+              ))}
+            </tbody>
+          </table>
         </section>
 
         <aside>
-          <h2>Recent sessions</h2>
+          <h2>Team questions</h2>
           {sessions.length ? (
             <ul className="ov-sess">
-              {sessions.slice(0, 6).map((s) => {
+              {sessions.slice(0, 5).map((s) => {
                 const v = s.last && s.last.value !== null && s.last.value !== undefined ? fmtValue(s.last.value, s.last.unit) : null;
                 return (
                   <li key={s.id}>
                     <button onClick={() => onSession(s.id)} title={s.title}>
                       <span className="ellipsis">{s.title}</span>
-                      <span className="dim small">
-                        {v && <span className="sval mono">{v.length > 18 ? v.slice(0, 18) + "…" : v} · </span>}
-                        {s.questions} Q · {ago(s.updated)}
+                      <span className="dim small ellipsis">
+                        {v && <span className="sval mono">{v.length > 18 ? v.slice(0, 18) + "…" : v}</span>}
+                        {v && " · "}{s.questions} Q · {ago(s.updated)}
                       </span>
                     </button>
                   </li>
@@ -136,37 +148,93 @@ export default function Overview({ project: p, sessions, lastPath, onOpen, onAsk
               })}
             </ul>
           ) : (
-            <p className="dim small">No questions asked here yet. Open a sheet and ask; the conversation is saved to this project.</p>
+            <p className="dim small">Nothing asked yet. Questions asked on any sheet are saved here for the whole team.</p>
           )}
 
-          {mix.length > 0 && (
+          {revisions.length > 0 && (
             <>
-              <h2>Question types</h2>
-              <ul className="ov-mix">
-                {mix.slice(0, 8).map(([t, n]) => (
-                  <li key={t}>
-                    <span className="small">{label(t)}</span>
-                    <span className="ov-bar"><span style={{ width: `${(n / top) * 100}%` }} /></span>
-                    <span className="mono dim">{n.toLocaleString()}</span>
+              <h2>What changed</h2>
+              <ul className="ov-rev">
+                {revisions.map(({ d, note }) => (
+                  <li key={d.path}>
+                    <button onClick={() => onChanges(d.path)}>
+                      <span className="ellipsis">{sheetName(d)}</span>
+                      <span className="dim small">{note}</span>
+                    </button>
                   </li>
                 ))}
               </ul>
             </>
           )}
 
-          <h2>Files</h2>
-          <p className="small dim">
-            {formats.map(([f, n]) => `${n.toLocaleString()} ${f}`).join(" · ")}
-          </p>
+          {qty && (
+            <>
+              <h2>Quantities</h2>
+              {qty === "loading" ? (
+                <p className="dim small">Counting from the {p.kind === "BIM" ? "model" : "schedule"}…</p>
+              ) : (
+                <>
+                  <table className="ov-qty">
+                    <tbody>
+                      {qty.rows.map((r) => (
+                        <tr key={r.category}>
+                          <td>{r.category}</td>
+                          <td className="mono">{r.count.toLocaleString()}</td>
+                          <td className="mono dim">{r.measure}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <button className="ov-more" onClick={() => qtyPath && onTakeoff(qtyPath)}>
+                    From the {qty.source === "ifc" ? "BIM model" : "schedule"} · full takeoff ›
+                  </button>
+                </>
+              )}
+            </>
+          )}
         </aside>
       </div>
     </div>
   );
 }
 
-const Stat = ({ n, k }: { n: number; k: string }) => (
-  <span className="ov-stat">
-    <span className="mono">{n.toLocaleString()}</span>
-    <span className="dim">{k}</span>
-  </span>
-);
+function FolderRows({ label, code, items, allPaths, asked, last, onOpen }: {
+  label: string; code: string; items: Drawing[]; allPaths: string[];
+  asked: Map<string, number>; last: string | null; onOpen: (p: string) => void;
+}) {
+  const [all, setAll] = useState(false);
+  const shown = all ? items : items.slice(0, PER_FOLDER);
+  return (
+    <>
+      <tr className="ov-fold">
+        <td colSpan={4}>
+          <span className="fcode mono">{code}</span> {label} <span className="mono dim">{items.length.toLocaleString()}</span>
+        </td>
+      </tr>
+      {shown.map((d) => (
+        <tr key={d.path} className={`ov-sheet ${d.path === last ? "on" : ""}`} onClick={() => onOpen(d.path)}>
+          <td className="t"><Thumb d={d} /></td>
+          <td className="mono dim code">{sheetCode(allPaths, d.path, d.source)}</td>
+          <td className="name">
+            <div>
+              <span className="ellipsis">{sheetName(d)}</span>
+              {d.path === last && <span className="tag">last open</span>}
+            </div>
+          </td>
+          <td className="r dim small">{asked.get(d.path) ? `asked in ${asked.get(d.path)}` : ""}</td>
+        </tr>
+      ))}
+      {items.length > shown.length && (
+        <tr className="ov-showmore">
+          <td colSpan={4}>
+            {items.length - shown.length > 200 ? (
+              <span className="dim small">{(items.length - shown.length).toLocaleString()} more · search them from the Drawings sidebar</span>
+            ) : (
+              <button onClick={() => setAll(true)}>Show {items.length - shown.length} more</button>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
