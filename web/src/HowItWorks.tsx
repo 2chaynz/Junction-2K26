@@ -1,7 +1,7 @@
 import Flow from "./Flow";
 
 const CRITERIA = [
-  { n: "01", t: "Accurate", d: "89.3% on 25,295 dev questions. 80.4% on the CubiCasa5K official test plans." },
+  { n: "01", t: "Accurate", d: "91.9% on held-out drawings: 97.4% Swiss vector plans, 100% BIM, 94.1% schedules, 83.6% scanned plans the detector never saw." },
   { n: "02", t: "Verifiable", d: "Every answer marks its evidence on the drawing and lists its steps. Stoa's answer shown next to ours." },
   { n: "03", t: "Cheap", d: "€0.00001 per answer on average. Exact readers first, AI only when nothing else can answer." },
   { n: "04", t: "Any language", d: "Ask in English, Finnish, German or Estonian. The answer comes from the drawing, not the wording." },
