@@ -78,3 +78,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T71 Final BIM revision demo and cached model | app |  | ccolver | blocked | ccolver/T71-final-demo |  | @ccolver PR #90 has the verified Vitoria demo and fixes for review findings. Needs a passing human follow-up cross-review. |
 | T72 Intro: loading screen with blueprint-to-building 3D animation | app |  | 2chaynz | done | 2chaynz/T72-intro |  |  |
 | T73 Benchmark page: interactive, model logos, honest numbers | app |  | 2chaynz | done | 2chaynz/T73-benchmark |  |  |
+| T74 Keep repeated marks in takeoff ambiguity checks | app |  |  | todo |  |  |  |
