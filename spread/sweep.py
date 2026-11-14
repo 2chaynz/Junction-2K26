@@ -22,8 +22,11 @@ def run(seed):
                 json.dump(v, open(f"data/{k}_{dump}_{seed}.json", "w"))
         return seed, s
     finally:
-        try: w.delete()
-        except Exception: pass
+        for _ in range(6):
+            try:
+                w.delete(); break
+            except Exception:
+                time.sleep(5)
 
 t = time.time()
 tot, ons = 0, []

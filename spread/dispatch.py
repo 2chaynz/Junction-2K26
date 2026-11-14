@@ -20,7 +20,7 @@ from spread.types import (
 
 import json, math, os
 HOUR, DAY = 60, 24 * 60
-P = {"qm": 1.0, "opt": "first", "f0": 1.0, "fstep": 0.10, "fn": 6, "fint": 60, "s0": 1.5, "sstep": 0.25, "sn": 5, "sint": 30, "trust": 0.0, "ramp": 0, "f1": 1.4, "rn": 8, "minslack": 0, "lowslack": 600, "lowmult": 1.0, "suplo": 0, "supmult": 1.3, "supdecl": 0, "offer": 0, "ofee": 0.6, "orad": 30, "onear": 30, "omax": 6, "rq": 0, "model": 0, "cc": 1.1, "eta": 0.08, "mmin": 0.9, "cm": 0, "ccm": 1.0, "lam": 0.5, "u": 0, "ra": 0.0, "tvk": 0.0, "tvp": 12500, "resc": 0, "rescfee": 1.5, "rescn": 3, "sd": 0, "sdslack": 480, "sdmult": 1.15, "sdsup": 40, "etad": 0.0, "etap": 0.0, "r0": 0.04, "u1": 1.3, "u2": 1.7, "u3": 2.2, "t1": 600, "t2": 420, "t3": 300, "chain": 0, "sdonly": 1, "sdrisk": 1.0, "blsd": 9999, "blq": 9999, "blk": 0.5, "ufix": 0, "lsf": 1.0, "lsn": 5, "bundle": 0, "bf": 0.8, "brad": 30, "blink": 40, "bmax": 660, "bspare": 240, "bwait": 120, "bsplit": 480, "sf0": 1.1, "cfee": 0.7, "crad": 30, "cn": 2}
+P = {"qm": 1.0, "opt": "first", "f0": 1.0, "fstep": 0.10, "fn": 6, "fint": 60, "s0": 1.5, "sstep": 0.25, "sn": 5, "sint": 30, "trust": 0.0, "ramp": 0, "f1": 1.4, "rn": 8, "minslack": 0, "lowslack": 600, "lowmult": 1.0, "suplo": 0, "supmult": 1.3, "supdecl": 0, "offer": 0, "ofee": 0.6, "orad": 30, "onear": 30, "omax": 6, "rq": 0, "model": 0, "cc": 1.1, "eta": 0.08, "mmin": 0.9, "cm": 0, "ccm": 1.0, "lam": 0.5, "u": 0, "ra": 0.0, "tvk": 0.0, "tvp": 12500, "resc": 0, "rescfee": 1.5, "rescn": 3, "sd": 0, "sdslack": 480, "sdmult": 1.15, "sdsup": 40, "etad": 0.0, "etap": 0.0, "r0": 0.04, "u1": 1.3, "u2": 1.7, "u3": 2.2, "t1": 600, "t2": 420, "t3": 300, "chain": 0, "sdonly": 1, "sdrisk": 1.0, "blsd": 9999, "blq": 9999, "blk": 0.5, "ufix": 0, "lsf": 1.0, "lsn": 5, "bundle": 0, "bf": 0.8, "brad": 30, "blink": 40, "bmax": 660, "bspare": 240, "bwait": 120, "bsplit": 480, "sf0": 1.1, "mle": 0, "mprec": 2.0, "mdecay": 0.995, "cfee": 0.7, "crad": 30, "cn": 2}
 _best = os.path.join(os.path.dirname(os.path.abspath(__file__)), "best_params.json")
 if "SPREAD_PARAMS" not in os.environ and os.path.exists(_best):
     P.update(json.load(open(_best)))
@@ -151,6 +151,7 @@ class Desk:
         self.at_risk: set[str] = set()
         self.won_n = 0
         self.bias = 0.0
+        self.obs: list[tuple[float, float]] = []
         self.dealer_reqs: dict[str, int] = {}
         self.bias_d: dict[int, float] = {}
         self.bias_p: dict[tuple, float] = {}
@@ -343,7 +344,7 @@ class Desk:
                 gain = (m * o0["listPriceCents"] * (1 - P["lam"] * plate) - cost + tv * (1 - plate)) * p
                 if gain > best:
                     best, bm = gain, m
-            self.pending_q[request["id"]] = (base, math.log(bm / tr) if bm else None, day, pkey)
+            self.pending_q[request["id"]] = (base, math.log(bm / tr) if bm else None, day, pkey, base - self.bias)
             if bm is None:
                 self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {o0["kind"]: o0["listPriceCents"] * 5}})
                 return
@@ -362,10 +363,13 @@ class Desk:
         self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {o["kind"]: int(o["listPriceCents"] * P["qm"] * mults[o["kind"]] * (1 + P["trust"] * self.trust.get(request["dealerId"], 0) / 100)) for o in chosen}})
 
     def learn(self, rid: str, won: float) -> None:
-        base, lmeff, day, pkey = self.pending_q.pop(rid)
+        base, lmeff, day, pkey, base0 = self.pending_q.pop(rid)
         if lmeff is None:
             return
         mdl = load_model()
+        if P["mle"]:
+            self.fit_level(base0, mdl["slope"] * lmeff, won)
+            return
         p = 1 / (1 + math.exp(-(base + mdl["slope"] * lmeff)))
         self.bias += P["eta"] * (won - p)
         self.bias = max(-2.0, min(2.0, self.bias))
@@ -373,6 +377,21 @@ class Desk:
             self.bias_d[day] = max(-2.0, min(2.0, self.bias_d.get(day, 0.0) + P["etad"] * (won - p)))
         if P["etap"]:
             self.bias_p[pkey] = max(-2.0, min(2.0, self.bias_p.get(pkey, 0.0) + P["etap"] * (won - p)))
+
+    def fit_level(self, base0: float, slope_term: float, won: float) -> None:
+        """The world's price level as one logit offset: the maximum-likelihood fit to every quote outcome so far,
+        recent ones weighted more, with a prior that pulls it to the offline model when outcomes are few."""
+        self.obs.append((base0 + slope_term, won))
+        b, n = self.bias, len(self.obs)
+        for _ in range(8):
+            g, h = -P["mprec"] * b, P["mprec"]
+            for i, (z, y) in enumerate(self.obs):
+                w = P["mdecay"] ** (n - 1 - i)
+                p = 1 / (1 + math.exp(-(z + b)))
+                g += w * (y - p)
+                h += w * p * (1 - p)
+            b += g / h
+        self.bias = max(-4.0, min(4.0, b))
 
     def win(self, order: Order) -> None:
         self.won_n += 1
