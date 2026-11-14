@@ -107,6 +107,15 @@ aside { display: grid; gap: 22px; min-width: 0; }
 .feed a:hover { text-decoration-color: var(--accent); }
 .verdict { font-size: 12px; font-weight: 600; white-space: nowrap; }
 .verdict.pass { color: var(--done); } .verdict.blocking { color: var(--blocked); } .verdict.none, .verdict.posted { color: var(--muted); font-weight: 400; }
+.row .beat { grid-column: 3 / -1; margin-top: 4px; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.row .beat.stale { color: var(--blocked); font-weight: 600; }
+.col { display: grid; gap: 22px; min-width: 0; }
+.human .rows { border-color: var(--review); }
+.human .item { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 2px 12px; padding: 9px 14px; border-top: 1px solid var(--line); font-size: 14px; }
+.human .item:first-child { border-top: 0; }
+.human .kind { font-size: 12px; font-weight: 600; color: var(--review); }
+.human .kind.red { color: var(--blocked); }
+.human a { color: var(--ink); text-underline-offset: 3px; }
 .error { border: 1px solid var(--blocked); color: var(--blocked); border-radius: 4px; padding: 12px 14px; }
 .error code { font-family: var(--mono); color: var(--ink); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -134,7 +143,10 @@ aside { display: grid; gap: 22px; min-width: 0; }
   <div id="error" hidden></div>
 
   <main>
-    <div class="groups" id="groups"></div>
+    <div class="col">
+      <section class="group human" id="human"></section>
+      <div class="groups" id="groups"></div>
+    </div>
     <aside>
       <section class="group"><h2>Pull requests <span class="count" id="prcount"></span></h2><ul class="feed" id="prs"></ul></section>
       <section class="group"><h2>Active branches</h2><ul class="feed" id="branches"></ul></section>
@@ -210,7 +222,42 @@ function parseTasks(md) {
   }).filter((r) => r.title);
 }
 
-function drawTasks(md) {
+// Matches STALE_MIN in scripts/status.mjs.
+const STALE_MIN = 15;
+const beatOf = (beats, r) => {
+  const b = beats?.[r.id];
+  if (r.status !== "doing") return null;
+  if (!b) return { stale: true, text: "No heartbeat yet" };
+  const stale = (Date.now() - new Date(b.at).getTime()) / 60000 > STALE_MIN;
+  return { stale, at: b.at, text: `${stale ? "Stale · " : ""}${ago(b.at)}${b.text ? ` · ${b.text}` : ""}` };
+};
+
+function drawHuman(s, rows) {
+  const prFor = (branch) => (s.prs || []).find((p) => p.branch === branch);
+  const items = [];
+  for (const r of rows) {
+    if (r.status === "blocked") items.push(["Blocked", true, `${r.id} ${r.title}${r.question ? ` · ${r.question}` : ""}`]);
+    if (r.status === "review") {
+      const pr = prFor(r.branch);
+      items.push(pr ? ["Merge?", false, `${r.id} ${r.title} · ${r.owner}`, pr]
+        : ["Set done?", false, `${r.id} ${r.title} · ${r.owner} · no open PR, likely merged`]);
+    }
+    const b = beatOf(s.beats, r);
+    if (b?.stale) items.push(["Agent silent", true, `${r.id} ${r.title} · ${r.owner} · ${b.text}`]);
+  }
+  for (const p of s.prs || []) {
+    if (p.draft) continue;
+    if (p.review === "blocking") items.push(["Review blocking", true, p.title, p]);
+    else if (p.review === "none") items.push(["No cross-review", false, `${p.title} · ${p.author}`, p]);
+  }
+  const link = (p) => p ? ` <a href="${esc(p.url)}" target="_blank" rel="noopener">#${p.number}</a>` : "";
+  $("human").innerHTML = `<h2>Needs a human<span class="count">${items.length}</span></h2>` + (items.length
+    ? `<div class="rows">${items.map(([kind, red, text, pr]) =>
+        `<div class="item"><span class="kind${red ? " red" : ""}">${kind}</span><span>${esc(text)}${link(pr)}</span></div>`).join("")}</div>`
+    : `<div class="none">Nothing waiting on a person.</div>`);
+}
+
+function drawTasks(md, beats) {
   const rows = parseTasks(md);
   $("groups").innerHTML = GROUPS.map(([key, label, empty]) => {
     const items = rows.filter((r) => (GROUPS.some((g) => g[0] === r.status) ? r.status : "todo") === key);
@@ -226,6 +273,7 @@ function drawTasks(md) {
               ${r.device ? `<span>${esc(r.device)}</span>` : ""}
             </span>
             ${r.question ? `<span class="q">Question: ${esc(r.question)}</span>` : ""}
+            ${(() => { const b = beatOf(beats, r); return b ? `<span class="beat${b.stale ? " stale" : ""}">${esc(b.text)}</span>` : ""; })()}
           </div>`).join("")}</div>`
       : `<div class="none">${empty}</div>`;
     return `<section class="group s-${key}"><h2>${label}<span class="count">${items.length}</span></h2>${body}</section>`;
@@ -277,7 +325,7 @@ async function refresh() {
     const s = await (await fetch("/api/state", { cache: "no-store" })).json();
     lastOk = Date.now();
     $("error").hidden = true;
-    drawTasks(s.tasks); drawDecision(s.decision); drawFeeds(s);
+    drawTasks(s.tasks, s.beats); drawHuman(s, parseTasks(s.tasks)); drawDecision(s.decision); drawFeeds(s);
     const sync = $("sync");
     sync.classList.toggle("bad", !!s.fetchError);
     sync.textContent = s.fetchError
