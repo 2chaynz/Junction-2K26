@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { METHOD_NAME, fmtAnswer, fmtEur, fmtTime, fmtValue, shortName } from "./format";
-import type { Answer, Msg } from "./types";
+import type { Answer, Msg, Step } from "./types";
 
 type Props = {
   msgs: Msg[];
@@ -19,6 +19,41 @@ type Props = {
 };
 
 const MAX_CITES = 9;
+
+// A reader that was tried and declined reads as one line: "Is there an earlier issue…? No."
+function lines(steps: Step[]) {
+  const out: { kind: Step["kind"]; text: string }[] = [];
+  for (const s of steps) {
+    const last = out[out.length - 1];
+    if (s.kind === "skip" && last?.kind === "try") out[out.length - 1] = { kind: "skip", text: `${last.text} ${s.text}` };
+    else out.push({ kind: s.kind, text: s.text });
+  }
+  return out;
+}
+
+function Thinking({ steps, live, time }: { steps: Step[]; live: boolean; time?: number }) {
+  const [open, setOpen] = useState(true);
+  const ls = lines(steps);
+  return (
+    <div className={`think ${live ? "live" : ""}`}>
+      <button
+        className="think-head"
+        disabled={live}
+        onClick={(e) => (e.stopPropagation(), setOpen(!open))}
+      >
+        {live ? "Thinking…" : `${open ? "▾" : "▸"} Reasoned for ${fmtTime(time ?? 0)} · ${ls.length} steps`}
+      </button>
+      {(live || open) && (
+        <ol className="think-body">
+          {ls.length === 0 && <li className="try">Reading the question…</li>}
+          {ls.map((l, i) => (
+            <li key={i} className={l.kind}>{l.text}</li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
 
 function Cites({ a, on, hover, focus, onHover, onFocus }: {
   a: Answer; on: boolean; hover: number | null; focus: number | null;
@@ -56,7 +91,7 @@ function Cites({ a, on, hover, focus, onHover, onFocus }: {
 }
 
 function AnswerMsg(props: {
-  a: Answer; on: boolean; hover: number | null; focus: number | null;
+  a: Answer; steps: Step[]; on: boolean; hover: number | null; focus: number | null;
   onHover: (i: number | null) => void; onFocus: (i: number | null) => void;
 }) {
   const { a } = props;
@@ -102,7 +137,7 @@ function AnswerMsg(props: {
         {c && c.match === true && <span className="stoa ok"> · ✓ Stoa</span>}
         {c && c.match === false && <span className="stoa ko">✗ Stoa: {fmtValue(c.expected, c.unit)}</span>}
       </div>
-      {notes.length > 0 && (
+      {props.steps.length === 0 && notes.length > 0 && (
         <>
           <button className="steps-toggle" onClick={(e) => (e.stopPropagation(), setSteps(!steps))}>
             {steps ? "▾" : "▸"} Steps ({notes.length})
@@ -124,7 +159,7 @@ export default function Chat(p: Props) {
 
   useEffect(() => {
     log.current?.scrollTo({ top: log.current.scrollHeight, behavior: "smooth" });
-  }, [p.msgs.length]);
+  }, [p.msgs]);
 
   const empty = !p.msgs.some((m) => m.path === p.path && m.kind !== "switch");
 
@@ -135,7 +170,8 @@ export default function Chat(p: Props) {
           if (m.kind === "switch")
             return <div key={i} className="divider"><span>{shortName(m.path)}</span></div>;
           if (m.kind === "user") return <div key={i} className="msg user">{m.text}</div>;
-          if (m.kind === "pending") return <div key={i} className="msg sl pending">Reading the drawing…</div>;
+          if (m.kind === "pending")
+            return <div key={i} className="msg sl pending"><Thinking steps={m.steps} live /></div>;
           if (m.kind === "error") return <div key={i} className="msg sl error">{m.text}</div>;
           const on = i === p.active;
           const marks = m.answer.evidence.some((e) => e.bbox.length === 4);
@@ -146,7 +182,8 @@ export default function Chat(p: Props) {
               onClick={() => !on && marks && p.onActivate(i)}
               title={marks && !on ? "Show on the plan" : undefined}
             >
-              <AnswerMsg a={m.answer} on={on} hover={p.hover} focus={p.focus} onHover={p.onHover} onFocus={p.onFocus} />
+              {m.steps.length > 0 && <Thinking steps={m.steps} live={false} time={m.answer.time_s} />}
+              <AnswerMsg a={m.answer} steps={m.steps} on={on} hover={p.hover} focus={p.focus} onHover={p.onHover} onFocus={p.onFocus} />
             </div>
           );
         })}

@@ -28,9 +28,12 @@ export type KeyQuestion = { question: string; answer: unknown; unit: string | nu
 
 export type Drawing = { path: string; source: string; view: string; questions: KeyQuestion[] };
 
+// One reasoning step streamed by /api/ask/stream (CONTRACT.md → Step).
+export type Step = { kind: "try" | "skip" | "fail" | "found" | "trace" | "general" | "check"; path: string; text: string; t: number };
+
 export type Msg =
   | { kind: "user"; path: string; text: string }
-  | { kind: "answer"; path: string; question: string; answer: Answer }
-  | { kind: "pending"; path: string }
+  | { kind: "answer"; path: string; question: string; answer: Answer; steps: Step[] }
+  | { kind: "pending"; path: string; steps: Step[] }
   | { kind: "error"; path: string; text: string }
   | { kind: "switch"; path: string };

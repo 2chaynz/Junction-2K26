@@ -1,11 +1,11 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { ask, getDrawings, surprise } from "./api";
+import { askStream, getDrawings, surprise } from "./api";
 import Benchmark from "./Benchmark";
 import Chat from "./Chat";
 import Explorer from "./Explorer";
 import { DEMO, SOURCE_LABEL, TYPE, fmtSize, pickChips, sheetCode, shortName } from "./format";
 import HowItWorks from "./HowItWorks";
-import type { Drawing, Msg } from "./types";
+import type { Drawing, Msg, Step } from "./types";
 import Viewer from "./Viewer";
 
 // three.js + web-ifc are ~4 MB: only fetch them when a model is opened in 3D.
@@ -122,10 +122,16 @@ export default function App() {
   async function run(p: string, q: string) {
     setDraft("");
     activate(null);
-    setMsgs((m) => [...m, { kind: "user", path: p, text: q }, { kind: "pending", path: p }]);
+    setMsgs((m) => [...m, { kind: "user", path: p, text: q }, { kind: "pending", path: p, steps: [] }]);
+    const steps: Step[] = [];
     let next: Msg;
     try {
-      next = { kind: "answer", path: p, question: q, answer: await ask(p, q) };
+      const answer = await askStream(p, q, (s) => {
+        steps.push(s);
+        const snap = [...steps];
+        setMsgs((m) => m.map((x) => (x.kind === "pending" ? { ...x, steps: snap } : x)));
+      });
+      next = { kind: "answer", path: p, question: q, answer, steps };
     } catch (e) {
       next = { kind: "error", path: p, text: `Something broke: ${String(e)}` };
     }
