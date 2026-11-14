@@ -26,22 +26,25 @@ Reply with JSON only: {{"answer": <number or short text>, "boxes": [[x0, y0, x1,
 "boxes" are the regions you counted or read, in 0-1000 coordinates relative to the image width/height."""
 
 
-def _image(path: str):
-    """(PIL image, scale from image pixels back to evidence units)."""
+def _image(path: str, clip=None):
+    """Return the rendered image and its bounds in evidence coordinates."""
     from PIL import Image
     full = data_root() / path
     if path.lower().endswith(".pdf"):
         import pymupdf
-        page = pymupdf.open(full)[0]
-        z = MAX_SIDE / max(page.rect.width, page.rect.height)
-        pix = page.get_pixmap(matrix=pymupdf.Matrix(z, z))
+        with pymupdf.open(full) as doc:
+            page = doc[0]
+            bounds = clip if clip is not None else page.rect
+            z = MAX_SIDE / max(bounds.width, bounds.height)
+            pix = page.get_pixmap(matrix=pymupdf.Matrix(z, z), clip=clip)
         img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
-        return img, 1 / z  # evidence in PDF points
+        return img, (pix.x / z, pix.y / z, pix.width / z, pix.height / z)
     img = Image.open(full).convert("RGB")
+    width, height = img.size
     s = min(1.0, MAX_SIDE / max(img.size))
     if s < 1:
         img = img.resize((int(img.width * s), int(img.height * s)))
-    return img, 1 / s
+    return img, (0, 0, width, height)
 
 
 @lru_cache(maxsize=1)
@@ -110,14 +113,29 @@ def answer(path: str, question: str) -> Answer | None:
     backend = os.environ.get("SITELENS_VLM")
     if backend not in ("gemma", "gemini") or not path.lower().endswith((".pdf", ".png", ".jpg", ".jpeg")):
         return None
-    img, back = _image(path)
-    text, cost = (_ask_gemma if backend == "gemma" else _ask_gemini)(img, question)
+    from .crop import region
+
+    clip = None
+    if path.lower().endswith(".pdf") and os.environ.get("SITELENS_VLM_CROP", "1") != "0":
+        clip = region(path, question)
+    ask = _ask_gemma if backend == "gemma" else _ask_gemini
+    img, bounds = _image(path, clip)
+    text, cost = ask(img, question)
     value, boxes = _parse(text)
+    if clip is not None and (value is None or not boxes):
+        clip = None
+        img, bounds = _image(path)
+        text, fallback_cost = ask(img, question)
+        cost += fallback_cost
+        value, boxes = _parse(text)
     if isinstance(value, float) and value.is_integer():
         value = int(value)
     W, H = img.size
+    x, y, width, height = bounds
     ev = [Evidence(file=path, label=backend,
-                   bbox=[b[0] / 1000 * W * back, b[1] / 1000 * H * back, b[2] / 1000 * W * back, b[3] / 1000 * H * back])
+                   bbox=[x + b[0] / 1000 * width, y + b[1] / 1000 * height,
+                         x + b[2] / 1000 * width, y + b[3] / 1000 * height])
           for b in boxes]
     return Answer(value=value, unit=None, method="vlm", confidence=0.4, cost_eur=round(cost, 6), evidence=ev,
-                  trace=[f"{backend} read the whole sheet ({W}x{H} px)", f"raw: {text.strip()[:200]}"])
+                  trace=[f"{backend} read {'a crop' if clip is not None else 'the whole sheet'} ({W}x{H} px)",
+                         f"raw: {text.strip()[:200]}"])
