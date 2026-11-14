@@ -20,4 +20,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T13 Crop renderer for the VLM path | ai | T7 |  | todo |  |  |  |
 | T14 Cache per-drawing extraction (Index) | ai |  |  | todo |  |  |  |
 | T15 Revision diff: what changed between two sheet issues | ai |  | ccolver | review | ccolver/T15-revision-diff |  |  |
-| T16 Agent heartbeat, stale flag, needs-human lane, worker loop | setup |  |  | todo |  |  |  |
+| T16 Agent heartbeat, stale flag, needs-human lane, worker loop | setup |  | Asif | doing | asif/T16-heartbeat |  |  |
