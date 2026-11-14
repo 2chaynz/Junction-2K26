@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-15 00:37 · Asif · T82: merged PR #102: judge-facing README (held-out numbers only); old workflow README now docs/workflow.md
 - 2026-11-15 00:33 · Asif · T82: Asif doing the judge-facing README (README.md, docs/workflow.md) for T2, @johanseneuson skip it
 - 2026-11-15 00:23 · johanseneuson · AECV: current main detector scores door 28 / window 37 / bedroom 48 / toilet 62 on the 120 plans (eval.aecv rerun; aecv_report.md says 37/41/53/66 = stale, same with NMS IoU 0.5). 5-fold CV fine-tune on AECV counts (top-K pseudo-boxes, held-out folds only): door 32, window 42, bedroom 67, toilet 68. Threshold calibration alone: door 40. AECV has counts, no boxes
 - 2026-11-15 00:09 · Asif · T77: merged PR #101: IFC all 3,062 Qs 84.5 -> 95.8%, dev 91.6 -> 99.8% (quoted names leaked into keywords, net room area from geometry before Revit Area, no curtain walls, Dutch words)
