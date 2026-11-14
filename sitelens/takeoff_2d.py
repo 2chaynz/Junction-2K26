@@ -431,17 +431,21 @@ def _plan_heading_count(labels, width, height):
 
 def _scan_metadata(labels, load_image, native_text="", has_schedule=False, bounded_schedule=False, allow_unlabeled=False):
     text = "\n".join([*(label for label, _ in labels), *native_text.splitlines()])
-    has_plan = bool(PLAN_TITLE.search(text))
+    plan_count = len(list(PLAN_TITLE.finditer(text)))
+    image = load_image() if plan_count > 1 else None
+    if image is not None:
+        height, width = image.shape
+        plan_count = _plan_heading_count(labels, width, height)
+    has_plan = bool(plan_count)
     has_other = bool(NON_PLAN_VIEW.search(text))
     regions, unbounded = [], has_other
     if has_plan and has_other:
-        regions, unbounded = _scan_views(load_image(), labels)
+        regions, unbounded = _scan_views(image if image is not None else load_image(), labels)
     # OCR headings alone cannot bound a schedule or its illustrations.
-    plan_count = len(list(PLAN_TITLE.finditer(text)))
     excluded = ((not has_plan and not allow_unlabeled) or plan_count > 1 or unbounded
                 or _unbounded_schedule(text, has_schedule, has_plan, bounded_schedule))
     issue = UNKNOWN_VIEW_SCALE if NOT_TO_SCALE.search(text) else ""
-    if not issue and (has_other or len(list(PLAN_TITLE.finditer(text))) > 1):
+    if not issue and (has_other or plan_count > 1):
         issue = "This sheet has multiple views; the applicable scale is unknown."
     if not issue and not has_plan and allow_unlabeled:
         issue = "No plan heading was identified; the applicable scale is unknown."
