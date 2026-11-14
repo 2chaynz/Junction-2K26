@@ -46,7 +46,7 @@ async function summarize(s) {
   }
 }
 
-let next = 0, failed = 0
+let next = 0, finished = 0, failed = 0
 const save = () => writeFileSync(OUT, JSON.stringify(done))
 await Promise.all(Array.from({ length: CONCURRENCY }, async () => {
   while (next < todo.length) {
@@ -57,7 +57,7 @@ await Promise.all(Array.from({ length: CONCURRENCY }, async () => {
       failed++
       console.error(e.message)
     }
-    if (next % 20 === 0) { save(); console.log(`${next}/${todo.length}`) }
+    if (++finished % 20 === 0) { save(); console.log(`${finished}/${todo.length}`) }
   }
 }))
 save()
