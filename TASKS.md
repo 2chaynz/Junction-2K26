@@ -62,4 +62,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T55 xreview: fall back both ways, login hint | setup |  | Asif | done | asif/T55-xreview-fallback |  |  |
 | T56 dev.mjs: reinstall web deps on lockfile change | setup |  | Asif | done | asif/T56-dev-web-deps |  |  |
 | T57 dev.mjs: friendly error when port 8000 is busy | setup |  | Asif | review | asif/T57-dev-port-check |  |  |
-| T58 Deploy the demo to a public URL | setup |  |  | todo |  |  |  |
+| T58 Deploy the demo to a public URL | setup |  | johanseneuson | doing | johanseneuson/T58-deploy |  |  |
