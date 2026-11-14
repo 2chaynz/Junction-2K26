@@ -40,4 +40,9 @@ assert _unrotate(20, 90, 270, w, h) == (90, 20)   # 270° ccw: (x, y) → (h - y
 assert _unrotate(10, 5, 180, w, h) == (90, 35)
 assert room_type("MH 1") == "bedroom" and room_type("OH") == "living room"
 assert room_type("HO") is None and room_type("HO", mirrored=True) == "living room"
+from sitelens.region import IDENTITY_Q  # noqa: E402
+for q in ["What is this?", "what's this room?", "What room is this?", "Which room?", "Mikä tämä on?", "what is it", "What?"]:
+    assert IDENTITY_Q.search(q), q
+for q in ["What is the wall type here?", "Door width here?", "What is the area of this room?", "How many doors?"]:
+    assert not IDENTITY_Q.search(q), q
 print("region ok")

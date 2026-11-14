@@ -22,6 +22,10 @@ AREA_LABEL = re.compile(r"(\d+(?:[.,]\d+)?)\s*m(?:²|2)\b", re.I)
 # "in this area", "here": they point at the mark, they don't ask for an area
 DEICTIC = re.compile(r"(?i)\s*\b(?:in|inside|within|on|of)\s+(?:this|the marked|the highlighted|that)\s+"
                      r"(?:area|region|spot|part|zone|bit)\b|\s*\bhere\b")
+# "what is this?", "which room?": the only questions a room label alone answers
+IDENTITY_Q = re.compile(r"(?i)^\W*(?:what(?:'s| is)? (?:this|that|it)\b|what(?:'s| is)?\W*$|what room|which room|"
+                        r"what kind of room|was ist (?:das|hier)|welcher raum|qu'est-ce|quelle pi[eè]ce|"
+                        r"che cos|che stanza|mik[aä] (?:t[aä]m[aä]|huone))")
 PAD = 0.15  # crop margin around the mark, as a share of its size
 
 PROMPT = """You are reading a construction drawing. The user painted over one spot of it and asks about that spot.
@@ -127,9 +131,12 @@ def _ocr_words(path: str, m: Mark) -> list[tuple[str, list[float]]]:
         x0, y0 = pix.x / z, pix.y / z
     elif path.lower().endswith((".png", ".jpg", ".jpeg")):
         z = 1
-        full = Image.open(data_root() / path)
-        x0, y0 = max(0, int(x0)), max(0, int(y0))
-        img = full.crop((x0, y0, min(full.width, int(x1)), min(full.height, int(y1))))
+        with Image.open(data_root() / path) as full:
+            x0, y0 = max(0, int(x0)), max(0, int(y0))
+            x1, y1 = min(full.width, int(x1)), min(full.height, int(y1))
+            if x1 - x0 < 4 or y1 - y0 < 4:  # mark outside the image
+                return []
+            img = full.crop((x0, y0, x1, y1)).copy()
     else:
         return []
     try:
@@ -146,10 +153,10 @@ def _ocr_words(path: str, m: Mark) -> list[tuple[str, list[float]]]:
 
 def _named(path: str, q: str, words, page: int, how: str) -> Answer | None:
     """A room label inside the mark ("MH 1", "Küche") names the room; an area label next to it adds the m²."""
-    if COUNT_Q.search(q) or AREA_Q.search(q):
+    if not IDENTITY_Q.search(q):
         return None
     from .ocr import room_type
-    rooms = [(w.strip(" /\\|-_.:"), b, t) for w, b in words if (t := room_type(w, mirrored=True))]
+    rooms = [(w.strip(" /\\|-_.:"), b, t) for w, b in words if (t := room_type(w, mirrored=how == "ocr"))]
     if not rooms:
         return None
     w, b, t = rooms[0]
