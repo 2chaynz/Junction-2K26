@@ -30,6 +30,6 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T23 Revision quantities: how much changed between issues | ai | T15 | ccolver | done | ccolver/T23-revision-quantities |  |  |
 | T24 Facts path: free-form questions over extracted facts | ai |  | johanseneuson | done | johanseneuson/T24-facts |  |  |
 | T25 DrawingVQA: whole-sheet VLM vs our crop pipeline | eval | T13,T20 |  | todo |  |  |  |
-| T26 Hooks run status.mjs from origin/main | setup | T22 | Asif | review | asif/T26-hooks-from-main |  |  |
+| T26 Hooks run status.mjs from origin/main | setup | T22 | Asif | done | asif/T26-hooks-from-main |  |  |
 | T27 Spread bot: top 10 at level 8 (Bahn side challenge) | spread |  | Asif | done | asif/spread-bot |  |  |
 | T28 UI v3: explorer sidebar, sheet info, How it works + Benchmark | app | T21 | 2chaynz | review | 2chaynz/T28-ui-explorer |  |  |
