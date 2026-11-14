@@ -20,7 +20,7 @@ from spread.types import (
 
 import json, math, os
 HOUR, DAY = 60, 24 * 60
-P = {"qm": 1.0, "opt": "first", "f0": 1.0, "fstep": 0.10, "fn": 6, "fint": 60, "s0": 1.5, "sstep": 0.25, "sn": 5, "sint": 30, "trust": 0.0, "ramp": 0, "f1": 1.4, "rn": 8, "minslack": 0, "lowslack": 600, "lowmult": 1.0, "suplo": 0, "supmult": 1.3, "supdecl": 0, "offer": 0, "ofee": 0.6, "orad": 30, "onear": 30, "omax": 6, "rq": 0, "model": 0, "cc": 1.1, "eta": 0.08, "mmin": 0.9, "cm": 0, "ccm": 1.0, "lam": 0.5, "u": 0, "ra": 0.0, "tvk": 0.0, "tvp": 12500, "resc": 0, "rescfee": 1.5, "rescn": 3, "sd": 0, "sdslack": 480, "sdmult": 1.15, "sdsup": 40, "etad": 0.0, "etap": 0.0, "r0": 0.04, "u1": 1.3, "u2": 1.7, "u3": 2.2, "t1": 600, "t2": 420, "t3": 300, "chain": 0, "sdonly": 1, "sdrisk": 1.0, "blsd": 9999, "blq": 9999, "blk": 0.5, "cfee": 0.7, "crad": 30, "cn": 2}
+P = {"qm": 1.0, "opt": "first", "f0": 1.0, "fstep": 0.10, "fn": 6, "fint": 60, "s0": 1.5, "sstep": 0.25, "sn": 5, "sint": 30, "trust": 0.0, "ramp": 0, "f1": 1.4, "rn": 8, "minslack": 0, "lowslack": 600, "lowmult": 1.0, "suplo": 0, "supmult": 1.3, "supdecl": 0, "offer": 0, "ofee": 0.6, "orad": 30, "onear": 30, "omax": 6, "rq": 0, "model": 0, "cc": 1.1, "eta": 0.08, "mmin": 0.9, "cm": 0, "ccm": 1.0, "lam": 0.5, "u": 0, "ra": 0.0, "tvk": 0.0, "tvp": 12500, "resc": 0, "rescfee": 1.5, "rescn": 3, "sd": 0, "sdslack": 480, "sdmult": 1.15, "sdsup": 40, "etad": 0.0, "etap": 0.0, "r0": 0.04, "u1": 1.3, "u2": 1.7, "u3": 2.2, "t1": 600, "t2": 420, "t3": 300, "chain": 0, "sdonly": 1, "sdrisk": 1.0, "blsd": 9999, "blq": 9999, "blk": 0.5, "ufix": 0, "lsf": 1.0, "lsn": 5, "bundle": 0, "bf": 0.8, "brad": 30, "blink": 40, "bmax": 660, "bspare": 240, "bwait": 120, "bsplit": 480, "sf0": 1.1, "cfee": 0.7, "crad": 30, "cn": 2}
 _best = os.path.join(os.path.dirname(os.path.abspath(__file__)), "best_params.json")
 if "SPREAD_PARAMS" not in os.environ and os.path.exists(_best):
     P.update(json.load(open(_best)))
@@ -72,6 +72,19 @@ def supply(world, place: str) -> int:
                     n += 1
             cache[pid] = n
     return cache.get(place, 0)
+
+
+def near(world, place: str, r: float = 30) -> int:
+    """Drivers living within r km of a place."""
+    cache = world.__dict__.setdefault("_near", {})
+    if (place, r) not in cache:
+        if not PLACES:
+            km(place, place)
+        homes = getattr(world, "_homes_list", None)
+        if homes is None:
+            homes = world._homes_list = [d["homePlaceId"] for d in world.roster()]
+        cache[(place, r)] = sum(1 for h in homes if km(h, place) <= r)
+    return cache[(place, r)]
 
 
 def km(a: str, b: str) -> float:
@@ -149,6 +162,9 @@ class Desk:
         self.dealer_of: dict[str, str] = {}
         self.gig_driver: dict[str, str] = {}  # booked gig -> its driver
         self.chain_sent: set = set()  # (driver, gig) offers already sent
+        self.bundles: dict[str, int] = {}  # two-car gig -> minute to split it if still unbooked
+        self.nobundle: set[str] = set()  # orders taken out of a two-car gig: they go alone from then on
+        self.nb = 0
 
     def rejoin(self, snapshot: DeskSnapshot, history: list[DeskEvent]) -> None:
         """Rebuilds what it knows from the world, so a starter that stopped keeps its orders. Then answers
@@ -191,6 +207,9 @@ class Desk:
         elif event["kind"] == "order_cancelled":  # the world has stopped the car and told each of its gigs what happens
             for books in (self.orders, self.leg_gigs):
                 books.pop(event["orderId"], None)
+            for g in event.get("gigs", []):
+                if g["outcome"] == "withdrawn":
+                    self.unbundle(g["gigId"], skip=event["orderId"])
         elif event["kind"] == "visit_failed":
             self.retry(event["orderId"], event["leg"], event["reason"])
         elif event["kind"] == "gig_expired":
@@ -216,7 +235,9 @@ class Desk:
             self.learn(event["requestId"], 0.0)
         elif event["kind"] == "ledger":
             self.ledger(event["line"])
-        elif event["kind"] == "delivered":
+        if self.bundles:
+            self.tick()
+        if event["kind"] == "delivered":
             self.delivered(event["orderId"], event["leg"], event["at"])
             d = self.gig_driver.pop(event["gigId"], None)
             if d and P["chain"]:
@@ -380,7 +401,7 @@ class Desk:
             return
         # One of its windows has ended, perhaps at a site's closing time before the window's own end: post without its own stop windows.
         stops = without_windows(action["stops"], float("inf"))
-        self.outbox.append({**action, "stops": stops, "schedule": self.fees_for(order, pickups(action))})
+        self.outbox.append({**action, "stops": stops, "schedule": self.gig_fees(action, order)})
 
     def raise_fees(self, order_id: str) -> None:
         """From the order's deadline warning on, its gigs that no driver holds go at the steep fees."""
@@ -392,22 +413,52 @@ class Desk:
         self.send_post_of(order_id)
         for gig_id in self.gigs_of(order_id):
             if gig_id not in self.booked:
-                self.outbox.append({"type": "reprice", "gigId": gig_id, "schedule": self.fees_for(order, pickups(self.posts[gig_id]))})
+                self.outbox.append({"type": "reprice", "gigId": gig_id, "schedule": self.gig_fees(self.posts[gig_id], order)})
                 if P["resc"]:
                     self.rescue(order, gig_id)
 
-    def fees_for(self, order: Order, cars: int) -> list[FeeStep]:
+    def gig_fees(self, action: PostAction, order: Order) -> list[FeeStep]:
+        """Fees for a posted gig: a gig with cars of two orders is paid as one trip, from the tighter order's clock."""
+        oids = list(dict.fromkeys(s_["orderId"] for s_ in action["stops"]))
+        orders = [self.orders[o] for o in oids if o in self.orders]
+        if len(orders) < 2:
+            return self.fees_for(order, pickups(action))
+        fee = P["bf"] * sum(self.requests[o["id"]]["referenceFeeCents"] * sum(1 for s_ in action["stops"] if s_["orderId"] == o["id"] and s_["kind"] == "pickup") / len(o["legs"]) for o in orders)
+        tight = min(orders, key=lambda o: o["lastPickupAt"])
+        return self.fees_for(tight, 1, fee=fee, urgent=any(o["id"] in self.urgent for o in orders))
+
+    def fees_for(self, order: Order, cars: int, fee: Optional[float] = None, urgent: Optional[bool] = None) -> list[FeeStep]:
         """The fees for some of the order's cars from now: rising, or steep once its deadline warning has come."""
-        fee = self.requests[order["id"]]["referenceFeeCents"] * cars / len(order["legs"])
-        if P["ramp"] and order["id"] not in self.urgent:
+        if fee is None:
+            fee = self.requests[order["id"]]["referenceFeeCents"] * cars / len(order["legs"])
+        if urgent is None:
+            urgent = order["id"] in self.urgent
+        if P["lsf"] != 1.0 and near(self.world, order["legs"][0]["pickup"]["placeId"]) < P["lsn"]:
+            fee *= P["lsf"]  # few drivers live near the pickup: pay for a trip from further away from the start
+        if P["ramp"] and not urgent:
             end = order["lastPickupAt"] - 180
             n = P["rn"]
             if end - self.now < 30:
                 return [{"at": self.now, "feeCents": max(1, int(fee * P["f1"] + 0.5))}]
             return [{"at": int(self.now + k * (end - self.now) / (n - 1)), "feeCents": max(1, int(fee * (P["f0"] + (P["f1"] - P["f0"]) * k / (n - 1)) + 0.5))} for k in range(n)]
-        if order["id"] in self.urgent:
+        if urgent:
             return steep(self.now, fee, self.level)
         base = rising(self.now, fee, self.level)
+        if order["id"] in self.nobundle:  # back from a two-car gig that found no driver: time is short, open high
+            base = [{"at": self.now, "feeCents": max(1, int(fee * P["sf0"] + 0.5))}]
+        if P["u"] and P["ufix"]:
+            # Urgency steps that fall inside the opening ramp still count: fee at each time = the higher of both schedules.
+            last = order["lastPickupAt"]
+            pts = [(s_["at"], s_["feeCents"]) for s_ in base]
+            pts += [(max(self.now, last - lead), int(fee * mult + 0.5)) for mult, lead in ((P["u1"], P["t1"]), (P["u2"], P["t2"]), (P["u3"], P["t3"]))]
+            out, top = [], 0
+            for at, f in sorted(pts):
+                top = max(top, f)
+                if out and out[-1]["at"] == at:
+                    out[-1]["feeCents"] = top
+                elif not out or top > out[-1]["feeCents"]:
+                    out.append({"at": at, "feeCents": top})
+            return out
         if P["u"]:
             last = order["lastPickupAt"]
             top = base[-1]["feeCents"]
@@ -557,7 +608,104 @@ class Desk:
             return False
         self.leg_gigs.pop(order_id, None)
         self.outbox += [{"type": "withdraw", "gigId": gig_id} for gig_id in gigs]
+        for gig_id in gigs:
+            self.unbundle(gig_id, skip=order_id)
         return True
+
+    def unbundle(self, gig_id: str, skip: str = "") -> None:
+        """The cars of other orders in a gig that left the app go out again on their own gigs."""
+        self.bundles.pop(gig_id, None)
+        action = self.posts.get(gig_id)
+        if action is None:
+            return
+        for oid in dict.fromkeys(s_["orderId"] for s_ in action["stops"]):
+            if oid == skip or oid not in self.orders:
+                continue
+            legs = [l for l, g in self.leg_gigs.get(oid, {}).items() if g == gig_id]
+            self.nobundle.add(oid)
+            for l in legs:
+                self.leg_gigs[oid].pop(l, None)
+            if legs:
+                self.post(self.orders[oid], legs)
+
+    def try_bundle(self, gig_id: str) -> None:
+        """Pairs a new one-car gig with an open one that starts near where it ends, or ends near where it starts:
+        one driver moves both cars and skips a trip home and a trip out."""
+        a = self.posts.get(gig_id)
+        if a is None or not self.is_open(gig_id):
+            return
+        A = self.orders.get(a["stops"][0]["orderId"])
+        if A is None or len(A["legs"]) != 1 or A["id"] in self.urgent or A["id"] in self.nobundle:
+            return
+        best = None
+        for g, b in list(self.posts.items()):
+            if g == gig_id or len(b["stops"]) != 2 or not self.is_open(g):
+                continue
+            B = self.orders.get(b["stops"][0]["orderId"])
+            if B is None or B["id"] == A["id"] or len(B["legs"]) != 1 or B["id"] in self.urgent or B["id"] in self.nobundle:
+                continue
+            for first, second, fa, sa in ((A, B, a, b), (B, A, b, a)):
+                link = self.chain_fit(first, second)
+                if link is not None and (best is None or link < best[0]):
+                    best = (link, g, first, second, fa, sa)
+        if best is None:
+            return
+        _, g, first, second, fa, sa = best
+        B = second if first is A else first
+        res = self.world.act([{"type": "withdraw", "gigId": gig_id}, {"type": "withdraw", "gigId": g}])
+        ok = [r["ok"] is True for r in res]
+        for o, good in ((A, ok[0]), (B, ok[1])):
+            if good:
+                self.leg_gigs.get(o["id"], {}).pop(0, None)
+        if not all(ok):
+            for o, good in ((A, ok[0]), (B, ok[1])):
+                if good:
+                    self.post(o, [0])
+            return
+        stops = without_windows(fa["stops"] + sa["stops"], self.now)
+        audience = {"experienced": fa["audience"]["experienced"] or sa["audience"]["experienced"], "manualLicence": fa["audience"]["manualLicence"] or sa["audience"]["manualLicence"]}
+        action = {"type": "post", "stops": stops, "audience": audience, "schedule": []}
+        self.orders[A["id"]], self.orders[B["id"]] = A, B
+        action["schedule"] = self.gig_fees(action, first)
+        r = self.world.act([action])[0]
+        if r["ok"] is True:
+            self.carry(action, r["id"])
+            self.bundles[r["id"]] = min(first["lastPickupAt"], second["lastPickupAt"]) - P["bsplit"]
+            self.nb += 1
+        else:
+            self.post(first, [0])
+            self.post(second, [0])
+
+    def chain_fit(self, first: Order, second: Order) -> Optional[float]:
+        """Road minutes from the first car's delivery to the second car's pickup, when one driver can do both in time."""
+        p1, d1 = first["legs"][0]["pickup"]["placeId"], first["legs"][0]["delivery"]["placeId"]
+        p2, d2 = second["legs"][0]["pickup"]["placeId"], second["legs"][0]["delivery"]["placeId"]
+        if km(d1, p2) > P["brad"]:
+            return None
+        link = road_minutes(d1, p2) if d1 != p2 else 0
+        m1, m2 = road_minutes(p1, d1), road_minutes(p2, d2)
+        if link > P["blink"] or m1 + link + m2 > P["bmax"]:
+            return None
+        t1 = max(self.now + 60, first["legs"][0]["pickup"]["window"]["from"])
+        if t1 > first["lastPickupAt"] - P["bspare"]:
+            return None
+        arrive = t1 + m1 + link
+        w2 = second["legs"][0]["pickup"]["window"]
+        if arrive < w2["from"] - P["bwait"] or arrive > second["lastPickupAt"] - P["bspare"]:
+            return None
+        if max(arrive, w2["from"]) + m2 > second["deadline"] - P["bspare"]:
+            return None
+        return link
+
+    def tick(self) -> None:
+        """A two-car gig that no driver has booked by its split time goes back out as two one-car gigs."""
+        for gid, at in list(self.bundles.items()):
+            if self.now >= at:
+                if gid not in self.booked and self.is_open(gid):
+                    self.outbox.append({"type": "withdraw", "gigId": gid})
+                    self.unbundle(gid)
+                else:
+                    self.bundles.pop(gid, None)
 
     def send_post_of(self, order_id: str) -> None:
         """A post of the order still in the outbox goes to the world now, so the starter knows its gig. Each gig carries one order."""
@@ -584,6 +732,8 @@ class Desk:
                     self.start_offers(action, result["id"])
                 if P["chain"]:
                     self.chain_to(result["id"])
+                if P["bundle"] and pickups(action) == 1:
+                    self.try_bundle(result["id"])
 
 
 def retry_from(order: Order, request: PriceRequest, leg: int, now: int) -> int:

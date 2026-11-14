@@ -30,3 +30,27 @@ Accept: ≥ +3% mean margin, min on-time ≥ 94%, no run under 92%.
 | b1_m105 | same_day at 1.05× | €12,711 | +5.3% | 10/12 | 91.8% | 330 | on-time too low |
 | b1_m105bl20 | 1.05× + gate at 20 | €12,347 | +2.3% | 9/12 | 92.7% | 320 | reject |
 | **b1_m110** | same_day at 1.10× | **€12,442** | **+3.1%** | 8/12 | **94.9%** | 320 | **accept → best2** (+16.6% vs base) |
+
+## Round 3 (vs best2 = b1_m110)
+| Tag | Change | Mean margin | vs best2 | Better | Min on-time | Orders | Verdict |
+|---|---|---|---|---|---|---|---|
+| b2_etad | per-day win bias, eta 0.15 | €12,695 | +2.0% | 9/12 | 93.0% | 321 | reject |
+| b2_tvk | future trust value on (tvk 1.0) | €10,531 | −15.4% | 1/12 | 91.7% | 405 | reject: overbuys volume |
+| b2_tvk25 | tvk 0.25 | €12,067 | −3.0% | 5/12 | 92.3% | 358 | reject |
+| simf2 | live-clock final loop, speed 4 | €10,396 | — | — | 98.8% | 260 | final loop works with best2 |
+| b2_flat85 | one flat opening fee 0.85× | €11,842 | −4.8% | 2/12 | 93.5% | 313 | reject: rising ramp is better |
+| b2_ufix | urgency steps merged into opening ramp | €12,586 | +1.2% | 9/12 | 93.1% | 322 | reject |
+| b2_ccm95 | cost multiplier 0.95 | €12,585 | +1.2% | 8/12 | 91.9% | 382 | reject: +60 orders, on-time falls |
+| b2_lam75 | late penalty weight 0.75 | €12,798 | +2.9% | 9/12 | 92.0% | 336 | reject (close) |
+| b2_ls13 | fee ×1.3 from start where < 5 drivers within 30 km | €12,311 | −1.1% | 4/12 | 94.6% | 320 | reject |
+| b2_bun | two-car gigs (A's delivery within 30 km of B's pickup, ≤ 11 h driving), fee 0.8 × sum | €12,668 | +1.8% | 8/12 | 91.8% | 315 | reject: split bundles go late |
+| b2_bun3 | + spare 6 h, split 10 h before, fee 0.85, split orders reopen at 1.1× | €12,909 | +3.8% | 9/12 | 93.7% | 319 | on-time just under |
+| b2_bun4 | + split 12 h before, reopen at 1.3× (11 seeds) | €13,324 | +4.3% | 7/11 | 92.9% | 299 | on-time under bar (9111) |
+
+## Ranking round 6 (Sat 12:00), best2
+- €73,790 over 5 weeks (16.3k, 16.3k, 11.4k, 15.8k, 14.0k), on-time 94.1–99.1%. Rank 22/194. 10th: €87.0k. House best €77.6k.
+- Top teams win 400–500 orders/week at 96–98% on-time; we win 320–390.
+
+## Late-order analysis (ccm 0.95, 4 seeds)
+- Most late cars: next_day, ≥ 24 h slack at win, booked only after the deadline warning, pickups with few drivers within 30 km.
+- Bulk orders are not the cause. Bundled orders that were split back go late; orders kept in a done bundle rarely do.
