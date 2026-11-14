@@ -343,26 +343,6 @@ def _page_schedules(page, words=None):
     return []
 
 
-def _view_titles(page):
-    import pymupdf
-
-    titles = []
-    for block in page.get_text("dict", flags=pymupdf.TEXTFLAGS_TEXT)["blocks"]:
-        for line in block.get("lines", []):
-            label = "".join(span["text"] for span in line["spans"])
-            if NON_PLAN_VIEW.fullmatch(label) or PLAN_TITLE.fullmatch(label):
-                box = list(pymupdf.Rect(line["bbox"]) * page.rotation_matrix)
-                titles.append((bool(PLAN_TITLE.fullmatch(label)), box))
-    return titles
-
-
-def _belongs_to_plan(box, titles):
-    point = measure._centre(box)
-    plan = min(measure._dist_bb(b, point) for is_plan, b in titles if is_plan)
-    other = min(measure._dist_bb(b, point) for is_plan, b in titles if not is_plan)
-    return plan < .7 * other
-
-
 def _outside_schedule(box, regions):
     x, y = measure._centre(box)
     return not any(x0 <= x <= x1 and y0 <= y <= y1 for x0, y0, x1, y1 in regions)
@@ -387,18 +367,15 @@ def _sheet(path, root, mtime, weights_mtime):
             words = [(token, box) for token, box in words if _outside_schedule(box, regions)]
             bars = _pdf_bars(path, page, words)
             text = page.get_text()
-            titles = _view_titles(page)
-            has_plan = any(is_plan for is_plan, _ in titles)
-            has_other = any(not is_plan for is_plan, _ in titles)
+            has_plan = bool(PLAN_TITLE.search(text))
+            has_other = bool(NON_PLAN_VIEW.search(text))
             mixed = has_plan and has_other
             objects = _vector(path) if page.number == 0 else []
             if not objects:
-                if (has_other or tables) and not has_plan:
+                if has_other or (tables and not has_plan):
                     excluded += 1
                 else:
                     objects = _detected(path, page)
-                    if mixed:
-                        objects = [obj for obj in objects if _belongs_to_plan(obj[1].bbox, titles)]
             objects = [obj for obj in objects if _outside_schedule(obj[1].bbox, regions)]
             scale_issue = ("This sheet has a not-to-scale label; the applicable scale is unknown."
                            if NOT_TO_SCALE.search(text) else
@@ -449,7 +426,7 @@ def takeoff(path):
     if specs:
         notes.append("Numeric-only labels cannot be distinguished from dimensions and are not matched to schedules.")
     if excluded:
-        notes.append(f"Skipped symbol counts on {excluded} page(s) with non-plan labels or with a schedule but no plan title.")
+        notes.append(f"Skipped symbol counts on {excluded} page(s) with non-plan or mixed views, or with a schedule but no plan title.")
     if not weights.exists():
         notes.append("Symbol detector weights are unavailable; only supported drawing geometry can be counted.")
     if not rows:

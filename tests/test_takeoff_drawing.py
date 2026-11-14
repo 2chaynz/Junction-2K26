@@ -155,15 +155,15 @@ class DrawingTakeoff(unittest.TestCase):
                 plan.insert_text((50, 70), "Scale 1:100")
                 plan.insert_text((50, 90), "Inset: N.T.S.")
                 plan.insert_text((50, 110), "SEE DETAILS")
-                plan.insert_text((400, 50), "EAST ELEVATION")
+                mixed = doc.new_page()
+                mixed.insert_text((50, 50), "FIRST FLOOR PLAN")
+                mixed.insert_text((400, 50), "EAST ELEVATION")
                 elevation = doc.new_page()
                 elevation.insert_text((50, 50), "NORTH ELEVATION")
                 doc.save(Path(d) / path)
 
             def detected(path, page):
                 return [("Windows", Evidence(path, [200, 100, 230, 104], page=page.number),
-                         "Detected symbol", None),
-                        ("Windows", Evidence(path, [410, 100, 440, 104], page=page.number),
                          "Detected symbol", None)]
 
             with patch.object(takeoff_2d, "_detected", side_effect=detected) as detector:
@@ -173,7 +173,7 @@ class DrawingTakeoff(unittest.TestCase):
             self.assertEqual(row["count"], 1)
             self.assertEqual(row["size"], "")
             self.assertTrue(any("not-to-scale" in line for line in row["reason"]))
-            self.assertTrue(any("Skipped symbol counts on 1" in line for line in result["notes"]))
+            self.assertTrue(any("Skipped symbol counts on 2" in line for line in result["notes"]))
 
     def test_disagreeing_scale_bars_do_not_produce_dimensions(self):
         from sitelens.measure import Scale
