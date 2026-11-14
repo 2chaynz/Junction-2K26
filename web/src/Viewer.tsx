@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fileUrl, viewScale } from "./api";
-import { fmtValue } from "./format";
+import { fmtAnswer } from "./format";
 import type { Answer } from "./types";
 
 type Props = {
@@ -9,6 +9,7 @@ type Props = {
   hover: number | null;
   focus: number | null;
   onHover: (i: number | null) => void;
+  onFocus: (i: number | null) => void;
   busy: boolean;
 };
 
@@ -45,7 +46,7 @@ function penLoop(b: Box, minR: number): string {
   return "M" + pts.join(" L");
 }
 
-export default function Viewer({ view, answer, hover, focus, onHover, busy }: Props) {
+export default function Viewer({ view, answer, hover, focus, onHover, onFocus, busy }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [t, setT] = useState<T>({ s: 1, x: 0, y: 0 });
@@ -92,8 +93,9 @@ export default function Viewer({ view, answer, hover, focus, onHover, busy }: Pr
 
   useEffect(() => {
     const b = boxes.find((x) => x.i === focus);
-    if (b) fitTo(b.x0, b.y0, b.x1, b.y1, 8, true);
-  }, [focus, boxes, fitTo]);
+    if (b) fitTo(b.x0, b.y0, b.x1, b.y1, 1.8, true);
+    else if (focus === null) fitEvidence();
+  }, [focus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onWheel(e: React.WheelEvent) {
     const el = box.current!;
@@ -107,13 +109,7 @@ export default function Viewer({ view, answer, hover, focus, onHover, busy }: Pr
   const union = boxes.length
     ? { x: Math.max(...boxes.map((b) => b.x1)), y: Math.min(...boxes.map((b) => b.y0)) }
     : null;
-  const what = boxes[0]?.label ?? "";
-  const note =
-    answer && boxes.length
-      ? answer.unit === "count" && what && boxes.length > 1 && !what.includes("·")
-        ? `${fmtValue(answer.value, answer.unit)} ${what}s`
-        : fmtValue(answer.value, answer.unit)
-      : "";
+  const note = answer && boxes.length ? fmtAnswer(answer) : "";
 
   return (
     <div
@@ -155,9 +151,13 @@ export default function Viewer({ view, answer, hover, focus, onHover, busy }: Pr
             {boxes.map((b, k) => (
               <g
                 key={`${answer?.trace.join()}-${b.i}`}
-                className={`mark ${hover === b.i ? "hot" : ""}`}
+                className={`mark ${hover === b.i ? "hot" : ""} ${focus === b.i ? "focus" : ""} ${
+                  focus !== null && focus !== b.i ? "dim" : ""
+                }`}
                 onMouseEnter={() => onHover(b.i)}
                 onMouseLeave={() => onHover(null)}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => onFocus(focus === b.i ? null : b.i)}
               >
                 {b.poly && b.poly.length > 2 && (
                   <polygon className="area" points={b.poly.map((p) => p.join(",")).join(" ")} />
@@ -168,7 +168,7 @@ export default function Viewer({ view, answer, hover, focus, onHover, busy }: Pr
                   style={{
                     animationDelay: `${Math.min(k * 45, 1400)}ms`,
                     // Firefox ignores non-scaling-stroke under CSS transforms: keep width in screen px by hand.
-                    strokeWidth: (hover === b.i ? 5 : 2.2) / t.s,
+                    strokeWidth: (hover === b.i || focus === b.i ? 4.5 : 2.4) / t.s,
                   }}
                 />
                 {boxes.length <= 60 && (
@@ -187,10 +187,10 @@ export default function Viewer({ view, answer, hover, focus, onHover, busy }: Pr
           </svg>
         )}
       </div>
-      {busy && <div className="scan" />}
+      {busy && <div className="busy" />}
       <div className="viewer-tools" onMouseDown={(e) => e.stopPropagation()}>
         <button onClick={fitAll}>Page</button>
-        {boxes.length > 0 && <button onClick={fitEvidence}>Evidence</button>}
+        {boxes.length > 0 && <button onClick={() => (focus === null ? fitEvidence() : onFocus(null))}>All marks</button>}
       </div>
       <div className="viewer-hint mono">scroll to zoom · drag to pan · double-click to fit</div>
     </div>

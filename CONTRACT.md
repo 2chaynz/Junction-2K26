@@ -52,6 +52,7 @@ GET  /api/ifc?path=data/…ifc                          → raw IFC bytes (3D vi
 GET  /api/random                                      → {"path", "question"} from questions.jsonl
 ```
 - `/api/ask` adds `time_s`, `view` (file the UI shows; IFC → its rendered plan) and, when the question is Stoa's, `check: {expected, unit, match}`.
+- No path answers → `/api/ask` adds `tried: [path names]`. With `GEMINI_API_KEY` set, a question that isn't about the drawing gets `method: "general"`, text `value`, no evidence, no `check`.
 - `/api/file` takes optional `scale` (default 1 = bbox coords).
 - Run: `STOA_DATA=… python -m sitelens.server` (serves `web/dist` after `cd web && npm ci && npm run build`). Dev: `npm run dev` in `web/` proxies `/api` to :8000.
 
