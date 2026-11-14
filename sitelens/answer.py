@@ -26,6 +26,9 @@ class Answer:
     cost_eur: float = 0.0          # inference cost of this answer
     evidence: list[Evidence] = field(default_factory=list)
     trace: list[str] = field(default_factory=list)   # human-readable steps, shown in the UI
+    # T42 review mode: objects the reader saw but did NOT count (e.g. detections just under the confidence
+    # cut). Not part of the answer; the UI shows them dashed so a human can promote one with a click.
+    candidates: list[Evidence] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
