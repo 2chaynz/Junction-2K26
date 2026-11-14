@@ -1,4 +1,4 @@
-# Regenerates the SiteLens architecture figure: python3 docs/architecture.py docs/architecture.svg out.html
+# Regenerates the Sindri architecture figure: python3 docs/architecture.py docs/architecture.svg out.html
 import sys
 W, H = 1640, 1290
 INK = "#1f1f24"; GREY = "#6b6b75"; LIGHT = "#f2f2f4"
@@ -100,7 +100,7 @@ rows = [  # key, y-center, row label, reader, reader sub, tool, tool sub, cost, 
 ]
 X_IN, X_RD, X_TOK, X_RT, X_TL, X_EV, X_ANS, X_OUT = 40, 250, 470, 590, 720, 990, 1110, 1430
 
-a(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" role="img" aria-label="SiteLens architecture: a question and a drawing go through a cheapest-first router over four paths (BIM, vector, raster detector, VLM fallback); each path returns a value with evidence boxes and a cost; answers are scored against Stoa\'s answer key; the detector is fine-tuned on CubiCasa5K excluding Stoa drawings." font-family="Times New Roman, Georgia, serif" fill="{INK}">')
+a(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" role="img" aria-label="Sindri architecture: a question and a drawing go through a cheapest-first router over four paths (BIM, vector, raster detector, VLM fallback); each path returns a value with evidence boxes and a cost; answers are scored against Stoa\'s answer key; the detector is fine-tuned on CubiCasa5K excluding Stoa drawings." font-family="Times New Roman, Georgia, serif" fill="{INK}">')
 a(f'<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="{INK}"/></marker>'
   f'<marker id="ahg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="{GREY}"/></marker></defs>')
 a(f'<rect width="{W}" height="{H}" fill="white"/>')
@@ -213,7 +213,7 @@ svg = "\n".join(out)
 open(sys.argv[1], "w").write(svg)
 html = f'''<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SiteLens architecture</title>
+<title>Sindri architecture</title>
 <style>
 body{{margin:0;padding:24px;font-family:Georgia,serif;background:#f4f4f6;color:#1f1f24}}
 figure{{margin:0 auto;max-width:1640px;background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.12)}}
@@ -223,6 +223,6 @@ figcaption{{font-size:15px;line-height:1.5;color:#44444c;padding:12px 8px 4px;ma
 </style></head><body>
 <figure>
 {svg}
-<figcaption><b>SiteLens.</b> A question and a drawing enter a cheapest-first router. Each path reads the drawing its own way (BIM via ifcopenshell, vector PDF/DXF geometry, a fine-tuned YOLO detector on scans, a small VLM on crops as last resort) and returns a value with evidence boxes and a cost; a path that can't answer returns None and the next one tries. Answers are scored against Stoa's answer key (counts exact, quantities ±2%) and shown in the UI with highlights, trace and €/answer. The detector is fine-tuned offline on public CubiCasa5K labels with every Stoa drawing excluded.</figcaption>
+<figcaption><b>Sindri.</b> A question and a drawing enter a cheapest-first router. Each path reads the drawing its own way (BIM via ifcopenshell, vector PDF/DXF geometry, a fine-tuned YOLO detector on scans, a small VLM on crops as last resort) and returns a value with evidence boxes and a cost; a path that can't answer returns None and the next one tries. Answers are scored against Stoa's answer key (counts exact, quantities ±2%) and shown in the UI with highlights, trace and €/answer. The detector is fine-tuned offline on public CubiCasa5K labels with every Stoa drawing excluded.</figcaption>
 </figure></body></html>'''
 open(sys.argv[2], "w").write(html)

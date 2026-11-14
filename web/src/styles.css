@@ -11,6 +11,7 @@
   --sans: "Inter", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, monospace;
   --hand: "Caveat", cursive;
+  --brand: "Tac One", system-ui, sans-serif;
   --r: 4px;
   --chat: clamp(320px, 26vw, 460px);
 }
@@ -35,7 +36,8 @@ input { font: inherit; color: inherit; }
 
 /* Top bar */
 .top { display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--line); }
-.brand { font-weight: 600; letter-spacing: -0.01em; margin-right: 12px; }
+.brand { font-family: var(--brand); font-weight: 400; margin-right: 12px; }
+.wordmark { font-family: var(--brand); font-weight: 400; letter-spacing: 0; }
 .tabs { display: flex; height: 100%; }
 .tabs button { padding: 0 14px; height: 100%; font-size: 14px; color: var(--dim); border-bottom: 2px solid transparent; }
 .tabs button:hover { color: var(--ink); }

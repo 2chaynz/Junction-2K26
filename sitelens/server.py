@@ -28,7 +28,7 @@ from .translate import english_many, english_obj, sheet_title
 WEB = Path(__file__).resolve().parent.parent / "web" / "dist"
 IMAGE_EXT = {".png", ".jpg", ".jpeg"}
 
-app = FastAPI(title="SiteLens")
+app = FastAPI(title="Sindri")
 
 # A public URL must not be able to burn the Gemini key: per-IP sliding window on the endpoints that can call a
 # paid model. SITELENS_RATE = requests per minute per IP (0 disables; default 30). Static files and /api/file are free.

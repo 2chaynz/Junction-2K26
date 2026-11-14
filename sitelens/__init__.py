@@ -1,4 +1,4 @@
-"""SiteLens: answer questions about construction drawings, with evidence."""
+"""Sindri: answer questions about construction drawings, with evidence."""
 import os
 from pathlib import Path
 

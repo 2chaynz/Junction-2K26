@@ -1,6 +1,6 @@
 # Team workflow
 
-How we built SiteLens at Junction 2026 (Espoo, 13–15 Nov). Agents do the building; humans steer. Product overview: [README](../README.md).
+How we built Sindri at Junction 2026 (Espoo, 13–15 Nov). Agents do the building; humans steer. Product overview: [README](../README.md).
 
 ## Setup (once, 5 min)
 1. Clone, then run: `bash scripts/setup.sh`. Fix anything marked `FIX`.

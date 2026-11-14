@@ -1,3 +1,4 @@
+import "@fontsource/tac-one/400.css";
 import React, { useEffect, useState } from "react";
 import {
   AbsoluteFill, Easing, Img, Series, continueRender, delayRender, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig,
@@ -8,6 +9,7 @@ const RED = "#d92d20";
 const INK = "#0e1117";
 const FONT = "Inter, 'Segoe UI', Helvetica, Arial, sans-serif";
 const MONO = "'JetBrains Mono', Consolas, monospace";
+const BRAND = "'Tac One', Inter, sans-serif";
 
 // ---------- real screen clips: frames captured from Chrome (capture/capture.mjs), played back by timestamp ----------
 type Frame = { t: number; file: string };
@@ -109,7 +111,7 @@ const Title: React.FC<{ big: string; line: string; small: string; bigSize?: numb
   const b = spring({ frame: frame - 8, fps, config: { damping: 14, stiffness: 150 } });
   return (
     <AbsoluteFill style={{ background: INK, justifyContent: "center", alignItems: "center", fontFamily: FONT, textAlign: "center", padding: "0 120px" }}>
-      <div style={{ fontSize: bigSize, fontWeight: 800, color: "#fff", transform: `scale(${0.5 + 0.5 * a})`, opacity: Math.min(a * 2, 1), letterSpacing: -5, lineHeight: 1.02 }}>{big}</div>
+      <div style={{ fontSize: bigSize, fontWeight: big === "Sindri" ? 400 : 800, fontFamily: big === "Sindri" ? BRAND : FONT, color: "#fff", transform: `scale(${0.5 + 0.5 * a})`, opacity: Math.min(a * 2, 1), letterSpacing: big === "Sindri" ? 0 : -5, lineHeight: 1.02 }}>{big}</div>
       <div style={{ fontSize: 58, color: RED, opacity: b, marginTop: 22, transform: `translateY(${(1 - b) * 24}px)`, fontWeight: 700 }}>{line}</div>
       <div style={{ fontSize: 30, color: "#9aa3b2", opacity: b, marginTop: 40, fontFamily: MONO }}>{small}</div>
       <Wipe />
@@ -132,7 +134,7 @@ const useNumbers = () => {
   return d;
 };
 
-// ---------- split screen: the frontier model vs SiteLens on the same drawing ----------
+// ---------- split screen: the frontier model vs Sindri on the same drawing ----------
 const Versus: React.FC = () => {
   const d = useNumbers();
   const frame = useCurrentFrame();
@@ -158,7 +160,7 @@ const Versus: React.FC = () => {
       </div>
       <div style={{ position: "absolute", top: 190, right: 110, width: 800, transform: `scale(${0.7 + 0.3 * r})`, opacity: r }}>
         <div style={{ border: `4px solid ${RED}`, borderRadius: 20, padding: "30px 44px", background: "rgba(217,45,32,.12)", position: "relative" }}>
-          <div style={{ fontSize: 34, color: "#fda29b", fontWeight: 600 }}>SiteLens</div>
+          <div style={{ fontSize: 34, color: "#fda29b", fontWeight: 400, fontFamily: BRAND }}>Sindri</div>
           <div style={{ fontSize: 330, fontWeight: 800, color: "#fff", lineHeight: 1.05 }}>{d.hook.ours}</div>
           <div style={{ fontSize: 40, fontFamily: MONO, color: "#fda29b" }}>every door marked on the plan</div>
           <div style={{ position: "absolute", right: 30, top: 70, transform: `rotate(-8deg) scale(${0.3 + 0.7 * ok})`, opacity: Math.min(ok * 2, 1), color: "#12b76a", fontSize: 150, fontWeight: 900 }}>✓</div>
@@ -229,7 +231,7 @@ const CUTS: { id: string; sec: number }[] = [
 export const TOTAL = CUTS.reduce((a, c) => a + s(c.sec), 0);
 const seq = (id: string) => s(CUTS.find((c) => c.id === id)!.sec);
 
-export const SiteLens: React.FC = () => (
+export const Sindri: React.FC = () => (
   <AbsoluteFill style={{ background: "#fff" }}>
     <Series>
       {/* HOOK: the building in 3D, one question, every door lights up */}
@@ -247,7 +249,7 @@ export const SiteLens: React.FC = () => (
         </Scene>
       </Series.Sequence>
       <Series.Sequence durationInFrames={seq("title")}>
-        <Title big="SiteLens" line="Every answer proves itself." small="Junction 2026 · Stoa: Make Blueprints Talk" />
+        <Title big="Sindri" line="Every answer proves itself." small="Junction 2026 · Stoa: Make Blueprints Talk" />
       </Series.Sequence>
 
       {/* ONE PLACE FOR THE WHOLE SET */}
@@ -304,7 +306,7 @@ export const SiteLens: React.FC = () => (
       <Series.Sequence durationInFrames={seq("versus")}><Versus /></Series.Sequence>
       <Series.Sequence durationInFrames={seq("numbers")}><NumbersScene /></Series.Sequence>
       <Series.Sequence durationInFrames={seq("close")}>
-        <Title big="Ask. Check. Trust." line="Exact where the file allows. A detector for scans. A language model last." small="SiteLens · Junction 2026" bigSize={170} />
+        <Title big="Ask. Check. Trust." line="Exact where the file allows. A detector for scans. A language model last." small="Sindri · Junction 2026" bigSize={170} />
       </Series.Sequence>
     </Series>
   </AbsoluteFill>

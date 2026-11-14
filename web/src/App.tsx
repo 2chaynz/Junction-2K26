@@ -475,8 +475,8 @@ export default function App({ revisionDemo = false, sheetDemo = false }: { revis
       <header className="shell">
         <div className="top">
           <nav className="crumbbar" aria-label="Breadcrumb">
-            {revisionDemo ? <span className="brand">SiteLens</span> :
-              <button className="brand" onClick={() => setTab("Projects")} title="Home: all projects">SiteLens</button>}
+            {revisionDemo ? <span className="brand">Sindri</span> :
+              <button className="brand" onClick={() => setTab("Projects")} title="Home: all projects">Sindri</button>}
             {demoEntered && <><span className="sep">/</span><strong>{demoName}</strong></>}
             {inProject && project && (
               <>

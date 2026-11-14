@@ -11,7 +11,7 @@ export type Model = {
 };
 
 export const MODELS: Record<string, Model> = {
-  sitelens: { id: "sitelens", name: "SiteLens", maker: "sitelens", makerName: "us",
+  sitelens: { id: "sitelens", name: "Sindri", maker: "sitelens", makerName: "us",
     reads: "Reads the file's own data first (text, lines, model properties); a trained detector for scans; AI last." },
   "gemini-3.8-flash": { id: "gemini-3.8-flash", name: "Gemini 3.8 Flash", maker: "google", makerName: "Google",
     reads: "Sees the whole sheet as one image and answers from the picture." },
@@ -49,7 +49,7 @@ export const BOARDS: Board[] = [
     title: "Swiss apartment plans (vector PDF)",
     n: "40 questions · Stoa's held-out dev split · identical for every model",
     source: "eval.score --split dev --source swiss_dwellings --limit 40 (T20 run for the models, Sat 14 Nov)",
-    takeaway: "The answer is in the file. SiteLens reads it exactly; a vision model has to guess it from pixels.",
+    takeaway: "The answer is in the file. Sindri reads it exactly; a vision model has to guess it from pixels.",
     entries: [
       { model: "sitelens", acc: 100, cost: "€0" },
       { model: "gemini-3.8-flash", acc: 60, cost: "€0.021" },
@@ -101,7 +101,7 @@ export const BOARDS: Board[] = [
   },
 ];
 
-// SiteLens alone on Stoa's held-out dev split (preview set; the detector never trained on these plans).
+// Sindri alone on Stoa's held-out dev split (preview set; the detector never trained on these plans).
 // video/numbers.json, run Sat 14 Nov ~21:00.
 export const HELD_OUT = [
   { label: "BIM models (IFC)", n: 394, acc: 100 },
