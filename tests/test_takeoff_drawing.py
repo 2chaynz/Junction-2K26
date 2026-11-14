@@ -275,6 +275,7 @@ class DrawingTakeoff(unittest.TestCase):
         specs = {("Doors", tag, True): [tag] for tag in ("D1", "D2")}
         self.assertEqual(takeoff_2d._associate(doors, words, specs), {})
         self.assertEqual(takeoff_2d._associate(doors[:1], words[:1], specs, {"D1"}), {})
+        self.assertEqual(takeoff_2d._associate(doors[:1], words, specs, {"D1"}), {})
 
     def test_conflicting_mark_and_type_leave_size_unknown(self):
         door = Evidence("plan.pdf", [0, 0, 20, 10])
