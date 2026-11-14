@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 20:41 · ccolver · T65 PR #84: MSD overlap benchmark on 29 plans; geometry improved kitchen counts, default unchanged.
 - 2026-11-14 20:40 · ccolver · T66: PR #85 passes local checks; blocked after second cross-review on plan-tag placement and multi-tag lookup. Stoa preview has no matching questions.
 - 2026-11-14 20:39 · 2chaynz · T67 PR #86: highlight on scans reads labels with rotation-aware OCR (OH/MH/ET/K on colorful-2002, EUR 0, ~1.5s). Found: rapidocr missing from local venv, OCR silently off. T68 = same rotation for whole-sheet counts
 - 2026-11-14 20:30 · Asif · T61: merged PR #83: Projects tab, project-scoped explorer (typed subfolders), Ask sessions saved per project (/api/session). Restart the server to get the new routes
