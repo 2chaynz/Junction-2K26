@@ -87,4 +87,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T80 Takeoff: filter dropdowns + motion | app |  | ccolver | done | ccolver/T80-takeoff-filters |  |  |
 | T81 Fix Vitoria takeoff dimensions | app |  | ccolver | done | ccolver/T81-vitoria-dimensions |  |  |
 | T82 Judge-facing README | pitch |  | Asif | done | asif/T82-readme |  |  |
-| T83 English-only UI: translate loaded data | app |  |  | todo |  |  |  |
+| T83 English-only UI: translate loaded data | app |  | ccolver | doing | ccolver/T83-english-ui |  |  |
