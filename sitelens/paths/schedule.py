@@ -76,7 +76,10 @@ def _join_tokens(ws) -> list[tuple[float, float, str]]:
 
 @lru_cache(maxsize=32)
 def extract(path: str) -> list[Table]:
-    W = _words(path)
+    return extract_words(_words(path))
+
+
+def extract_words(W) -> list[Table]:
     tables = []
     titles = [w for w in W if w[4].lower() in ("schedule", "schedules", "key", "legend")]
     for i, w in enumerate(W):

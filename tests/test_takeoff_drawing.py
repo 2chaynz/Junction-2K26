@@ -54,11 +54,14 @@ class DrawingTakeoff(unittest.TestCase):
             self.assertIn("Dimensions could not be inferred.", unknown["reason"])
 
     def test_schedule_does_not_replace_same_or_later_page_counts(self):
-        for layout in ("schedule only", "same page", "later page"):
+        for layout in ("schedule only", "same page", "later page", "later schedule"):
             with self.subTest(layout=layout), tempfile.TemporaryDirectory() as d:
                 path = "Mixed.pdf"
                 with pymupdf.open() as doc:
                     page = doc.new_page()
+                    if layout == "later schedule":
+                        page.insert_text((110, 405), "101.A")
+                        page = doc.new_page()
                     page.insert_text((100, 80), "DOOR SCHEDULE")
                     for y, row in [(110, ("MARK", "TYPE", "WIDTH", "HEIGHT")),
                                    (130, ("101.A", "A1", "900mm", "2100mm")),
@@ -68,15 +71,19 @@ class DrawingTakeoff(unittest.TestCase):
                             page.insert_text((x, y), label, fontsize=8)
                     if layout == "later page":
                         page = doc.new_page()
-                    if layout != "schedule only":
+                    if layout in ("same page", "later page"):
                         page.insert_text((110, 405), "101.A")
+                    if layout == "schedule only":
+                        for x, label in [(100, "0"), (150, "2"), (200, "4"), (220, "m")]:
+                            page.insert_text((x - 2, 300), label, fontsize=8)
+                        page.draw_rect(pymupdf.Rect(100, 303, 200, 307))
                     doc.save(Path(d) / path)
 
                 def detected(path, page):
                     boxes = []
-                    if page.number == 0:
+                    if page.number == int(layout == "later schedule"):
                         boxes.append([100, 122, 150, 132])
-                    if (layout == "same page" and page.number == 0) or (
+                    if (layout in ("same page", "later schedule") and page.number == 0) or (
                         layout == "later page" and page.number == 1
                     ):
                         boxes.append([102, 390, 145, 414])
@@ -96,7 +103,7 @@ class DrawingTakeoff(unittest.TestCase):
                     self.assertEqual(row["type"], "A1")
                     self.assertIn("900mm", row["size"])
                     self.assertEqual(row["evidence"][0]["page"], int(layout == "later page"))
-                    self.assertEqual(row["dimension_evidence"][-1]["page"], 0)
+                    self.assertEqual(row["dimension_evidence"][-1]["page"], int(layout == "later schedule"))
 
     def test_disagreeing_scale_bars_do_not_produce_dimensions(self):
         from sitelens.measure import Scale

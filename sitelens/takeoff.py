@@ -102,10 +102,9 @@ def _ifc(path: str) -> dict:
     return {"source": "ifc", "rows": rows, "notes": notes}
 
 
-def _schedule(path: str) -> dict | None:
-    from .paths.schedule import extract
+def _schedule(path: str, page_tables) -> dict | None:
     rows: list[dict] = []
-    for t in extract(path):
+    for page, t in page_tables:
         cat = "Doors" if "door" in t.title.lower() else "Windows" if "window" in t.title.lower() else None
         if cat is None:
             continue
@@ -119,7 +118,7 @@ def _schedule(path: str) -> dict | None:
                 continue   # notes / sub-rows the table reader picked up: no type and no size
             g = groups[(typ, f"{w} × {h}" if w and h else w or h)]
             g["count"] += 1
-            g["evidence"].append(Evidence(file=path, bbox=box, label=f"{t.title}: {r[0]}", kind="text"))
+            g["evidence"].append(Evidence(file=path, bbox=box, page=page, label=f"{t.title}: {r[0]}", kind="text"))
         for (typ, size), g in groups.items():
             rows.append({"category": cat, "type": typ or "(no type)", "size": size, "count": g["count"], "levels": set(),
                          "length_m": 0.0, "area_m2": 0.0, "volume_m3": 0.0, "evidence": g["evidence"]})
