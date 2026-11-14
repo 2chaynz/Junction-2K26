@@ -350,7 +350,7 @@ def _page_schedules(page, words=None):
     return []
 
 
-def _framed_regions(page, heading):
+def _framed_regions(page, heading, max_fraction=1 / 3):
     """Use drawn view borders when a title alone cannot define the view extent."""
     import pymupdf
 
@@ -365,7 +365,7 @@ def _framed_regions(page, heading):
     regions = []
     for title in non_plan_titles:
         enclosing = [r for r in borders if r.contains(title) and r.width >= title.width + 8
-                     and r.height >= title.height * 4 and r.get_area() < page.rect.get_area() / 3]
+                     and r.height >= title.height * 4 and r.get_area() < page.rect.get_area() * max_fraction]
         if enclosing:
             regions.append(list(min(enclosing, key=lambda r: r.get_area()) * page.rotation_matrix))
     return regions
@@ -525,16 +525,27 @@ def _sheet(path, root, mtime, weights_mtime):
                 )
             has_other = bool(NON_PLAN_VIEW.search(outside_views)) or bool(excluded_views and not has_plan)
             multiple_views = len(plan_titles) > 1 or (has_plan and (has_other or bool(excluded_views)))
+            schedule_unbounded = _unbounded_schedule(text, tables, has_plan, bounded_schedule)
+            plan_frames = []
+            if schedule_unbounded and has_plan:
+                plan_frames = [frame for frame in _framed_regions(page, PLAN_TITLE, .9)
+                               if not any(pymupdf.Rect(frame).intersects(pymupdf.Rect(region))
+                                          for region in regions)
+                               and not SCHEDULE_TITLE.search(page.get_text(
+                                   clip=pymupdf.Rect(frame) * page.derotation_matrix))]
             objects = _vector(path) if page.number == 0 else []
             if not objects:
-                if has_other or _unbounded_schedule(text, tables, has_plan, bounded_schedule):
+                if has_other or (schedule_unbounded and not plan_frames):
                     excluded += 1
                 else:
                     objects = _detected(path, page)
+                    if plan_frames:
+                        objects = [obj for obj in objects if any(
+                            pymupdf.Rect(frame).contains(pymupdf.Rect(obj[1].bbox)) for frame in plan_frames)]
             objects = [obj for obj in objects if _outside_schedule(obj[1].bbox, regions)]
             scale_issue = (UNKNOWN_VIEW_SCALE
                            if NOT_TO_SCALE.search(text) else
-                           "This sheet has multiple views; the applicable scale is unknown." if multiple_views else "")
+                           "This sheet has multiple views; the applicable scale is unknown." if multiple_views or schedule_unbounded else "")
             pages.append((page.number, objects, words, bars, scale_issue, False))
         return pages, len(doc) > reviewed, page_tables, excluded
 
@@ -549,7 +560,7 @@ def takeoff(path):
 
     schedule = _schedule(path, page_tables) if page_tables else None
     if schedule and not any(objects for _, objects, _, _, _, _ in pages):
-        schedule["notes"].append("Placement counts were unavailable. Identifying a plan on a schedule page requires a recognizable plan heading or aligned drawing geometry.")
+        schedule["notes"].append("Placement counts were unavailable. A sheet with both a plan and a schedule needs a recognizable plan heading and a clear boundary, or aligned drawing geometry.")
         if truncated:
             schedule["notes"].append(f"Only the first {MAX_PAGES} PDF pages were reviewed.")
         if excluded:
@@ -586,7 +597,7 @@ def takeoff(path):
     if specs:
         notes.append("Numeric-only labels cannot be distinguished from dimensions and are not matched to schedules.")
     if excluded:
-        notes.append(f"Skipped symbol counts on {excluded} page(s) with non-plan or mixed views, or with a schedule but no plan title.")
+        notes.append(f"Skipped symbol counts on {excluded} page(s) where a plan could not be separated from other views or a schedule.")
     if not weights.exists():
         notes.append("Symbol detector weights are unavailable; only supported drawing geometry can be counted.")
     if not rows:

@@ -62,7 +62,7 @@ class DrawingTakeoff(unittest.TestCase):
             self.assertIn("Dimensions could not be inferred.", unknown["reason"])
 
     def test_schedule_does_not_replace_same_or_later_page_counts(self):
-        for layout in ("schedule only", "same page", "later page", "later schedule", "rotated", "unrelated placement", "numeric label"):
+        for layout in ("schedule only", "same page", "framed plan", "later page", "later schedule", "rotated", "unrelated placement", "numeric label"):
             with self.subTest(layout=layout), tempfile.TemporaryDirectory() as d:
                 path = "Mixed.pdf"
                 with pymupdf.open() as doc:
@@ -84,9 +84,11 @@ class DrawingTakeoff(unittest.TestCase):
                         page.set_rotation(270)
                     if layout == "later page":
                         page = doc.new_page()
-                    if layout in ("same page", "numeric label", "unrelated placement"):
+                    if layout in ("same page", "framed plan", "numeric label", "unrelated placement"):
                         page.insert_text((100, 380), "FIRST STOREY" if layout == "same page" else "LEVEL 01")
-                    if layout in ("same page", "later page", "numeric label"):
+                    if layout == "framed plan":
+                        page.draw_rect(pymupdf.Rect(90, 350, 480, 500))
+                    if layout in ("same page", "framed plan", "later page", "numeric label"):
                         page.insert_text((110, 405), "900" if layout == "numeric label" else "101.A")
                     if layout in ("schedule only", "rotated"):
                         for x, label in [(100, "0"), (150, "2"), (200, "4"), (220, "m")]:
@@ -98,11 +100,11 @@ class DrawingTakeoff(unittest.TestCase):
                     boxes = []
                     if page.number == int(layout == "later schedule"):
                         boxes.append([100, 122, 150, 132])
-                    if layout == "same page":
+                    if layout in ("same page", "framed plan"):
                         boxes.append([440, 105, 470, 130])
                     if layout in ("schedule only", "rotated"):
                         boxes.append([330, 122, 370, 155])
-                    if (layout in ("same page", "later schedule", "unrelated placement", "numeric label") and page.number == 0) or (
+                    if (layout in ("same page", "framed plan", "later schedule", "unrelated placement", "numeric label") and page.number == 0) or (
                         layout == "later page" and page.number == 1
                     ):
                         boxes.append([102, 390, 145, 414])
