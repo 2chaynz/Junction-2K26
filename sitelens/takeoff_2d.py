@@ -126,7 +126,7 @@ NON_PLAN_VIEW = re.compile(
 PLAN_TITLE = re.compile(
     r"(?im)^[ \t]*(?![^\r\n]*\bschedules?\b)(?:[\w-]+[ \t]+){0,5}"
     r"(?:floor plans?|level plans?|ground plans?|grundriss|pohjapiirustus|storeys?|stories|story|floors?|levels?|(?:level|floor|storey|story)[ \t]+-?\d+[A-Z]?)"
-    r"(?:[ \t]+[\w-]+){0,3}[ \t]*$"
+    r"(?:[ \t]+(?:[-??][ \t]+)?[\w-]+){0,4}[ \t]*$"
 )
 UNKNOWN_VIEW_SCALE = "This sheet has a not-to-scale label; the applicable scale is unknown."
 NOT_TO_SCALE = re.compile(r"\b(?:not[ \t]+to[ \t]+scale|N\.?[ \t]*T\.?[ \t]*S\.?)\b", re.I)
@@ -419,6 +419,16 @@ def _unbounded_schedule(text, tables, has_plan, bounded=False):
     return bool((SCHEDULE_TITLE.search(text) or tables) and not (bounded and has_plan))
 
 
+def _plan_heading_count(labels, width, height):
+    headings = [(label.strip().casefold(), box) for label, box in labels if PLAN_TITLE.fullmatch(label)]
+    counts = Counter(label for label, _ in headings)
+    for label, box in headings:
+        x, y = measure._centre(box)
+        if x > .6 * width and y > .88 * height and counts[label] > 1:
+            counts[label] -= 1
+    return sum(counts.values())
+
+
 def _scan_metadata(labels, load_image, native_text="", has_schedule=False, bounded_schedule=False, allow_unlabeled=False):
     text = "\n".join([*(label for label, _ in labels), *native_text.splitlines()])
     has_plan = bool(PLAN_TITLE.search(text))
@@ -528,8 +538,14 @@ def _sheet(path, root, mtime, weights_mtime):
             regions.extend(excluded_views)
             words = [(token, box) for token, box in words if _outside_schedule(box, excluded_views)]
             bars = _pdf_bars(path, page, words)
-            plan_titles = list(PLAN_TITLE.finditer(text))
-            has_plan = bool(plan_titles)
+            title_boxes = [
+                ("".join(span["text"] for span in line["spans"]),
+                 list(pymupdf.Rect(line["bbox"]) * page.rotation_matrix))
+                for block in page.get_text("dict", flags=pymupdf.TEXTFLAGS_TEXT)["blocks"]
+                for line in block.get("lines", [])
+            ]
+            plan_count = _plan_heading_count(title_boxes, page.rect.width, page.rect.height)
+            has_plan = bool(plan_count)
             outside_views = text
             if excluded_views:
                 outside_views = "\n".join(
@@ -539,7 +555,7 @@ def _sheet(path, root, mtime, weights_mtime):
                     if _outside_schedule(list(pymupdf.Rect(line["bbox"]) * page.rotation_matrix), excluded_views)
                 )
             has_other = bool(NON_PLAN_VIEW.search(outside_views)) or bool(excluded_views and not has_plan)
-            multiple_views = len(plan_titles) > 1 or (has_plan and (has_other or bool(excluded_views or tables)))
+            multiple_views = plan_count > 1 or (has_plan and (has_other or bool(excluded_views or tables)))
             schedule_unbounded = _unbounded_schedule(text, tables, has_plan, bounded_schedule)
             plan_frames = []
             if (schedule_unbounded or has_other) and has_plan:
@@ -551,7 +567,7 @@ def _sheet(path, root, mtime, weights_mtime):
                                            for pattern in (SCHEDULE_TITLE, NON_PLAN_VIEW))]
             objects = _vector(path) if page.number == 0 else []
             if not objects:
-                if len(plan_titles) != 1 or ((has_other or schedule_unbounded) and not plan_frames):
+                if plan_count != 1 or ((has_other or schedule_unbounded) and not plan_frames):
                     excluded += 1
                 else:
                     objects = _detected(path, page)
