@@ -21,3 +21,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T14 Cache per-drawing extraction (Index) | ai |  |  | todo |  |  |  |
 | T15 Revision diff: what changed between two sheet issues | ai |  | ccolver | done | ccolver/T15-revision-diff |  |  |
 | T16 Agent heartbeat, stale flag, needs-human lane, worker loop | setup |  | Asif | done | asif/T16-autobeat-fix |  |  |
+| T17 Detector on AECV-Bench: outside benchmark vs VLMs | eval | T6 |  | todo |  |  |  |
