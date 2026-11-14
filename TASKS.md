@@ -71,5 +71,5 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T64 Localize BIM floors and accept unquoted questions | app |  | ccolver | done | ccolver/T64-bim-language |  |  |
 | T65 Benchmark geometry-based raster room counts | eval | T19 | ccolver | review | ccolver/T65-msd-rooms |  |  |
 | T66 Link plan locations to schedules and details | ai | T11 | ccolver | doing | ccolver/T66-plan-reference |  |  |
-| T67 Highlight on scans: OCR the marked spot before the VLM | ai | T49 | 2chaynz | doing | 2chaynz/T67-region-ocr |  |  |
+| T67 Highlight on scans: OCR the marked spot before the VLM | ai | T49 | 2chaynz | review | 2chaynz/T67-region-ocr |  |  |
 | T68 Rotation-aware whole-sheet OCR for room counts | ai |  |  | todo |  |  |  |
