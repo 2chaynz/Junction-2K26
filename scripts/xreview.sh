@@ -32,6 +32,8 @@ PR="${1:?usage: xreview.sh <pr> [--author claude|codex]}"
 AUTHOR=claude
 [ "${2:-}" = "--author" ] && AUTHOR="${3:?claude or codex}"
 
+# merge.sh only accepts a review of the current head commit.
+SHA="$(gh pr view "$PR" --json headRefOid --jq .headRefOid)"
 out="$(mktemp)"
 trap 'rm -f "$out"' EXIT
 if [ "$AUTHOR" = claude ] && CODEX="$(find_codex)"; then
@@ -48,5 +50,9 @@ fi
 
 head -1 "$out"
 grep -qE '^Cross-review: (PASS|BLOCKING)' "$out" || { echo "review output malformed, not posting" >&2; cat "$out" >&2; exit 1; }
+printf '
+
+Reviewed commit: %s
+' "$SHA" >> "$out"
 gh pr comment "$PR" --body-file "$out" >/dev/null
 echo "posted on PR #$PR"

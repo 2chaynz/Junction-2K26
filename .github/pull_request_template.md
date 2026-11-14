@@ -13,4 +13,4 @@ T?
 None. (Or: exact steps and what you should see.)
 
 ## Cross-review
-Posted as a PR comment starting with `Cross-review:`.
+Posted as a PR comment starting with `Cross-review:`. Merged by `bash scripts/merge.sh <n>` once PASS + CI green.
