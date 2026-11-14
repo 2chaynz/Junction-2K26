@@ -40,7 +40,6 @@ REGION_MIN = 3    # cells: smaller regions are render noise
 TABLE_GAP = 25.0  # pt: text changes this close belong to one table
 TABLE_MIN = 8     # text changes in one cluster before it is reported as one reworked table
 ORDER = ("changed", "removed", "added", "table", "drawing")  # most telling first
-MAX_ITEMS = 60
 
 
 LONG = "\\\\?\\"
@@ -314,11 +313,9 @@ def diff(old: str, new: str, old_page: int = 0, new_page: int = 0) -> Answer:
         ev.append(Evidence(new, _bbox(fitz.Rect(x0, y0, x1, y1) / RES), new_page, f"drawing: {what}", "box"))
     ev.sort(key=lambda e: next(i for i, k in enumerate(ORDER) if e.label.startswith(k)))
     trace.append(f"geometry: {int(gone.sum())} ink px gone, {int(came.sum())} new → {len(regs)} regions")
-    if len(ev) > MAX_ITEMS:
-        trace.append(f"showing first {MAX_ITEMS} of {len(ev)} items")
     trace.append(f"diff, {time.time() - t0:.2f}s")
     return Answer(value=len(ev), unit="count", method="diff", confidence=0.8,
-                  evidence=ev[:MAX_ITEMS], trace=trace)
+                  evidence=ev, trace=trace)
 
 
 def pairs() -> list[dict]:
