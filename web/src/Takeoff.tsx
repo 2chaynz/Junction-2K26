@@ -16,12 +16,13 @@ export type Row = {
   specifications?: string[];
   reason?: string[];
 };
-type Data = { path: string; source: "ifc" | "schedule" | "drawing" | "none"; rows: Row[]; notes: string[] };
+type Data = { path: string; source: "ifc" | "schedule" | "drawing" | "detector" | "none"; rows: Row[]; notes: string[] };
 
 const SOURCE: Record<Data["source"], string> = {
   ifc: "BIM model (IFC)",
   schedule: "door / window schedule on the sheet",
   drawing: "drawing and matching schedules",
+  detector: "symbol detector on the scan",
   none: "",
 };
 
@@ -31,20 +32,21 @@ const CSS = `
 .takeoff h1 { font-size: 22px; margin: 0 0 4px; }
 .tk-head { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 18px; }
 .tk-head .btn { text-decoration: none; color: inherit; }
-.tk-sum { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
-.tk-stat { display: flex; flex-direction: column; padding: 8px 14px; border: 1px solid var(--line); border-radius: var(--r); min-width: 92px; }
-.tk-stat .mono { font-size: 20px; }
-.tk-stat .dim { font-size: 12px; }
+.tk-filter { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; margin: 0 0 20px; }
+.tk-filter label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
+.tk-filter select { font: inherit; padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--bg); }
+.tk-filter output { color: var(--dim); padding-bottom: 7px; }
+.tk-name { text-align: left; text-decoration: underline; text-underline-offset: 3px; font-weight: 600; }
+.tk-table-wrap { overflow-x: auto; }
+.tk-table { min-width: 520px; }
+.tk-detail { padding: 14px; background: var(--canvas); }
+.tk-detail summary { cursor: pointer; }
+.tk-instances { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-top: 10px; }
 .tk-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
 .tk-table th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); padding: 6px 8px; border-bottom: 1px solid var(--line-strong); }
 .tk-table th:nth-child(1) { width: 34%; }
 .tk-table td { padding: 5px 8px; border-bottom: 1px solid var(--line); }
 .tk-table .r { text-align: right; }
-.tk-cat td { padding-top: 16px; font-weight: 600; border-bottom: 1px solid var(--line-strong); }
-.tk-row { cursor: pointer; }
-.tk-row:hover { background: var(--canvas); }
-.tk-go { color: var(--red); font-size: 12px; text-align: right; opacity: 0; width: 64px; }
-.tk-row:hover .tk-go { opacity: 1; }
 .tk-basis { display: block; white-space: normal; overflow-wrap: anywhere; margin-top: 4px; }
 .tk-basis a { display: block; margin-top: 4px; }
 .tk-basis summary { cursor: pointer; }
@@ -57,117 +59,140 @@ const evidenceUrl = (e: Evidence) => "/api/file?" + new URLSearchParams({
 });
 const num = (v: number, d = 1) => (v ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : "");
 
-export default function Takeoff({ path, name, onShow }: { path: string; name: string; onShow: (r: Row) => void }) {
+const PROJECT_LANGUAGES: Record<string, string> = { "bsc-esplanades": "et" };
+
+export function projectLanguage(path: string, fallback = document.documentElement.lang || "en") {
+  const project = Object.keys(PROJECT_LANGUAGES).find((name) => path.split("/").pop()?.startsWith(name + "_"));
+  return project ? PROJECT_LANGUAGES[project] : fallback;
+}
+
+export function levelLabel(name: string, language: string) {
+  const locale = language.split("-")[0];
+  const labels: Record<string, string[]> = {
+    en: ["Floor", "Roof", "Foundation"], et: ["Korrus", "Katus", "Vundament"],
+    fi: ["Kerros", "Katto", "Perustus"], de: ["Geschoss", "Dach", "Fundament"],
+    fr: ["Étage", "Toit", "Fondation"], da: ["Etage", "Tag", "Fundament"],
+    uk: ["Поверх", "Дах", "Фундамент"],
+  };
+  const [floor, roof, foundation] = labels[locale] ?? labels.en;
+  const n = name.match(/^(?:floor|level)\s+(\d+)$/i) ?? name.match(/^(\d+)\.\s*korrus$/i);
+  if (n) return locale === "et" ? `${n[1]}. korrus` : `${floor} ${n[1]}`;
+  if (/^(roof|katus)$/i.test(name)) return roof;
+  if (/^(foundation|vundament)$/i.test(name)) return foundation;
+  return name;
+}
+
+function ItemDetails({ row, language, onShow }: {
+  row: Row; language: string; onShow: (r: Row, instance?: number) => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const instances = row.evidence.map((item, i) => item.ifc_guid ? { item, i } : null).filter((item) => item !== null);
+
+  return (
+    <div className="tk-detail">
+      <strong>{row.type}</strong>
+      <p>{[row.size, `${row.count} items`, row.levels.map((name) => levelLabel(name, language)).join(", ")].filter(Boolean).join(" · ")}</p>
+      <button className="btn" onClick={() => onShow(row)}>{instances.length ? "Show group in BIM" : "Show on drawing"}</button>
+      {instances.length > 0 && <div className="tk-instances">
+        <label>Element <select value={index} onChange={(e) => setIndex(Number(e.target.value))}>
+          {instances.map(({ item, i }, n) => <option key={item.ifc_guid} value={n}>{n + 1}. {item.label}</option>)}
+        </select></label>
+        <button className="btn" onClick={() => onShow(row, instances[index].i)}>Open in BIM</button>
+      </div>}
+    </div>
+  );
+}
+
+export default function Takeoff({ path, name, language, onShow }: {
+  path: string; name: string; language: string; onShow: (r: Row, instance?: number) => void;
+}) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState("");
+  const [category, setCategory] = useState("");
+  const [detail, setDetail] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!path) return;
-    const request = new AbortController();
     setData(null);
     setError("");
-    fetch(url(path), { signal: request.signal })
+    setCategory("");
+    setDetail(null);
+    if (!path) return;
+    const controller = new AbortController();
+    fetch(url(path), { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`takeoff: ${r.status}`))))
-      .then((result) => { if (!request.signal.aborted) setData(result); })
-      .catch((e) => { if (!request.signal.aborted) setError(String(e)); });
-    return () => request.abort();
+      .then((result) => { if (!controller.signal.aborted) setData(result); })
+      .catch((e) => { if (!controller.signal.aborted) setError(String(e)); });
+    return () => controller.abort();
   }, [path]);
 
-  const cats = data ? [...new Set(data.rows.map((r) => r.category))] : [];
-  const showQty = !!data?.rows.some((r) => r.length_m || r.area_m2 || r.volume_m3);
+  const counts = new Map<string, number>();
+  for (const r of data?.rows ?? []) counts.set(r.category, (counts.get(r.category) ?? 0) + r.count);
+  const selected = category || counts.keys().next().value || "";
+  const rows = data?.rows.filter((r) => r.category === selected) ?? [];
+  const total = counts.get(selected) ?? 0;
+  const quantities = [
+    { key: "length_m", label: "Length (m)" },
+    { key: "area_m2", label: "Area (m\u00b2)" },
+    { key: "volume_m3", label: "Volume (m\u00b3)" },
+  ].filter(({ key }) => rows.some((r) => r[key as "length_m" | "area_m2" | "volume_m3"]));
 
   return (
     <div className="page takeoff">
       <style>{CSS}</style>
       <div className="tk-head">
-        <div>
-          <h1>Takeoff</h1>
-          <div className="dim">
-            <span className="mono">{name}</span>
-            {data && data.source !== "none" && <> · from the {SOURCE[data.source]} · €0</>}
-          </div>
-        </div>
+        <div><h1>Takeoff</h1><div className="dim">{data?.source && data.source !== "none" ? SOURCE[data.source] : name}</div></div>
         <span className="spacer" />
-        {data && data.rows.length > 0 && (
-          <a className="btn" href={url(path, true)} download>
-            Download CSV
-          </a>
-        )}
+        {counts.size > 0 && <a className="btn" href={url(path, true)} download>Download full CSV</a>}
       </div>
-      {error && <p>{error}</p>}
-      {!data && !error && <p className="dim">Reading the drawing…</p>}
-      {data && data.rows.length === 0 && <p className="dim">{data.notes.join(" ")}</p>}
-      {data && data.rows.length > 0 && (
-        <>
-          <div className="tk-sum">
-            {cats.map((c) => (
-              <div key={c} className="tk-stat">
-                <span className="mono">{data.rows.filter((r) => r.category === c).reduce((a, r) => a + r.count, 0)}</span>
-                <span className="dim">{c.toLowerCase()}</span>
-              </div>
-            ))}
-          </div>
-          <table className="tk-table">
-            <thead>
+      {error && <p role="alert">{error}</p>}
+      {!data && !error && <p className="dim">{path ? "Reading the drawing…" : "Open a drawing or model to see its takeoff."}</p>}
+      {data && !counts.size && <p className="dim">{data.notes.join(" ")}</p>}
+      {rows.length > 0 && <>
+        <div className="tk-filter">
+          <label>Item type
+            <select value={selected} onChange={(e) => { setCategory(e.target.value); setDetail(null); }}>
+              {[...counts].map(([label, count]) => <option key={label} value={label}>{label} ({count})</option>)}
+            </select>
+          </label>
+          <output>{total.toLocaleString(language)} items across {rows.length} {rows.length === 1 ? "group" : "groups"}</output>
+        </div>
+        <div className="tk-table-wrap"><table className="tk-table">
+          <thead><tr><th>Type</th><th>Size</th><th className="r">Count</th><th>Levels</th>
+            {quantities.map(({ key, label }) => <th key={key} className="r">{label}</th>)}
+          </tr></thead>
+          {rows.map((r, index) => {
+            const levels = Object.entries(r.by_level ?? {});
+            const label = (name: string) => levelLabel(name, language);
+            return <tbody key={`${r.type}|${r.size}|${index}`}>
               <tr>
-                <th>Type</th>
-                <th>Size</th>
-                <th className="r">Count</th>
-                <th>Levels</th>
-                {showQty && <th className="r">Length m</th>}
-                {showQty && <th className="r">Area m²</th>}
-                {showQty && <th className="r">Volume m³</th>}
-                <th />
+                <td>{r.evidence.some((e) => e.ifc_guid || e.bbox.length === 4) ?
+                  <button className="tk-name" aria-expanded={detail === index} onClick={() => setDetail(detail === index ? null : index)}>{r.type}</button> : r.type}</td>
+                <td>
+                  <span className="mono">{r.size || <span className="dim">Unknown</span>}</span>
+                  {!!(r.reason?.length || r.specifications?.length || r.dimension_evidence?.length) && (
+                    <details className="tk-basis">
+                      <summary>Why this size?</summary>
+                      {r.reason?.map((line) => <p key={line}>{line}</p>)}
+                      {r.specifications?.map((spec) => <p key={spec}>{spec}</p>)}
+                      {r.dimension_evidence?.filter((e) => e.bbox.length === 4).map((e, i) => (
+                        <a key={i} target="_blank" rel="noreferrer" href={evidenceUrl(e)}
+                          title={`${e.file}, page ${e.page + 1}`}>
+                          {e.label} &middot; {e.file.split("/").pop()} p.{e.page + 1}
+                        </a>
+                      ))}
+                    </details>
+                  )}
+                </td>
+                <td className="r mono">{r.count}</td>
+                <td className="dim">{levels.length > 1 ? levels.map(([name, count]) => `${label(name)} (${count})`).join(" · ") : r.levels.map(label).join(", ") || "—"}</td>
+                {quantities.map(({ key }) => <td key={key} className="r mono">{num(r[key as "length_m" | "area_m2" | "volume_m3"], 2) || "—"}</td>)}
               </tr>
-            </thead>
-            {cats.map((c) => (
-              <tbody key={c}>
-                <tr className="tk-cat">
-                  <td colSpan={showQty ? 8 : 5}>{c}</td>
-                </tr>
-                {data.rows
-                  .filter((r) => r.category === c)
-                  .map((r, k) => (
-                    <tr key={k} className="tk-row" onClick={() => onShow(r)} title="Show these on the drawing">
-                      <td className="ellipsis" title={r.type}>{r.type}</td>
-                      <td>
-                        <span className="mono">{r.size || <span className="dim">Unknown</span>}</span>
-                        {!!r.reason?.length && (
-                          <details className="tk-basis" onClick={(event) => event.stopPropagation()}>
-                            <summary>Why this size?</summary>
-                            {r.reason.map((line) => <p key={line}>{line}</p>)}
-                            {r.specifications?.map((spec) => <p key={spec}>{spec}</p>)}
-                            {r.dimension_evidence?.filter((e) => e.bbox.length === 4).map((e, i) => (
-                              <a key={i} target="_blank" rel="noreferrer" href={evidenceUrl(e)}
-                                title={`${e.file}, page ${e.page + 1}`}>
-                                {e.label} &middot; {e.file.split("/").pop()} p.{e.page + 1}
-                              </a>
-                            ))}
-                          </details>
-                        )}
-                      </td>
-                      <td className="r mono">{r.count}</td>
-                      <td className="dim ellipsis" title={r.levels.join(", ")}>
-                        {Object.keys(r.by_level ?? {}).length > 1
-                          ? Object.entries(r.by_level).map(([l, n]) => `${l} ${n}`).join(" · ")
-                          : r.levels.join(", ")}
-                      </td>
-                      {showQty && <td className="r mono">{num(r.length_m)}</td>}
-                      {showQty && <td className="r mono">{num(r.area_m2)}</td>}
-                      {showQty && <td className="r mono">{num(r.volume_m3, 2)}</td>}
-                      <td className="tk-go">show ›</td>
-                    </tr>
-                  ))}
-              </tbody>
-            ))}
-          </table>
-          <ul className="tk-notes dim">
-            {data.notes.map((n) => (
-              <li key={n}>{n}</li>
-            ))}
-          </ul>
-        </>
-      )}
+              {detail === index && <tr><td colSpan={4 + quantities.length}><ItemDetails row={r} language={language} onShow={onShow} /></td></tr>}
+            </tbody>;
+          })}
+        </table></div>
+        {data && data.notes.length > 0 && <details className="tk-notes"><summary>Measurement notes</summary><ul>{data.notes.map((note) => <li key={note}>{note}</li>)}</ul></details>}
+      </>}
     </div>
   );
 }
