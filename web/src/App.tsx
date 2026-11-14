@@ -6,13 +6,16 @@ import Chat from "./Chat";
 import Explorer from "./Explorer";
 import { Splitter, usePanels } from "./Splitter";
 import { SOURCE_LABEL, TYPE, floorsOf, fmtSize, pickChips, sheetCode, shortName } from "./format";
+import ProjectMenu from "./ProjectMenu";
 import HowItWorks from "./HowItWorks";
 import Measure from "./Measure";
+import ProjectOverview from "./Overview";
 import Projects from "./Projects";
 import {
   type Overview, type Recent, type SessionSummary, buildProjects, deleteSession, getRecent, getSession, listSessions,
-  newSessionId, projectKeyOf, saveSession, sessionsOverview, touchRecent,
+  newSessionId, projectKeyOf, saveSession, sessionsOverview, sheetName, touchRecent,
 } from "./workspace";
+import "./shell.css";
 import Takeoff, { type Row } from "./Takeoff";
 import Stack from "./Stack";
 import type { Answer, Drawing, Mark, Msg, Shape, Step, Tool } from "./types";
@@ -22,8 +25,10 @@ import VlmBadge from "./VlmBadge";
 // three.js + web-ifc are ~4 MB: only fetch them when a model is opened in 3D.
 const Model3D = lazy(() => import("./Model3D"));
 
-const TABS = ["Projects", "Ask", "How it works", "Benchmark"] as const;
-type Tab = (typeof TABS)[number] | "Takeoff";
+// Two levels, like Photoshop / Figma: a start screen with global pages, then tabs inside one project.
+const HOME_TABS = ["Projects", "How it works", "Benchmark"] as const;
+const PROJECT_TABS = ["Overview", "Drawings", "Takeoff"] as const;
+type Tab = (typeof HOME_TABS)[number] | (typeof PROJECT_TABS)[number];
 type SheetDrawing = Drawing & { model?: string | null };
 
 function SheetInfo({ d, all, view, size, onModel }: {
@@ -88,7 +93,7 @@ function SheetInfo({ d, all, view, size, onModel }: {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>("Ask");
+  const [tab, setTab] = useState<Tab>("Projects");
   const [drawings, setDrawings] = useState<SheetDrawing[]>([]);
   const [path, setPath] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -129,14 +134,12 @@ export default function App() {
         const p = u.get("path"), q = u.get("q");
         if (p && d.some((x) => x.path === p)) {
           setPath(p);
-    setMode("plan");
+          setMode("plan");
+          const t = u.get("tab");
+          setTab(PROJECT_TABS.find((x) => x.toLowerCase() === t?.toLowerCase()) ?? "Drawings");
           if (q) run(p, q);
-          return;
         }
-        // Back to the project you were last in; first visit starts on the project list.
-        const last = Object.entries(getRecent()).sort((a, b) => b[1].t - a[1].t).find(([, r]) => d.some((x) => x.path === r.path));
-        if (last) setPath(last[1].path);
-        else setTab("Projects");
+        // Otherwise start on the project list: "Continue where you left off" resumes the last sheet.
       })
       .catch((e) => setError(String(e)));
   }, []);
@@ -145,8 +148,9 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (e.key === "/" && t.tagName !== "INPUT" && t.tagName !== "TEXTAREA") {
+        if (!curProj.current) return;
         e.preventDefault();
-        setTab("Ask");
+        setTab("Drawings");
         setTimeout(() => search.current?.focus());
       }
     };
@@ -228,8 +232,8 @@ export default function App() {
     setFocus(null);
   }
 
-  function select(p: string) {
-    setTab("Ask");
+  function select(p: string, to: Tab = "Drawings") {
+    setTab(to);
     if (p === path) return;
     setPath(p);
     setSize(null);
@@ -265,7 +269,7 @@ export default function App() {
 
   async function openSession(id: string) {
     if (!projKey || busy) return;
-    if (id === sid) return setTab("Ask");
+    if (id === sid) return setTab("Drawings");
     try {
       // Still answering in the background: take that live copy back, the server one lacks the pending answer.
       const live = parked.current.get(id);
@@ -276,7 +280,7 @@ export default function App() {
       sessProj.current = projKey;
       setSid(id);
       setMsgs(ms);
-      setTab("Ask");
+      setTab("Drawings");
       setDraft("");
       setMark(null);
       setPen(false);
@@ -306,8 +310,8 @@ export default function App() {
     const p = projects.find((x) => x.key === key);
     if (!p) return;
     const target = [at, recent[key]?.path, p.cover?.path].find((x) => x && p.items.some((d) => d.path === x));
-    if (target) select(target);
-    setTab("Ask");
+    // A named sheet (resume, search hit) opens it; a project card opens its overview first.
+    if (target) select(target, at ? "Drawings" : "Overview");
   }
 
   async function run(p: string, q: string) {
@@ -362,7 +366,7 @@ export default function App() {
       trace: [`takeoff row: ${label}`, `${r.count} element(s)${r.levels.length ? ` on ${r.levels.join(", ")}` : ""}`],
       time_s: 0, view: drawing?.view ?? path,
     };
-    setTab("Ask");
+    setTab("Drawings");
     setChOn(false);
     setHover(null);
     setFocus(null);
@@ -371,6 +375,13 @@ export default function App() {
       setActive(m.length + 1);
       return [...m, { kind: "user", path, text: `Takeoff: ${label}` }, { kind: "answer", path, question: label, answer: a, steps: [] }];
     });
+  }
+
+  function toggleMeasure() {
+    setMsOn((v) => !v);
+    setChOn(false);
+    setTool(null);
+    setShapes([]);
   }
 
   async function onRandom() {
@@ -383,6 +394,8 @@ export default function App() {
     }
   }
 
+  const inProject = (PROJECT_TABS as readonly string[]).includes(tab) && !!project;
+  const folder = project?.folders.find((f) => f.items.some((d) => d.path === path)) ?? null;
   const sessionTitle =
     sessions.find((x) => x.id === sid)?.title ?? msgs.find((m): m is Extract<Msg, { kind: "user" }> => m.kind === "user")?.text ?? "New session";
   const act = active !== null ? msgs[active] : null;
@@ -404,61 +417,70 @@ export default function App() {
   const chAnswer = useMemo(() => (ch?.answer ? onNewSheet(ch.answer, view) : null), [ch, view]);
 
   return (
-    <div className={`app ${tab === "Ask" ? "" : "paged"}`}>
-      <header className="top">
-        <span className="brand">SiteLens</span>
-        {project && (
-          <button className="projchip" onClick={() => setTab("Projects")} title="Switch project">
-            <span className="k">Project</span>
-            <span className="ellipsis">{project.name}</span>
-            <span className="caret">▾</span>
+    <div className={`app ${tab === "Drawings" ? "" : "paged"}`}>
+      <header className={`top ${inProject ? "inproj" : ""}`}>
+        <button className="brand" onClick={() => setTab("Projects")} title="Home: all projects">SiteLens</button>
+        {inProject && project ? (
+          <>
+            <nav className="crumbbar" aria-label="Breadcrumb">
+              <span className="sep">/</span>
+              <ProjectMenu
+                project={project}
+                projects={projects}
+                recent={recent}
+                onOpen={(k) => openProject(k)}
+                onHome={() => setTab("Projects")}
+              />
+              {tab === "Drawings" && drawing && folder && (
+                <>
+                  <span className="sep">/</span>
+                  <button className="crumb dim ellipsis" onClick={() => setTab("Overview")} title="Project overview">{folder.label}</button>
+                  <span className="sep">/</span>
+                  <span className="crumb cur ellipsis" title={drawing.path}>
+                    {sheetName(drawing)} <span className="mono dim">{sheetCode(allPaths, drawing.path, drawing.source)}</span>
+                  </span>
+                </>
+              )}
+            </nav>
+            <nav className="tabs">
+              {PROJECT_TABS.map((t) => (
+                <button key={t} className={t === tab ? "on" : ""} onClick={() => setTab(t)}>
+                  {t}
+                </button>
+              ))}
+            </nav>
+          </>
+        ) : (
+          <nav className="tabs">
+            {HOME_TABS.map((t) => (
+              <button key={t} className={t === tab ? "on" : ""} onClick={() => setTab(t)}>
+                {t}
+              </button>
+            ))}
+          </nav>
+        )}
+        <span className="spacer" />
+        {!inProject && project && (
+          <button className="btn resume" onClick={() => setTab("Drawings")} title="Back to the open project">
+            Back to <span className="ellipsis">{project.name}</span> ›
           </button>
         )}
-        <nav className="tabs">
-          {TABS.map((t) => (
-            <button key={t} className={t === tab ? "on" : ""} onClick={() => setTab(t)}>
-              {t}
-            </button>
-          ))}
-        </nav>
-        <span className="spacer" />
         <VlmBadge />
-        <details className="tools-menu" onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.currentTarget.open = false;
-            event.currentTarget.querySelector("summary")?.focus();
-          }
-        }} onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
-        }}>
-          <summary className={`btn ${msOn || tab === "Takeoff" ? "on" : ""}`}>Tools</summary>
-          <div className="tools-options">
-            <button type="button" disabled={!path} onClick={(event) => {
-              const menu = event.currentTarget.closest("details");
-              if (menu) {
-                menu.open = false;
-                menu.querySelector("summary")?.focus();
-              }
-              setTab("Ask");
-              setMsOn(tab !== "Ask" || !msOn);
-              setChOn(false);
-              setTool(null);
-              setShapes([]);
-            }}>{tab === "Ask" && msOn ? "Close Measure" : "Measure"}</button>
-            <button type="button" disabled={!path} onClick={(event) => {
-              const menu = event.currentTarget.closest("details");
-              if (menu) {
-                menu.open = false;
-                menu.querySelector("summary")?.focus();
-              }
-              setMsOn(false);
-              setTab("Takeoff");
-            }}>Takeoff</button>
-          </div>
-        </details>
-        {tab === "Ask" && <button className="btn" onClick={onRandom}>Random question</button>}
       </header>
 
+      {tab === "Overview" && project && (
+        <main className="pagewrap">
+          <ProjectOverview
+            project={project}
+            sessions={sessions}
+            lastPath={recent[project.key]?.path ?? null}
+            onOpen={(p) => select(p)}
+            onAsk={(p, q) => (select(p), setDraft(q))}
+            onSession={openSession}
+            onTakeoff={() => setTab("Takeoff")}
+          />
+        </main>
+      )}
       {tab === "Takeoff" && (
         <main className="pagewrap">
           <Takeoff path={path} name={path.split("/").pop() ?? ""} onShow={showRow} />
@@ -472,7 +494,7 @@ export default function App() {
         </main>
       )}
 
-      <div className="askview" hidden={tab !== "Ask"} {...panels.props}>
+      <div className="askview" hidden={tab !== "Drawings"} {...panels.props}>
         <Explorer
           ref={search}
           drawings={drawings}
@@ -480,7 +502,6 @@ export default function App() {
           project={project}
           selected={path}
           onSelect={select}
-          onProjects={() => setTab("Projects")}
           sessions={sessions}
           session={sid}
           onSession={openSession}
@@ -539,6 +560,11 @@ export default function App() {
                 onShapeClick={setMsHot}
                 onDraw={setDrawn}
                 zoomTo={msOn ? zoomTo : null}
+                extra={!showCh && !view.endsWith(".ifc") && (
+                  <button className={msOn ? "on" : ""} onClick={toggleMeasure} title="Measure lengths and areas, set the scale">
+                    Measure
+                  </button>
+                )}
               />
             ) : (
               <div className="empty">{error || "Loading drawings…"}</div>
@@ -605,6 +631,7 @@ export default function App() {
               <span className="k">Session</span>
               <span className="ellipsis" title={sessionTitle}>{sessionTitle}</span>
               <span className="spacer" />
+              <button className="new" onClick={onRandom} disabled={busy} title="Pick a random Stoa question">Random</button>
               {sessions.some((x) => x.id === sid) && <span className="saved">saved to {project?.name}</span>}
               <button className="new" onClick={newSession} disabled={!msgs.length || busy} title="Start a fresh conversation">
                 + New

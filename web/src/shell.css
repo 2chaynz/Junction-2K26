@@ -1,0 +1,77 @@
+/* App shell (T70): Home → project breadcrumb → project tabs. Same tokens as styles.css. */
+.top .brand { padding: 0; margin-right: 4px; }
+.top .brand:hover { color: var(--red); }
+.top.inproj .tabs { margin-left: 8px; padding-left: 8px; border-left: 1px solid var(--line); height: 60%; align-items: stretch; }
+.top.inproj .tabs button { height: auto; margin-bottom: -9px; padding-bottom: 7px; }
+
+.crumbbar { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; font-size: 14px; }
+.crumbbar .sep { color: var(--line-strong); }
+.crumbbar .crumb { max-width: 240px; }
+.crumbbar button.crumb:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.crumbbar .crumb.cur { color: var(--ink); }
+.crumbbar .crumb.cur .mono { margin-left: 4px; }
+
+.pmenu { position: relative; z-index: 6; min-width: 0; }
+.pmenu summary { list-style: none; display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600; padding: 4px 8px; margin: 0 -8px; border-radius: var(--r); }
+.pmenu summary::-webkit-details-marker { display: none; }
+.pmenu summary:hover, .pmenu[open] summary { background: var(--canvas); }
+.pmenu .caret { color: var(--dim); font-size: 10px; font-weight: 400; }
+.pmenu-list { position: absolute; top: calc(100% + 6px); left: -8px; width: 280px; padding: 4px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); box-shadow: 0 3px 12px #0002; }
+.pmenu-list button { display: flex; flex-direction: column; width: 100%; padding: 6px 8px; text-align: left; border-radius: 2px; min-width: 0; }
+.pmenu-list button:hover, .pmenu-list button:focus-visible { background: var(--canvas); }
+.pmenu-list .sgroup { padding: 8px 8px 2px; }
+.pmenu-list .all { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 8px; font-size: 13px; }
+.pmenu-cur { display: flex; flex-direction: column; padding: 6px 8px 8px; border-bottom: 1px solid var(--line); border-left: 2px solid var(--red); min-width: 0; }
+.pmenu-cur .pname { font-weight: 600; }
+
+.top .resume { display: inline-flex; gap: 4px; max-width: 280px; font-size: 13px; }
+.top .resume:hover { border-color: var(--red); color: var(--red); }
+
+.explorer .seg { margin-top: 10px; }
+.viewer-tools button.on { border-color: var(--red); color: var(--red); }
+
+/* Project overview */
+.overview { max-width: 1180px; }
+.ov-hero { display: grid; grid-template-columns: minmax(220px, 360px) 1fr; gap: 28px; align-items: stretch; }
+.ov-cover { aspect-ratio: 4 / 3; border: 1px solid var(--line); border-radius: var(--r); background: var(--canvas); display: grid; place-items: center; overflow: hidden; }
+.ov-cover:hover { border-color: var(--red); }
+.ov-cover img { width: 100%; height: 100%; object-fit: contain; background: #fff; mix-blend-mode: multiply; padding: 10px; }
+.ov-head { display: flex; flex-direction: column; min-width: 0; padding-top: 4px; }
+.ov-head h1 { font-size: 30px; letter-spacing: -0.02em; margin: 4px 0 2px; }
+.ov-kind { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
+.ov-stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+.ov-stat { display: flex; flex-direction: column; padding: 8px 14px; border: 1px solid var(--line); border-radius: var(--r); min-width: 92px; }
+.ov-stat .mono { font-size: 20px; }
+.ov-stat .dim { font-size: 12px; }
+.ov-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.ov-actions .btn { display: inline-flex; gap: 4px; max-width: 100%; }
+.btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+.btn.primary:hover { background: #000; }
+
+.ov-cols { display: grid; grid-template-columns: 1fr 320px; gap: 40px; }
+.ov-folders { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.ov-folder { display: grid; grid-template-columns: 44px 1fr auto 56px; gap: 12px; align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--line); text-align: left; min-width: 0; }
+.ov-folder:hover { background: var(--canvas); }
+.ov-folder:hover .ov-fname { color: var(--red); }
+.ov-folder .fcode { justify-self: start; }
+.ov-folder > .mono { text-align: right; }
+.ov-strip { display: flex; gap: 4px; }
+.ov-mini { width: 40px; height: 30px; border: 1px solid var(--line); border-radius: 2px; background: #fff; display: grid; place-items: center; overflow: hidden; font-size: 9px; }
+.ov-mini img { width: 100%; height: 100%; object-fit: contain; }
+
+.ov-asks, .ov-sess, .ov-mix { list-style: none; margin: 0; padding: 0; }
+.ov-asks li + li { margin-top: 6px; }
+.ov-asks button { display: flex; flex-direction: column; width: 100%; text-align: left; padding: 8px 12px; border: 1px solid var(--line); border-left: 2px solid var(--line-strong); border-radius: var(--r); min-width: 0; }
+.ov-asks button:hover { border-left-color: var(--red); background: var(--canvas); }
+.ov-q { font-size: 14px; }
+.ov-sess { border-top: 1px solid var(--line); }
+.ov-sess button { display: flex; flex-direction: column; width: 100%; padding: 7px 4px; text-align: left; border-bottom: 1px solid var(--line); min-width: 0; font-size: 14px; }
+.ov-sess button:hover { background: var(--canvas); }
+.ov-mix li { display: grid; grid-template-columns: 1fr 80px 48px; gap: 10px; align-items: center; padding: 3px 0; }
+.ov-mix .mono { text-align: right; }
+.ov-bar { height: 6px; background: var(--canvas); border-radius: 3px; overflow: hidden; }
+.ov-bar span { display: block; height: 100%; background: var(--red); opacity: 0.75; }
+
+@media (max-width: 900px) {
+  .ov-hero, .ov-cols { grid-template-columns: 1fr; }
+}
