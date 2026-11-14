@@ -119,7 +119,7 @@ network_access = true
 ## Run
 Python 3.11+, Node 18+. Dataset stays outside the repo.
 ```
-# demo on http://localhost:8000: sets up venv, dataset, web build, then serves (any OS)
+# demo on http://localhost:8000: sets up venv + web build, then serves (any OS). Dataset: drop the unzipped folder into ../junction-data/
 node scripts/dev.mjs            # --check: list what's missing; STOA_DATA overrides the data path
 
 # manual steps
