@@ -5,6 +5,7 @@ import Changes, { CHANGE_Q, PAIRS, onNewSheet } from "./Changes";
 import Chat from "./Chat";
 import Explorer from "./Explorer";
 import { baselinePath, demoName, demoPath, ifcUrl, TakeoffPreview, useRevisionDemo } from "./FinalDemo";
+import { useSheetDemo } from "./SheetDemo";
 import { Splitter, usePanels } from "./Splitter";
 import { SOURCE_LABEL, TYPE, floorsOf, fmtAnswer, fmtSize, pickChips, sheetCode, shortName } from "./format";
 import ProjectMenu from "./ProjectMenu";
@@ -114,7 +115,7 @@ function SheetBar({ folder, items, path, code, onPick, onFolder }: {
   );
 }
 
-export default function App({ revisionDemo = false }: { revisionDemo?: boolean }) {
+export default function App({ revisionDemo = false, sheetDemo = false }: { revisionDemo?: boolean; sheetDemo?: boolean }) {
   const [tab, setTab] = useState<Tab>("Projects");
   const demoEntered = revisionDemo && tab === "Drawings";
   const demo = useRevisionDemo(revisionDemo, demoEntered, () => setTab("Drawings"));
@@ -192,6 +193,10 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
   const allPaths = useMemo(() => drawings.map((d) => d.path), [drawings]);
   const chips = useMemo(() => pickChips(drawing), [drawing]);
   const busy = msgs.some((m) => m.kind === "pending");
+  const sheet = useSheetDemo(sheetDemo, drawings, msgs, busy, (p) => select(p), setDraft, (p, q) => run(p, q));
+  useEffect(() => {
+    if (sheet.missing) setError("The sheet demo needs Sports_Complex A-801 (permit and current set) in the dataset.");
+  }, [sheet.missing]);
   const projects = useMemo(() => buildProjects(drawings), [drawings]);
   const projKey = drawing ? projectKeyOf(drawing) : null;
   const project = useMemo(() => projects.find((p) => p.key === projKey) ?? null, [projects, projKey]);
@@ -448,6 +453,9 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
   const shownMark = mark ?? (act?.kind === "answer" && act.path === path ? act.mark ?? null : null);
   const answer = act?.kind === "answer" && act.path === path ? act.answer : null;
   const view = showCh || msOn ? drawing?.view ?? "" : answer?.view ?? drawing?.view ?? "";
+  // A "what changed" chat answer draws like the changes panel: removed items as ghosts on the new sheet.
+  const isDiff = !showCh && !msOn && answer?.method === "diff";
+  const shown = useMemo(() => (isDiff && answer ? onNewSheet(answer, view) : answer), [isDiff, answer, view]);
   const isIfc = path.endsWith(".ifc");
   const openModel = () => {
     setChOn(false);
@@ -489,7 +497,7 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
               Back to <span className="ellipsis">{project.name}</span> ›
             </button>
           )}
-          {/* demo is launched by URL (?demo), not from the app chrome */}
+          {/* demo is launched by URL (?demo, ?demo=sheets), not from the app chrome */}
           {revisionDemo && <><a className="btn" href="?demo">Replay</a><a className="btn" href={location.pathname}>All projects</a></>}
         </div>
         <nav className="tabs subnav inked">
@@ -600,14 +608,14 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
             ) : view ? (
               <Viewer
                 view={view}
-                answer={msOn ? null : showCh ? chAnswer : answer}
+                answer={msOn ? null : showCh ? chAnswer : shown}
                 hover={showCh ? chHover : hover}
                 focus={showCh ? chFocus : focus}
                 onHover={showCh ? setChHover : setHover}
                 onFocus={showCh ? setChFocus : setFocus}
                 onSize={(w, h) => setSize([w, h])}
                 busy={busy || (showCh && !ch?.answer && !ch?.error)}
-                changes={showCh}
+                changes={showCh || isDiff}
                 pen={pen && !showCh && !(msOn && tool)}
                 mark={showCh ? null : shownMark}
                 onPen={showCh ? undefined : setPen}
@@ -676,7 +684,7 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
           focus={focus}
           draft={revisionDemo ? demo.draft : draft}
           busy={busy}
-          setDraft={revisionDemo ? demo.type : setDraft}
+          setDraft={revisionDemo ? demo.type : sheetDemo ? (s) => (sheet.stop(), setDraft(s)) : setDraft}
           mark={mark}
           onClearMark={() => setMark(null)}
           onAsk={revisionDemo ? demo.ask : (q) => run(path, q)}
