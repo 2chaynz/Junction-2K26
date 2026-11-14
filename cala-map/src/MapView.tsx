@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { DeckGL } from '@deck.gl/react'
 import { LinearInterpolator, OrthographicView } from '@deck.gl/core'
-import { IconLayer, PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
+import { IconLayer, LineLayer, PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
 import type { Tile } from './layout'
 import { useClock, useVoyage } from './anim'
 import { iconUrl } from './icons'
@@ -190,13 +190,16 @@ export const MapView = memo(function MapView({ tile, visible, hideSeen, discover
     emblemsLayer,
     spritesLayer,
     labelsLayer,
-    new ScatterplotLayer<[number, number]>({
+    // Thin fading line: one segment per wake point so the tail can fade out.
+    new LineLayer<number>({
       id: 'wake',
-      data: voyage.wake,
-      getPosition: (p) => p,
-      getRadius: (_, { index }) => 0.12 + (index / Math.max(1, voyage.wake.length)) * 0.3,
-      getFillColor: (_, { index }) => [190, 225, 240, 30 + (index / Math.max(1, voyage.wake.length)) * 160],
-      updateTriggers: { getRadius: voyage.wake.length, getFillColor: voyage.wake.length },
+      data: voyage.wake.slice(1).map((_, i) => i),
+      getSourcePosition: (i) => voyage.wake[i],
+      getTargetPosition: (i) => voyage.wake[i + 1],
+      getColor: (i) => [215, 235, 245, 20 + (i / Math.max(1, voyage.wake.length)) * 200],
+      getWidth: 1.5,
+      widthUnits: 'pixels',
+      updateTriggers: { getSourcePosition: voyage.wake, getTargetPosition: voyage.wake, getColor: voyage.wake.length },
     }),
     new IconLayer({
       id: 'boat',
