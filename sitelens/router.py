@@ -11,6 +11,7 @@ from .answer import Answer
 PATHS = [
     "sitelens.paths.ifc",       # IFC model → ifcopenshell
     "sitelens.paths.vector",    # vector PDF / DXF text + geometry
+    "sitelens.paths.schedule",  # schedule tables on vector sheets (+ Gemini over the extracted table)
     "sitelens.paths.detector",  # raster → trained symbol detector
     "sitelens.paths.vlm",       # fallback: vision-language model
 ]
