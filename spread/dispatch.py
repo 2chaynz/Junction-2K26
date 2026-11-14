@@ -20,7 +20,7 @@ from spread.types import (
 
 import json, math, os
 HOUR, DAY = 60, 24 * 60
-P = {"qm": 1.0, "opt": "first", "f0": 1.0, "fstep": 0.10, "fn": 6, "fint": 60, "s0": 1.5, "sstep": 0.25, "sn": 5, "sint": 30, "trust": 0.0, "ramp": 0, "f1": 1.4, "rn": 8, "minslack": 0, "lowslack": 600, "lowmult": 1.0, "suplo": 0, "supmult": 1.3, "supdecl": 0, "offer": 0, "ofee": 0.6, "orad": 30, "onear": 30, "omax": 6, "rq": 0, "model": 0, "cc": 1.1, "eta": 0.08, "mmin": 0.9, "cm": 0, "ccm": 1.0, "lam": 0.5, "u": 0, "ra": 0.0, "tvk": 0.0, "tvp": 12500, "resc": 0, "rescfee": 1.5, "rescn": 3, "sd": 0, "sdslack": 480, "sdmult": 1.15, "sdsup": 40, "etad": 0.0, "etap": 0.0, "r0": 0.04, "u1": 1.3, "u2": 1.7, "u3": 2.2, "t1": 600, "t2": 420, "t3": 300}
+P = {"qm": 1.0, "opt": "first", "f0": 1.0, "fstep": 0.10, "fn": 6, "fint": 60, "s0": 1.5, "sstep": 0.25, "sn": 5, "sint": 30, "trust": 0.0, "ramp": 0, "f1": 1.4, "rn": 8, "minslack": 0, "lowslack": 600, "lowmult": 1.0, "suplo": 0, "supmult": 1.3, "supdecl": 0, "offer": 0, "ofee": 0.6, "orad": 30, "onear": 30, "omax": 6, "rq": 0, "model": 0, "cc": 1.1, "eta": 0.08, "mmin": 0.9, "cm": 0, "ccm": 1.0, "lam": 0.5, "u": 0, "ra": 0.0, "tvk": 0.0, "tvp": 12500, "resc": 0, "rescfee": 1.5, "rescn": 3, "sd": 0, "sdslack": 480, "sdmult": 1.15, "sdsup": 40, "etad": 0.0, "etap": 0.0, "r0": 0.04, "u1": 1.3, "u2": 1.7, "u3": 2.2, "t1": 600, "t2": 420, "t3": 300, "chain": 0, "sdonly": 1, "sdrisk": 1.0, "blsd": 9999, "blq": 9999, "blk": 0.5, "cfee": 0.7, "crad": 30, "cn": 2}
 _best = os.path.join(os.path.dirname(os.path.abspath(__file__)), "best_params.json")
 if "SPREAD_PARAMS" not in os.environ and os.path.exists(_best):
     P.update(json.load(open(_best)))
@@ -147,6 +147,8 @@ class Desk:
         self.offers_day: dict = {}
         self.drivers_home: Optional[list] = None
         self.dealer_of: dict[str, str] = {}
+        self.gig_driver: dict[str, str] = {}  # booked gig -> its driver
+        self.chain_sent: set = set()  # (driver, gig) offers already sent
 
     def rejoin(self, snapshot: DeskSnapshot, history: list[DeskEvent]) -> None:
         """Rebuilds what it knows from the world, so a starter that stopped keeps its orders. Then answers
@@ -201,17 +203,24 @@ class Desk:
                 self.at_risk.discard(post["stops"][0]["orderId"])
             self.booked.add(event["gigId"])
             self.offer_queue.pop(event["gigId"], None)
+            self.gig_driver[event["gigId"]] = event["driverId"]
+            if P["chain"]:
+                self.chain_from(event["driverId"], event["gigId"])
         elif event["kind"] == "offer_answered":
             if event["answer"] != "accepted" and event["gigId"] not in self.booked:
                 self.next_offer(event["gigId"])
         elif event["kind"] in ("gig_dropped", "no_show"):  # after a no-show the gig is open again; a late driver still comes
             self.booked.discard(event["gigId"])
+            self.gig_driver.pop(event["gigId"], None)
         elif event["kind"] == "order_lost" and event["requestId"] in self.pending_q:
             self.learn(event["requestId"], 0.0)
         elif event["kind"] == "ledger":
             self.ledger(event["line"])
         elif event["kind"] == "delivered":
             self.delivered(event["orderId"], event["leg"], event["at"])
+            d = self.gig_driver.pop(event["gigId"], None)
+            if d and P["chain"]:
+                self.chain_from(d, event["gigId"])
 
     def ledger(self, line) -> None:
         oid = line.get("orderId")
@@ -227,6 +236,14 @@ class Desk:
 
     def risk(self) -> float:
         return (len(self.late_seen) + len(self.at_risk)) / max(40, self.won_n)
+
+    def backlog(self) -> int:
+        """Won orders with an undelivered car that no driver holds: the capacity we already owe."""
+        n = 0
+        for oid, o in self.orders.items():
+            if any(d is None for d in o["deliveredAt"]) and not any(g in self.booked for g in self.gigs_of(oid)):
+                n += 1
+        return n
 
     def delivered(self, order_id: str, leg: int, at: int) -> None:
         self.at_risk.discard(order_id)
@@ -257,6 +274,15 @@ class Desk:
             kept.append(o)
             mults[o["kind"]] = P["lowmult"] if sl < P["lowslack"] else 1.0
         chosen = kept
+        leg0 = request["legs"][0]
+        sdo = next((o for o in opts if o["kind"] == "same_day"), None)
+        bl = self.backlog()
+        if os.environ.get("BLLOG"):
+            print("BL", request["arrivedAt"], bl, file=sys.stderr)
+        sd_ok = bool(P["sd"] and sdo is not None and self.risk() < P["sdrisk"] and bl < P["blsd"] and P["opt"] == "nosame" and slack_of(sdo) >= P["sdslack"] and supply(self.world, leg0["pickup"]["placeId"]) >= P["sdsup"]
+                     and not leg0["pickup"]["privateAddress"] and not leg0["delivery"]["privateAddress"] and len(request["legs"]) == 1)
+        if not chosen and sd_ok and P["sdonly"]:
+            chosen, mults = [sdo], {"same_day": P["sdmult"]}
         if P["suplo"] or P["supdecl"]:
             n80 = supply(self.world, request["legs"][0]["pickup"]["placeId"])
             if n80 < P["supdecl"]:
@@ -282,6 +308,8 @@ class Desk:
             if P["cm"]:
                 pc, plate = predict_cost(self.world, request)
                 cost = request["referenceFeeCents"] * pc * P["ccm"] * (1 + P["ra"] * max(0.0, self.risk() - P["r0"]))
+                if bl > P["blq"]:
+                    cost *= 1 + P["blk"] * (bl - P["blq"]) / P["blq"]
             tv = 0.0
             if P["tvk"] and self.trust.get(request["dealerId"], 0) < 25:
                 dayf = request["arrivedAt"] / DAY
@@ -299,10 +327,10 @@ class Desk:
                 self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {o0["kind"]: o0["listPriceCents"] * 5}})
                 return
             prices = {o["kind"]: int(o["listPriceCents"] * bm) for o in chosen}
-            if P["sd"]:
-                sdo = next((o for o in opts if o["kind"] == "same_day"), None)
-                if sdo is not None and slack_of(sdo) >= P["sdslack"] and supply(self.world, leg0["pickup"]["placeId"]) >= P["sdsup"] and not leg0["pickup"]["privateAddress"] and not leg0["delivery"]["privateAddress"] and len(request["legs"]) == 1:
-                    prices["same_day"] = int(sdo["listPriceCents"] * bm * P["sdmult"])
+            if sd_ok and "same_day" not in prices:
+                prices["same_day"] = int(sdo["listPriceCents"] * bm * P["sdmult"])
+            elif "same_day" in prices:
+                prices["same_day"] = int(sdo["listPriceCents"] * bm * P["sdmult"])
             self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
             return
         if P["rq"]:
@@ -433,6 +461,60 @@ class Desk:
         for _ in range(3):
             self.next_offer(gig_id)
 
+    def end_place(self, gig_id: str) -> Optional[str]:
+        action = self.posts.get(gig_id)
+        order = action and self.orders.get(action["stops"][-1]["orderId"])
+        return order and order["legs"][action["stops"][-1]["leg"]]["delivery"]["placeId"]
+
+    def start_place(self, gig_id: str) -> Optional[str]:
+        action = self.posts.get(gig_id)
+        order = action and self.orders.get(action["stops"][0]["orderId"])
+        return order and order["legs"][action["stops"][0]["leg"]]["pickup"]["placeId"]
+
+    def is_open(self, gig_id: str) -> bool:
+        action = self.posts.get(gig_id)
+        if action is None or gig_id in self.booked:
+            return False
+        s0 = action["stops"][0]
+        return self.leg_gigs.get(s0["orderId"], {}).get(s0["leg"]) == gig_id and s0["orderId"] in self.orders
+
+    def chain_offer(self, driver: str, gig_id: str) -> bool:
+        """Offers an open gig to one of our drivers who finishes near its pickup: the trip there is nearly free for them."""
+        day = self.now // DAY
+        if (driver, gig_id) in self.chain_sent or self.offers_day.get((driver, day), 0) >= 3:
+            return False
+        action = self.posts[gig_id]
+        order = self.orders[action["stops"][0]["orderId"]]
+        self.chain_sent.add((driver, gig_id))
+        self.offers_day[(driver, day)] = self.offers_day.get((driver, day), 0) + 1
+        fee = self.requests[order["id"]]["referenceFeeCents"] * pickups(action) / len(order["legs"]) * P["cfee"]
+        self.outbox.append({"type": "offer", "gigId": gig_id, "driverId": driver, "feeCents": max(1, int(fee))})
+        return True
+
+    def chain_from(self, driver: str, gig_id: str) -> None:
+        """A driver of ours will be free where this gig ends: offer them the nearest open gigs that start there."""
+        end = self.end_place(gig_id)
+        if end is None:
+            return
+        cands = sorted((km(end, p), g) for g in list(self.posts) if self.is_open(g) and (p := self.start_place(g)) and km(end, p) <= P["crad"])
+        n = 0
+        for _, g in cands:
+            if n >= P["cn"]:
+                break
+            n += self.chain_offer(driver, g)
+
+    def chain_to(self, gig_id: str) -> None:
+        """A new gig: offer it to our drivers whose current gig ends near its pickup."""
+        start = self.start_place(gig_id)
+        if start is None:
+            return
+        cands = sorted((km(e, start), d) for g, d in self.gig_driver.items() if (e := self.end_place(g)) and km(e, start) <= P["crad"])
+        n = 0
+        for _, d in cands:
+            if n >= P["cn"]:
+                break
+            n += self.chain_offer(d, gig_id)
+
     def rescue(self, order: Order, gig_id: str) -> None:
         """Offers an unbooked gig at a high fee to the drivers who live nearest its pickup."""
         if self.drivers_home is None:
@@ -500,6 +582,8 @@ class Desk:
                 self.carry(action, result["id"])
                 if P["offer"]:
                     self.start_offers(action, result["id"])
+                if P["chain"]:
+                    self.chain_to(result["id"])
 
 
 def retry_from(order: Order, request: PriceRequest, leg: int, now: int) -> int:
