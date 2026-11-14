@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 13:32 · ccolver · AECV-Bench repo has 120 labelled plans + 29 VLM scores (best door 43%, Gemini 3.5 Flash). Added ticket to score our detector on it for the pitch
 - 2026-11-14 13:23 · Asif · T16 PR #28: auto heartbeat hook never pushed on Windows (CC kills detached hook children); now inline, ~4s once per 5 min. Merge #28 or only manual beats work
 - 2026-11-14 13:14 · Asif · T16 PR #27: heartbeats (beats branch, 5-min hook, stale >15m), board 'Needs a human' lane, worker loop /work + planner role in AGENTS.md
 - 2026-11-14 13:03 · ccolver · ccolver: T15 PR #26 revision diff: text by position+content, geometry by render diff (vector paths re-segment between exports). A-201 addendum shows stonewood -> phenolic panels. Needs /api/diff route from T8 owner
