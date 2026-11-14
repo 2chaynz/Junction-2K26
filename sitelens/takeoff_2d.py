@@ -346,20 +346,20 @@ def _page_schedules(page, words=None):
     return []
 
 
-def _legend_regions(page):
-    """Use explicit legend borders; a title alone cannot define the legend's extent."""
+def _non_plan_regions(page):
+    """Use drawn view borders when a title alone cannot define the view extent."""
     import pymupdf
 
-    legend_titles = [pymupdf.Rect(line["bbox"])
+    non_plan_titles = [pymupdf.Rect(line["bbox"])
                      for block in page.get_text("dict", flags=pymupdf.TEXTFLAGS_TEXT)["blocks"]
                      for line in block.get("lines", [])
-                     if re.search(r"\blegends?\b", "".join(span["text"] for span in line["spans"]), re.I)]
-    if not legend_titles:
+                     if NON_PLAN_VIEW.fullmatch("".join(span["text"] for span in line["spans"]))]
+    if not non_plan_titles:
         return []
     borders = [pymupdf.Rect(item[1]) for drawing in page.get_drawings() if drawing.get("color")
                for item in drawing["items"] if item[0] == "re"]
     regions = []
-    for title in legend_titles:
+    for title in non_plan_titles:
         enclosing = [r for r in borders if r.contains(title) and r.width >= title.width + 8
                      and r.height >= title.height * 2 and r.get_area() < page.rect.get_area() / 3]
         if enclosing:
@@ -390,21 +390,21 @@ def _sheet(path, root, mtime, weights_mtime):
             regions = [measure._union(t.boxes) for t in tables if t.boxes]
             words = [(token, box) for token, box in words if _outside_schedule(box, regions)]
             text = page.get_text()
-            legends = _legend_regions(page) if re.search(r"\blegends?\b", text, re.I) else []
-            regions.extend(legends)
-            words = [(token, box) for token, box in words if _outside_schedule(box, legends)]
+            excluded_views = _non_plan_regions(page) if NON_PLAN_VIEW.search(text) else []
+            regions.extend(excluded_views)
+            words = [(token, box) for token, box in words if _outside_schedule(box, excluded_views)]
             bars = _pdf_bars(path, page, words)
             has_plan = bool(PLAN_TITLE.search(text))
-            outside_legends = text
-            if legends:
-                outside_legends = "\n".join(
+            outside_views = text
+            if excluded_views:
+                outside_views = "\n".join(
                     "".join(span["text"] for span in line["spans"])
                     for block in page.get_text("dict", flags=pymupdf.TEXTFLAGS_TEXT)["blocks"]
                     for line in block.get("lines", [])
-                    if _outside_schedule(list(pymupdf.Rect(line["bbox"]) * page.rotation_matrix), legends)
+                    if _outside_schedule(list(pymupdf.Rect(line["bbox"]) * page.rotation_matrix), excluded_views)
                 )
-            has_other = bool(NON_PLAN_VIEW.search(outside_legends))
-            mixed = has_plan and has_other
+            has_other = bool(NON_PLAN_VIEW.search(outside_views)) or bool(excluded_views and not has_plan)
+            mixed = has_plan and (has_other or bool(excluded_views))
             objects = _vector(path) if page.number == 0 else []
             if not objects:
                 if has_other or (tables and not has_plan):
