@@ -163,9 +163,14 @@ async function load(path: string, root: THREE.Group, alive: () => boolean): Prom
     }
     elems.set(guid, e);
   };
-  a.StreamAllMeshes(id, onMesh);
-  // web-ifc skips spaces by default; room answers cite them, so stream them too.
-  a.StreamAllMeshesWithTypes(id, [IFCSPACE], onMesh);
+  try {
+    a.StreamAllMeshes(id, onMesh);
+    // web-ifc skips spaces by default; room answers cite them, so stream them too.
+    a.StreamAllMeshesWithTypes(id, [IFCSPACE], onMesh);
+  } catch (e) {
+    a.CloseModel(id);
+    throw e;
+  }
 
   // Storey floor level from geometry (Elevation is in model units and often stale):
   // where its walls and spaces start. Plan cut 1.2 m above, like a drawn floor plan.
@@ -186,8 +191,13 @@ async function load(path: string, root: THREE.Group, alive: () => boolean): Prom
 }
 
 // Name, storey and the quantities / properties a human checks an answer against.
-async function info(a: IfcAPI, m: Model, e: Elem): Promise<Info> {
-  const l = a.GetLine(m.id, e.id);
+async function info(a: IfcAPI, m: Model, e: Elem): Promise<Info | null> {
+  let l;
+  try {
+    l = a.GetLine(m.id, e.id);
+  } catch {
+    return null; // model closed meanwhile (file switched)
+  }
   const rows: [string, string][] = [];
   const st = m.storeys.find((s) => s.id === e.storey);
   if (l.Name?.value) rows.push(["Name", String(l.Name.value)]);
@@ -385,6 +395,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
     setFloor(null);
     setFlat(false);
     setPicked(null);
+    clicks.current++;
     setStatus("Loading model…");
     for (const m of [...s.root.children] as THREE.Mesh[]) m.geometry.dispose();
     s.root.clear();
@@ -502,6 +513,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
 
   // Picking: hover reacts to cited elements only (like the 2D marks); click on anything shows its properties.
   const down = useRef<[number, number] | null>(null);
+  const clicks = useRef(0);
   function ray(e: React.PointerEvent, meshes: THREE.Object3D[]) {
     const s = three.current;
     if (!s) return null;
@@ -526,7 +538,9 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
     if (!s || !model) return;
     const hit = ray(e, s.root.children);
     const el = hit && model.elems.get(hit.object.userData.guid);
-    setPicked(el ? await info(await ifcApi(), model, el) : null);
+    const seq = ++clicks.current;
+    const res = el ? await info(await ifcApi(), model, el) : null;
+    if (seq === clicks.current) setPicked(res); // a newer click or file switch wins
   }
 
   const fitAll = () => {
