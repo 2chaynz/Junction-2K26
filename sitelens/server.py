@@ -433,7 +433,8 @@ def measure_scale(req: Shape):
 
 
 class VlmModel(BaseModel):
-    model: str
+    model: str | None = None
+    backend: str | None = None  # "" = VLM off
 
 
 @app.get("/api/vlm")
@@ -444,17 +445,25 @@ def vlm_status():
         return latest.status()
     except Exception as e:
         backend, model = latest.current()
-        return {"backend": backend, "current": model, "latest": None, "available": [], "error": str(e)}
+        return {"backend": backend, "current": model, "latest": None, "available": [], "models": [],
+                "backends": latest.backends(), "error": str(e)}
 
 
 @app.post("/api/vlm")
 def vlm_use(req: VlmModel):
-    """Switch the VLM model for this server process only; .env is untouched (CLI: --upgrade saves it)."""
+    """Switch the VLM backend and/or model for this server process only; .env is untouched (CLI: --upgrade saves it)."""
     from .vlm_backends import latest
+    prev = os.environ.get("SITELENS_VLM")
     try:
-        return latest.use(req.model)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
+        out = latest.use_backend(req.backend) if req.backend is not None else latest.status()
+        return latest.use(req.model) if req.model else out
+    except Exception as e:
+        # any failure (bad model, provider down) must not leave the backend half-switched
+        if prev is None:
+            os.environ.pop("SITELENS_VLM", None)
+        else:
+            os.environ["SITELENS_VLM"] = prev
+        raise HTTPException(400 if isinstance(e, ValueError) else 502, str(e))
 
 
 @app.get("/api/random")
