@@ -196,6 +196,22 @@ class DrawingTakeoff(unittest.TestCase):
                 self.assertEqual(row["count"], 1)
                 self.assertEqual(row["evidence"][0]["bbox"], [90, 100, 110, 110])
 
+    def test_raster_not_to_scale_label_blocks_window_estimate(self):
+        from sitelens.measure import Scale
+
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"STOA_DATA": d, "SITELENS_STORE": d}):
+            path = "Scan.png"
+            (Path(d) / path).touch()
+            window = ("Windows", Evidence(path, [200, 100, 230, 104]), "Detected symbol", None)
+            with patch.object(takeoff_2d, "_detected", return_value=[window]), \
+                 patch.object(takeoff_2d.measure, "_ocr", return_value=[("NOT TO SCALE", .99, [10, 10, 60, 22])]), \
+                 patch.object(takeoff_2d.measure, "bar", return_value=[Scale("bar", .04, "bar", "", .8, [])]):
+                result = takeoff.takeoff(path)
+            row, = result["rows"]
+            self.assertEqual(row["count"], 1)
+            self.assertEqual(row["size"], "")
+            self.assertTrue(any("not-to-scale" in line for line in row["reason"]))
+
     def test_disagreeing_scale_bars_do_not_produce_dimensions(self):
         from sitelens.measure import Scale
 

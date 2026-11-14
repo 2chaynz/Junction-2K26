@@ -126,6 +126,7 @@ PLAN_TITLE = re.compile(
     r"(?:floor plans?|level plans?|ground plans?|grundriss|pohjapiirustus|(?:level|floor)[ \t]+-?\d+[A-Z]?)"
     r"(?:[ \t]+[\w-]+){0,3}[ \t]*$"
 )
+UNKNOWN_VIEW_SCALE = "This sheet has a not-to-scale label; the applicable scale is unknown."
 NOT_TO_SCALE = re.compile(r"\b(?:not[ \t]+to[ \t]+scale|N\.?[ \t]*T\.?[ \t]*S\.?)\b", re.I)
 
 
@@ -376,7 +377,12 @@ def _outside_schedule(box, regions):
 def _sheet(path, root, mtime, weights_mtime):
     if measure.is_image(path):
         bars = [b for b in measure.bar(path) if b.confidence >= .75]
-        return [(0, _detected(path), [(t, list(b)) for t, c, b in measure._ocr(path) if c >= .8], bars, False)], False, [], 0
+        words = [(text, list(box)) for text, confidence, box in measure._ocr(path) if confidence >= .8]
+        text = "\n".join(label for label, _ in words)
+        scale_issue = UNKNOWN_VIEW_SCALE if NOT_TO_SCALE.search(text) else ""
+        excluded = int(bool(NON_PLAN_VIEW.search(text)))
+        objects = [] if excluded else _detected(path)
+        return [(0, objects, words, bars, scale_issue)], False, [], excluded
     import pymupdf
 
     pages, page_tables = [], []
@@ -412,7 +418,7 @@ def _sheet(path, root, mtime, weights_mtime):
                 else:
                     objects = _detected(path, page)
             objects = [obj for obj in objects if _outside_schedule(obj[1].bbox, regions)]
-            scale_issue = ("This sheet has a not-to-scale label; the applicable scale is unknown."
+            scale_issue = (UNKNOWN_VIEW_SCALE
                            if NOT_TO_SCALE.search(text) else
                            "This sheet has multiple views; the applicable scale is unknown." if mixed else "")
             pages.append((page.number, objects, words, bars, scale_issue))
