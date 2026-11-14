@@ -250,8 +250,12 @@ def _qty(t: Table) -> int | None:
     k = t.col(r"^(count|qty|quantity)$")
     if k is None or not t.rows:
         return None
-    nums = sum(1 for r in t.rows if re.fullmatch(r"\d+", r[k]))
+    nums = sum(1 for r in t.rows if _int(r[k]) is not None)
     return k if nums >= 0.6 * len(t.rows) else None
+
+
+def _int(s: str) -> int | None:
+    return int(s.replace(",", "")) if re.fullmatch(r"\d{1,3}(,\d{3})*|\d+", s.strip()) else None
 
 
 def _matches(t: Table, target: str) -> list[int]:
@@ -292,9 +296,13 @@ def _rules(path: str, question: str, tables: list[Table]) -> Answer | None:
             return None
         if not idx:
             return None   # no matching row: say nothing rather than a confident 0
-        k = _qty(t)
+        # "how many types / marks" counts rows, not the instances in the count column
+        k = None if re.search(r"(?i)how many\s+(\w+\s+)?(types|type marks|kinds)\b", q) else _qty(t)
         if k is not None:
-            n = sum(int(t.rows[i][k]) for i in idx if re.fullmatch(r"\d+", t.rows[i][k]))
+            vals = [_int(t.rows[i][k]) for i in idx]
+            if None in vals:
+                return None   # a matched row has no readable quantity: don't guess
+            n = sum(vals)
             how = f"sum of '{t.header[k]}' over {len(idx)} {label}: {n}"
         else:
             n = len(idx)

@@ -35,6 +35,18 @@ def test_total_sums_counts():
     assert a.value == 100, a
 
 
+def test_types_count_rows():
+    a = _rules(P, "How many door types are listed in the schedule?", [TYPES])
+    assert a.value == 3, a
+
+
+def test_thousands_and_unreadable():
+    t = table("DOOR SCHEDULE - TYPE", ["Count", "Type Mark"],
+              [["71", "U01"], ["1,000", "U02"], ["10", "U03"], ["?", "U04"], ["5", "U05"]])
+    assert _rules(P, "How many doors of type U02 are scheduled?", [t]).value == 1000
+    assert _rules(P, "How many doors of type U04 are scheduled?", [t]) is None
+
+
 def test_no_match_is_no_answer():
     assert _rules(P, "How many gates (type U22) are scheduled?", [NUMBERS, TYPES]) is None
 
