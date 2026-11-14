@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import data_root
-from .router import PATHS, _load, answer
+
 
 WEB = Path(__file__).resolve().parent.parent / "web" / "dist"
 IMAGE_EXT = {".png", ".jpg", ".jpeg"}
@@ -261,49 +261,22 @@ class Ask(BaseModel):
     path: str
     question: str
     region: dict | None = None   # T49: brush mark on the shown sheet {page, bbox, points, r}
+    history: list[dict] | None = None   # T75: earlier turns [{question, answer}], oldest first
+    related: list[str] | None = None    # T75: other sheets of the project, nearest first
 
 
-GENERAL_PROMPT = """You are SiteLens, a tool that answers questions about construction drawings and BIM models.
-It reads each file with the cheapest exact method first: IFC models with ifcopenshell, vector PDFs as text and
-geometry, scanned plans with a trained symbol detector, and a vision model only as a last resort. Every answer
-shows where it comes from on the plan and what it cost. The user has "{name}" open.
-If the question needs facts read from that drawing, set "general" to false. Otherwise answer it in at most
-3 short sentences, plain text, no markdown.
-Question: {q}
-Reply with JSON only: {{"general": true or false, "text": "..."}}"""
+def _related(path: str, related: list[str] | None) -> list[str]:
+    """Project sheets the UI sent, limited to drawings the dataset lists. The sheet's own model goes first."""
+    qs = _questions()
+    out = [m for m in [_model_of(path)] if m and m != path]
+    if path.split("/")[1] in ("swiss_dwellings", "cubicasa5k"):   # one building per file: no shared project
+        return out
+    out += [r for r in related or [] if r in qs and r != path]
+    return list(dict.fromkeys(out))
 
 
-GENERAL_EUR_PER_MTOK = (0.30, 2.50)  # Gemini flash, EUR per Mtok in / out
-
-
-def _general(path: str, question: str) -> dict | None:
-    """Questions no path answers and that aren't about the drawing (e.g. 'how does this work?')."""
-    import os
-    import urllib.request
-    key = os.environ.get("GEMINI_API_KEY")
-    if not key:
-        return None
-    model = os.environ.get("SITELENS_GEMINI_MODEL", "gemini-2.5-flash")
-    body = {"contents": [{"parts": [{"text": GENERAL_PROMPT.format(name=Path(path).name, q=question)}]}],
-            "generationConfig": {"temperature": 0, "responseMimeType": "application/json"}}
-    req = urllib.request.Request(
-        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-        data=json.dumps(body).encode(), headers={"Content-Type": "application/json", "x-goog-api-key": key})
-    try:
-        r = json.load(urllib.request.urlopen(req, timeout=30))
-        d = json.loads(r["candidates"][0]["content"]["parts"][0]["text"])
-    except Exception:
-        return None
-    if not d.get("general") or not d.get("text"):
-        return None
-    u = r.get("usageMetadata", {})
-    cost = (u.get("promptTokenCount", 0) * GENERAL_EUR_PER_MTOK[0]
-            + (u.get("candidatesTokenCount", 0) + u.get("thoughtsTokenCount", 0)) * GENERAL_EUR_PER_MTOK[1]) / 1e6
-    return {"value": d["text"], "unit": None, "method": "general", "confidence": 0.0, "cost_eur": round(cost, 6),
-            "evidence": [], "trace": [f"no path answered; {model} answered as a general question"]}
-
-
-def _ask(path: str, question: str, on_step=None, region: dict | None = None) -> dict:
+def _ask(path: str, question: str, on_step=None, region: dict | None = None,
+         history: list[dict] | None = None, related: list[str] | None = None) -> dict:
     t = time.time()
     if region:
         return _ask_region(path, question, region, on_step, t)
@@ -312,44 +285,28 @@ def _ask(path: str, question: str, on_step=None, region: dict | None = None) -> 
         if on_step:
             on_step({"kind": kind, "path": "", "text": text, "t": round(time.time() - t, 3)})
 
-    from . import clarify
+    from . import clarify, pipeline
     # When the question is one of Stoa's, show their answer next to ours (and never ask back).
     key = next((q for q in _questions().get(path, []) if q["question"].strip() == question.strip()), None)
-    step("understand", clarify.understand(question))
-    c = None if key else clarify.check(path, question)
-    if c and c.get("general"):
-        g = _general(path, question)
-        if g:
-            step("general", "This isn't about the drawing itself. I'll answer it as a general question, without citations.")
-            g["cost_eur"] = round(g["cost_eur"] + c["cost_eur"], 6)
-            g["time_s"], g["view"] = round(time.time() - t, 3), _view_of(path)
-            return g
-        c = None
-    if c:
+    q, cost = (question, 0.0) if key else pipeline.followup(question, history)
+    if q != question:
+        step("followup", f'A follow-up. I read it as: "{q}"')
+    step("understand", clarify.understand(q))
+    c = None if key or q != question else clarify.check(path, q)
+    general = bool(c and c.get("general"))
+    if c and not general:
         step("clarify", f"{c['why']} Rather than guess, I'll ask.")
         return {"value": None, "unit": None, "method": "clarify", "confidence": 0.0, "cost_eur": c["cost_eur"],
                 "evidence": [], "trace": [c["why"]], "clarify": {"ask": c["ask"], "options": c["options"]},
                 "time_s": round(time.time() - t, 3), "view": _view_of(path)}
-    a = answer(path, question, on_step).to_dict()
-    # The VLM never returns null: it answers "not mentioned" etc. Text from it may be a general question.
-    if a["method"] == "vlm" and isinstance(a["value"], str):
-        g = _general(path, question)
-        if g:
-            step("general", "The vision model found nothing on the sheet. This looks like a general question, so I'll answer it without citations.")
-            g["cost_eur"] = round(g["cost_eur"] + a["cost_eur"], 6)
-            g["trace"] = [f"vlm replied '{a['value']}'"] + g["trace"]
-            a = g
-    if a["value"] is None:
-        a["tried"] = [n.rsplit(".", 1)[1] for n in PATHS if _load(n) is not None]
-        g = _general(path, question)
-        if g:
-            step("general", "This isn't about the drawing itself. I'll answer it as a general question, without citations.")
-            a = g
+    a = pipeline.run(path, q, on_step, history, _related(path, related), stoa=key is not None, view_of=_view_of,
+                     general=general, asked=question, cost=cost + (c["cost_eur"] if c else 0.0))
     a["time_s"] = round(time.time() - t, 3)
-    a["view"] = _view_of(path)
-    if key and a["method"] != "general":
+    if key and a["method"] not in ("general", "web"):
         from eval.score import grade
         a["check"] = {"expected": key["answer"], "unit": key["unit"], "match": grade(key, a["value"])}
+        a.setdefault("reasoning", []).append({"tier": "check", "src": [], "text":
+            f"Stoa's answer key: {key['answer']} {key['unit'] or ''}".strip() + (" · match" if a["check"]["match"] else " · no match")})
         step("check", f"Checking against Stoa's answer key: {key['answer']} {key['unit'] or ''}".strip())
     return a
 
@@ -369,7 +326,7 @@ def _ask_region(path: str, question: str, region: dict, on_step, t: float) -> di
 @app.post("/api/ask")
 def ask(req: Ask):
     _safe(req.path)
-    return _ask(req.path, req.question, region=req.region)
+    return _ask(req.path, req.question, region=req.region, history=req.history, related=req.related)
 
 
 @app.post("/api/ask/stream")
@@ -383,7 +340,7 @@ def ask_stream(req: Ask):
 
     def work():
         try:
-            q.put({"answer": _ask(req.path, req.question, lambda s: q.put({"step": s}), req.region)})
+            q.put({"answer": _ask(req.path, req.question, lambda s: q.put({"step": s}), req.region, req.history, req.related)})
         except Exception as e:
             q.put({"error": repr(e)})
         q.put(END)

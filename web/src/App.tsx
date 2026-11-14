@@ -6,7 +6,7 @@ import Chat from "./Chat";
 import Explorer from "./Explorer";
 import { baselinePath, demoName, demoPath, ifcUrl, TakeoffPreview, useRevisionDemo } from "./FinalDemo";
 import { Splitter, usePanels } from "./Splitter";
-import { SOURCE_LABEL, TYPE, floorsOf, fmtSize, pickChips, sheetCode, shortName } from "./format";
+import { SOURCE_LABEL, TYPE, floorsOf, fmtAnswer, fmtSize, pickChips, sheetCode, shortName } from "./format";
 import ProjectMenu from "./ProjectMenu";
 import HowItWorks from "./HowItWorks";
 import Measure from "./Measure";
@@ -19,7 +19,7 @@ import {
 import "./shell.css";
 import Takeoff, { levelLabel, projectLanguage, type Row } from "./Takeoff";
 import Stack from "./Stack";
-import type { Answer, Drawing, Mark, Msg, Shape, Step, Tool } from "./types";
+import type { Answer, Drawing, Mark, Msg, Shape, Step, Tool, Turn } from "./types";
 import Viewer from "./Viewer";
 import VlmBadge from "./VlmBadge";
 
@@ -356,13 +356,22 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
     const id = newSessionId();
     setMsgs((m) => [...m, { kind: "user", path: p, text: q, mark: region }, { kind: "pending", path: p, steps: [], id }]);
     const steps: Step[] = [];
+    // T75: the last turns make follow-ups ("and windows?") resolvable; project sheets are tier 2.
+    const history: Turn[] = msgs
+      .filter((m): m is Extract<Msg, { kind: "answer" }> => m.kind === "answer" && m.answer.method !== "clarify")
+      .slice(-4)
+      .map((m) => ({ question: m.answer.followup?.standalone ?? m.question, answer: m.answer.value == null ? "unknown" : fmtAnswer(m.answer) }));
+    // Only real projects share facts across sheets; the Swiss portfolio and CubiCasa archive are unrelated buildings.
+    const linked = project?.kind === "BIM" || project?.kind === "Sheet set";
+    const folderItems = project?.folders.find((f) => f.items.some((d) => d.path === p))?.items ?? [];
+    const related = linked ? [...folderItems, ...(project?.items ?? [])].map((d) => d.path).filter((x) => x !== p) : [];
     let next: Msg;
     try {
       const answer = await askStream(p, q, (s) => {
         steps.push(s);
         const snap = [...steps];
         setMsgs((m) => m.map((x) => (x.kind === "pending" && x.id === id ? { ...x, steps: snap } : x)));
-      }, region);
+      }, region, { history, related: [...new Set(related)].slice(0, 6) });
       next = { kind: "answer", path: p, question: q, answer, steps, mark: region };
     } catch (e) {
       next = { kind: "error", path: p, text: `Something broke: ${String(e)}` };
