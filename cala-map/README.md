@@ -18,9 +18,9 @@ npm run dev
 - `POST /api/ask` runs inside the Vite server (`server/ask.mjs`), so `GEMINI_API_KEY` never reaches the browser. Works in `npm run dev` and `npm run preview`; a static deploy needs its own function.
 - Flow: query embedding vs `.cache/embeddings.json` → top 30 → Gemini picks up to 8 and says why → picks light up on the map.
 
-## Bridges
-- `scripts/embed.mjs` flags startups whose embedding sits almost as close to another sector's centroid as to their own; `src/data/bridges.json`.
-- Layout places bridged islands next to each other, puts the bridge startup on the facing coast and draws a wooden bridge to the partner island.
+## Land necks
+- `scripts/embed.mjs` flags startups whose embedding sits almost as close to another sector's centroid as to their own (`src/data/bridges.json`, up to 8 per island pair).
+- Linked islands are placed side by side and joined by a strip of land; those startups live on it, each on its own sector's side, colour blending across.
 
 ## Data pipeline
 ```

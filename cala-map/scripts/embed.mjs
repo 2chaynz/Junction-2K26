@@ -12,9 +12,10 @@ for (const line of existsSync(new URL('../.env', import.meta.url)) ? readFileSyn
 const KEY = process.env.GEMINI_API_KEY
 const EMBED_MODEL = 'gemini-embedding-001'
 const EMBED_DIM = 768
-// A startup bridges to another sector when that sector's centroid is nearly as close as its own.
-const BRIDGE_MARGIN = 0.012
-const MAX_BRIDGES_PER_PAIR = 2
+// A startup sits between two sectors when the other centroid is nearly as close as its own;
+// those startups form the land necks joining islands.
+const BRIDGE_MARGIN = 0.02
+const MAX_BRIDGES_PER_PAIR = 8
 const MAX_PAIRS = 14
 
 const data = (f) => new URL(`../src/data/${f}`, import.meta.url)

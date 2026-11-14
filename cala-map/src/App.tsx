@@ -9,7 +9,7 @@ import { Icon } from './icons'
 import { Logo, sigilUrl } from './Logo'
 import { MapView, type FlyRequest } from './MapView'
 import { AskBox } from './AskBox'
-import { BRIDGES, BY_ID, ISLANDS, LAND, TILES } from './world'
+import { BY_ID, ISLANDS, LAND, PARTNER, TILES } from './world'
 import './App.css'
 
 const COUNTRIES = [...new Set(STARTUPS.map((s) => s.country))].sort()
@@ -193,7 +193,7 @@ export default function App() {
     ...(selected.founded ? [{ key: 'year' as const, value: String(selected.founded), text: `est. ${selected.founded}` }] : []),
     ...(funded ? [{ key: 'funded' as const, value: 'funded', text: 'funded' }] : []),
   ]
-  const bridge = BRIDGES.find((b) => b.from === tile)
+  const partner = ISLANDS.find((i) => i.sector === PARTNER.get(selected.id))
   const copyLink = () => { navigator.clipboard?.writeText(location.href); setCopied(true); setTimeout(() => setCopied(false), 1500) }
 
   return (
@@ -342,8 +342,8 @@ export default function App() {
           <div className="cover-text">
             <h2>{selected.name}</h2>
             <div className="facts">
-              {bridge && (
-                <button className="tag bridge" title={`Also ${bridge.to.sector}: sail across the bridge`} onClick={() => flyTo(bridge.to.x, bridge.to.y)}>⇄ also {bridge.to.sector}</button>
+              {partner && (
+                <button className="tag bridge" title={`Sits on the land joining ${selected.sector} and ${partner.sector}: sail over`} onClick={() => flyTo(partner.cx, partner.cy, 3.6)}>⇄ also {partner.sector}</button>
               )}
               {facts.map((f) => (
                 <button key={f.key} className={`tag ${filters[f.key] === f.value ? 'on' : ''}`} title={filters[f.key] === f.value ? 'Remove this filter' : `Show only ${f.text} on the map`} onClick={() => toggleFilter(f.key, f.value)}>{f.text}</button>
