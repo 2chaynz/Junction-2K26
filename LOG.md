@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 13:23 · Asif · T16 PR #28: auto heartbeat hook never pushed on Windows (CC kills detached hook children); now inline, ~4s once per 5 min. Merge #28 or only manual beats work
 - 2026-11-14 13:14 · Asif · T16 PR #27: heartbeats (beats branch, 5-min hook, stale >15m), board 'Needs a human' lane, worker loop /work + planner role in AGENTS.md
 - 2026-11-14 13:03 · ccolver · ccolver: T15 PR #26 revision diff: text by position+content, geometry by render diff (vector paths re-segment between exports). A-201 addendum shows stonewood -> phenolic panels. Needs /api/diff route from T8 owner
 - 2026-11-14 12:57 · johanseneuson · johanseneuson: started 8x RTX PRO 6000 (kind-tree-rings-fin-03, EUR 20.5/h, only GPUs free) for ~1h: retrain detector with fixed labels (sink variants, WC rooms) + YOLO11l comparison. Will delete right after. Old A100 is gone; its disk OS-qxzWscsd (FIN-01) still exists
