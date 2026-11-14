@@ -58,8 +58,8 @@ def current(backend: str | None = None) -> tuple[str | None, str | None]:
 NEEDS = {"gemini": ["GEMINI_API_KEY"], "gemma-api": ["GEMINI_API_KEY"], "gemma": ["SITELENS_GEMMA"],
          "nemotron": ["NVIDIA_API_KEY", "SITELENS_VLM_KEY"], "nemotron-verda": ["VERDA_INFERENCE_KEY", "SITELENS_VLM_KEY"],
          "vllm": ["SITELENS_VLM_URL"]}
-# switchable models per provider listing, any family
-PICKABLE = {"gemini": re.compile(r"gemini-[\d.]+-(flash|pro|flash-lite)"), "gemma-api": re.compile(r"gemma-\d+-[\w-]+-it")}
+# switchable models; gemini stays on flash because gemini.py prices every model at flash rates
+PICKABLE = {"gemini": re.compile(r"gemini-[\d.]+-flash"), "gemma-api": re.compile(r"gemma-\d+-[\w-]+-it")}
 
 
 def backends() -> list[dict]:
