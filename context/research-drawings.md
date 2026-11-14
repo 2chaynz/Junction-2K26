@@ -11,7 +11,7 @@ Read Sat 14 Nov 2026. Sources at the bottom.
   - Revision diff between sheet versions ("partition on grid E removed, rooms 205 and 206 merged").
   - Findings → RFIs, reports, tasks, reusable skills.
 - Claims: 2–8 h/week saved per engineer, 40% faster problem → decision, €4B+ project value, 20+ Nordic sites. Live in 2 days, EU-hosted, never trains on data.
-- Its UI labels drawing changes "Read off the document by a model. It can be wrong." Hence the challenge's focus on verifiable answers.
+- Each item in its drawing change feed says "Read off the document by a model. It can be wrong." See "Stoa's own warning" below.
 
 ## VLM Run (vlm.run/solutions/construction)
 - Developer API: drawings, schedules, specs → typed JSON.
@@ -47,6 +47,26 @@ Read Sat 14 Nov 2026. Sources at the bottom.
 5. **Missing drafting knowledge, prior bias.** Weld symbols, acronyms, projection rules misread; answer from what a typical detail looks like (DrawingVQA, MechVQA).
 6. **Dense annotation hides key values.** Fine-tuned 4B model (SFT + RL) beat Gemini 3 Pro by 7.6 pts (MechVQA).
 7. **Wrong input.** Pixels discard vector geometry and IFC data that hold exact answers.
+
+## Stoa's own warning
+**Seen on stoabuild.com:**
+- "Knows what has changed on site" section: a feed of new versions ("A-201 Floor plan, level 2.pdf · 14 changes") and new documents.
+- Every feed item says "Read off the document by a model. It can be wrong."
+- Change descriptions come with "Show area N on the sheet" and a before/after slider:
+  - "The partition wall on grid E between rows 4 and 6 has been removed, merging rooms 205 and 206."
+  - "A new door O9 has been added in the corridor wall of room 103, swinging into the room."
+- Chat answers have no warning. They quote text with a page ("4. PARTITIONS: TYPE WT12, 100 MM, EI60", A-201 p.1).
+
+**Our inference (not stated by Stoa):**
+1. The warning sits where research says models are weak. Chat quotes text (OCR, up to 0.95 in AECV-Bench). The change feed reads graphics: walls, doors, swings, merged rooms (symbols 0.1–0.5; relations 47% of failures in LED-BENCH).
+2. Stoa can't promise accuracy there, so it promises you can check. The area link and slider let an engineer confirm a change in seconds. That is the challenge's "verify in seconds".
+3. That is why the challenge is set up this way. Brief: general AI "frequently fail[s]" on drawings. 50% of the score is accuracy + verifiable reasoning. "Won't be made obsolete by next year's models" means don't just wrap a VLM.
+4. Practical cost: a missed door or wrong area flows into quantities, orders and fire checks. A blanket warning pushes checking back to the engineer and eats into the "2–8 h/week saved".
+
+**What we do about it:**
+- Measure, don't guess: vector/IFC geometry is exact, so those answers need no warning.
+- Where we guess (scans, VLM fallback), give confidence per answer: confidence score, "two methods agree" (T12), a box on every counted object.
+- Pitch line: "Stoa's product today says 'it can be wrong.' SiteLens shows you why it's right, and tells you when to check."
 
 ## For SiteLens
 - Research recommends our design: vector/IFC first, symbol detector, VLM on crops only, show uncertainty, human in the loop.
