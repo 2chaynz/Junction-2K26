@@ -39,7 +39,7 @@ export function useReveal<T extends HTMLElement>(ref: RefObject<T>) {
 /** Counts from 0 to `to` once `run` is true; keeps the decimals of `to`. */
 export function CountUp({ to, run = true, decimals, ms = 700 }: { to: number; run?: boolean; decimals?: number; ms?: number }) {
   const d = decimals ?? (String(to).split(".")[1]?.length ?? 0);
-  const [v, setV] = useState(run && !reduced() ? 0 : to);
+  const [v, setV] = useState(reduced() ? to : 0);
   useEffect(() => {
     if (!run) return;
     if (reduced()) return setV(to);
@@ -61,6 +61,8 @@ export function CountUpText({ text, ms = 600 }: { text: string; ms?: number }) {
   const m = text.match(/^(-?\d+(?:\.\d+)?)(.*)$/s);
   if (!m) return <>{text}</>;
   const decimals = m[1].split(".")[1]?.length ?? 0;
+  // only numbers that print back exactly ("007", "011 Kitchen" and long digit strings stay as written)
+  if (parseFloat(m[1]).toFixed(decimals) !== m[1]) return <>{text}</>;
   return (
     <>
       <CountUp to={parseFloat(m[1])} decimals={decimals} ms={ms} />
