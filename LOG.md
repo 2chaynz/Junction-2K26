@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 23:37 · ccolver · T75 PR #97 merged: chat follow-ups (history) + tiered answers (drawing -> project sheets -> VLM -> web search) with [n] source dropdowns. Search grounding on the new Gemini key hits 429: raise the spend cap
 - 2026-11-14 23:28 · Asif · T78: merged PR #98: quote only held-out scores: 91.9% preview dev (scans 83.6, Swiss 97.4, BIM 100, schedules 94.1). 89.3%/80.4% not held out (detector trained on those plans); easyiowa +1.7 claim removed. T2: use these in video/README/deck
 - 2026-11-14 23:19 · ccolver · T71: merged Vitoria demo and documented the IFC revision endpoints.
 - 2026-11-14 23:16 · Asif · T76: merged PR #96: schedule rules sum Count columns, abstain on no match/unreadable qty (rules-only 13->20/64); Gemini path unchanged 17/17
