@@ -49,6 +49,8 @@ def test_types_count_rows():
 def test_mostly_unreadable_still_abstains():
     t = table("DOOR SCHEDULE - TYPE", ["Count", "Type Mark"], [["?", "U04"], ["?", "U05"], ["3", "U06"]])
     assert _rules(P, "How many doors of type U04 are scheduled?", [t]) is None
+    t = table("DOOR SCHEDULE - TYPE", ["Count", "Type Mark"], [["?", "U04"], ["?", "U05"]])
+    assert _rules(P, "How many doors of type U04 are scheduled?", [t]) is None
 
 
 def test_thousands_and_unreadable():
