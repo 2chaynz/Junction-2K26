@@ -11,6 +11,7 @@ import {
 import wasmUrl from "web-ifc/web-ifc.wasm?url";
 import "./model3d.css";
 import type { Answer } from "./types";
+import { levelLabel } from "./Takeoff";
 
 type Props = {
   path: string;
@@ -20,7 +21,8 @@ type Props = {
   onHover: (i: number | null) => void;
   onFocus: (i: number | null) => void;
   busy: boolean;
-  demo?: { url: string; replay: number; overview: boolean; changeIds: ReadonlySet<string>; onReady: () => void };
+  language?: string;
+  demo?: { url: string; overview: boolean; changeIds: ReadonlySet<string>; onReady: (ready: boolean) => void };
 };
 
 type Cat = "walls" | "doors" | "windows" | "slabs" | "spaces" | "other";
@@ -50,15 +52,6 @@ const FLOOR_LABELS = {
   fr: { floors: "Étages", all: "Tous", level: "Étage", roof: "Toit", foundation: "Fondation" },
   uk: { floors: "Поверхи", all: "Усі", level: "Поверх", roof: "Дах", foundation: "Фундамент" },
 };
-
-function floorName(name: string, labels: typeof FLOOR_LABELS.en): string {
-  const original = name.trim().toLowerCase();
-  const level = /^(\d+)\.\s*korrus$/i.exec(original);
-  if (level) return `${labels.level} ${level[1]}`;
-  if (original === "katus" || original === "roof") return labels.roof;
-  if (original === "vundament" || original === "foundation") return labels.foundation;
-  return name;
-}
 
 let api: Promise<IfcAPI> | null = null;
 function ifcApi() {
@@ -266,8 +259,8 @@ async function info(a: IfcAPI, m: Model, e: Elem): Promise<Info | null> {
 }
 const fmt = (v: unknown) => (typeof v === "number" ? String(Math.round(v * 1000) / 1000) : String(v));
 
-export default function Model3D({ path, answer, hover, focus, onHover, onFocus, busy, demo }: Props) {
-  const locale = navigator.language.split("-")[0] as keyof typeof FLOOR_LABELS;
+export default function Model3D({ path, answer, hover, focus, onHover, onFocus, busy, demo, language }: Props) {
+  const locale = (language ?? navigator.language).split("-")[0] as keyof typeof FLOOR_LABELS;
   const floorLabels = FLOOR_LABELS[locale] ?? FLOOR_LABELS.en;
   const host = useRef<HTMLDivElement>(null);
   const tags = useRef<HTMLDivElement>(null);
@@ -283,7 +276,6 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
   const [off, setOff] = useState<Set<Cat>>(new Set(["spaces"]));
   const [picked, setPicked] = useState<Info | null>(null);
   const modelUrl = demo?.url ?? `/api/ifc?path=${encodeURIComponent(path)}`;
-  const introReplay = demo?.replay;
   const onReady = demo?.onReady;
   const busyRef = useRef(busy);
   busyRef.current = busy;
@@ -305,7 +297,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
     const n = new Map<number, number>();
     cited.forEach((e) => e.storey !== null && n.set(e.storey, (n.get(e.storey) ?? 0) + 1));
     return n;
-  }, [cited]);
+  }, [cited, demo?.overview]);
   const storey = model?.storeys.find((s) => s.id === floor) ?? null;
 
   // Scene, renderer and loop live as long as the component.
@@ -480,7 +472,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
 
   useEffect(() => {
     const s = three.current;
-    if (!s || !model || introReplay === undefined || !onReady) return;
+    if (!s || !model || !onReady) return;
     const center = model.box.getCenter(new THREE.Vector3());
     const radius = model.box.getBoundingSphere(new THREE.Sphere()).radius;
     const wide = radius * Math.max(2.75, 2.45 / Math.max(s.persp.aspect, 0.5));
@@ -497,15 +489,16 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
       s.persp.position.lerpVectors(start, end, ease);
       if (progress === 1) {
         s.fly = null;
-        onReady();
+        onReady(true);
       }
     };
     return () => { s.fly = null; };
-  }, [model, introReplay, onReady]);
+  }, [model, onReady]);
 
   // A new answer opens the floor its elements are on (one floor → that floor; spread → whole building).
   useEffect(() => {
-    if (demo || !cited.size) return;
+    if (demo?.overview) { setFloor(null); setFlat(false); return; }
+    if (!cited.size) return;
     const fl = new Set([...cited.values()].map((e) => e.storey));
     const only = fl.size === 1 ? [...fl][0] : null;
     setFloor(only);
@@ -541,7 +534,8 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
       s.ortho.zoom = 1;
       s.ortho.updateProjectionMatrix();
     }
-    if (demo && (demo.overview || !cited.size)) return;
+    if (demo && !cited.size) return;
+    if (demo?.overview) return flyTo(model.box, 1.05);
     const f = focus !== null ? cited.get(focus) : undefined;
     if (f && (floor === null || f.storey === floor)) return flyTo(f.box, twoD ? 4 : 2.2);
     const marks = new THREE.Box3();
@@ -585,11 +579,22 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
     if (!f) return;
     if (floor !== null && f.storey !== floor) return setFloor(f.storey); // the floor effect then flies to it
     flyTo(f.box, flat ? 4 : 2.2);
-  }, [focus]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [focus, cited]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Picking: hover reacts to cited elements only (like the 2D marks); click on anything shows its properties.
   const down = useRef<[number, number] | null>(null);
   const clicks = useRef(0);
+
+  useEffect(() => {
+    if (answer?.method !== "takeoff" || answer.evidence.length !== 1 || focus === null || !model) return;
+    const element = cited.get(focus);
+    if (!element) return;
+    const seq = ++clicks.current;
+    void ifcApi().then((api) => info(api, model, element)).then((properties) => {
+      if (seq === clicks.current) setPicked(properties);
+    });
+    return () => { if (seq === clicks.current) clicks.current++; };
+  }, [answer, cited, focus, model]);
   function ray(e: React.PointerEvent, meshes: THREE.Object3D[]) {
     const s = three.current;
     if (!s) return null;
@@ -688,8 +693,8 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
             </button>
           )}
           {model.storeys.map((s) => (
-            <button key={s.id} className={floor === s.id ? "on" : ""} onClick={() => setFloor(s.id)} title={s.name}>
-              <span className="ellipsis">{floorName(s.name, floorLabels)}</span>
+            <button key={s.id} className={floor === s.id ? "on" : ""} onClick={() => setFloor(s.id)} title={levelLabel(s.name, locale)}>
+              <span className="ellipsis">{levelLabel(s.name, locale)}</span>
               {marksOn.get(s.id) ? <i>{marksOn.get(s.id)}</i> : null}
             </button>
           ))}
@@ -739,7 +744,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
       )}
       <div className="viewer-hint mono">
         {flat && floor !== null
-          ? `plan cut 1.2 m above ${storey?.name ?? "floor"} · drag to pan · scroll to zoom · click for properties`
+          ? `plan cut 1.2 m above ${storey ? levelLabel(storey.name, locale) : floorLabels.level.toLowerCase()} · drag to pan · scroll to zoom · click for properties`
           : "drag to orbit · right-drag to pan · scroll to zoom · click for properties"}
       </div>
     </div>

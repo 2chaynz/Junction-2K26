@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import collections
+from hashlib import file_digest
 import io
 import os
 import json
@@ -178,12 +179,41 @@ def ifc(path: str, request: Request):
     if p.suffix.lower() != ".ifc":
         raise HTTPException(400, "not an IFC file")
     stat = p.stat()
-    etag = f'"{stat.st_mtime_ns:x}-{stat.st_ctime_ns:x}-{stat.st_size:x}"'
+    with p.open("rb") as source:
+        etag = '"' + file_digest(source, "sha256").hexdigest() + '"'
     headers = {"Cache-Control": "private, no-cache", "ETag": etag}
     validators = {value.strip().removeprefix("W/") for value in request.headers.get("if-none-match", "").split(",")}
     if etag in validators or "*" in validators:
         return Response(status_code=304, headers=headers)
     return FileResponse(p, stat_result=stat, media_type="application/octet-stream", headers=headers)
+
+
+@app.get("/api/demo/revisions")
+def demo_revisions():
+    """Compare the bundled practice revisions by IFC element ID."""
+    import ifcopenshell
+    from ifcopenshell.util.element import get_container, get_pset
+
+    directory = WEB.parent / "public" / "demo"
+    revisions = []
+    for revision in ("A", "B"):
+        model = ifcopenshell.open(directory / f"harbor-{revision}.ifc")
+        walls = {}
+        for wall in model.by_type("IfcWall"):
+            level = get_container(wall)
+            walls[wall.GlobalId] = {
+                "guid": wall.GlobalId,
+                "name": wall.Name,
+                "level": level.Name if level else None,
+                "area": get_pset(wall, "Qto_WallBaseQuantities", "GrossSideArea"),
+            }
+        revisions.append(walls)
+    before, after = revisions
+    return [
+        {**wall, "change": change}
+        for change, current, other in (("added", after, before), ("removed", before, after))
+        for guid, wall in current.items() if guid not in other
+    ]
 
 
 @app.get("/api/takeoff")

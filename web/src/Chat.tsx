@@ -18,6 +18,7 @@ type Props = {
   onActivate: (msg: number) => void;
   onHover: (i: number | null) => void;
   onFocus: (i: number | null) => void;
+  artifact?: ReactNode;
   head?: ReactNode; // T61: which session this conversation is saved in
 };
 
@@ -203,7 +204,7 @@ function AnswerMsg(props: {
   return (
     <>
       <div className="value-line">
-        <span className="value">{fmtAnswer(a)}</span>
+        <span className={a.method === "revision" ? "demo-answer" : "value"}>{fmtAnswer(a)}</span>
         <Cites {...props} />
         {a.confidence < 0.6 && <span className="warn">please check</span>}
       </div>
@@ -242,7 +243,7 @@ export default function Chat(p: Props) {
 
   useEffect(() => {
     log.current?.scrollTo({ top: log.current.scrollHeight, behavior: "smooth" });
-  }, [p.msgs]);
+  }, [p.msgs, p.artifact]);
 
   const empty = !p.msgs.some((m) => m.path === p.path && m.kind !== "switch");
 
@@ -264,19 +265,20 @@ export default function Chat(p: Props) {
             return <div key={i} className="msg sl pending"><Thinking steps={m.steps} live /></div>;
           if (m.kind === "error") return <div key={i} className="msg sl error">{m.text}</div>;
           const on = i === p.active;
-          const marks = m.answer.evidence.some((e) => e.bbox.length === 4);
+          const marks = m.answer.evidence.some((e) => e.ifc_guid || e.bbox.length === 4);
           return (
             <div
               key={i}
               className={`msg sl ${on ? "on" : ""} ${marks && !on ? "clickable" : ""}`}
               onClick={() => !on && marks && p.onActivate(i)}
-              title={marks && !on ? "Show on the plan" : undefined}
+              title={marks && !on ? "Show evidence" : undefined}
             >
               {m.steps.length > 0 && <Thinking steps={m.steps} live={false} time={m.answer.time_s} />}
               <AnswerMsg a={m.answer} question={m.question} steps={m.steps} on={on} busy={p.busy} onAsk={p.onAsk} hover={p.hover} focus={p.focus} onHover={p.onHover} onFocus={p.onFocus} />
             </div>
           );
         })}
+        {p.artifact}
         {empty && <p className="hello">Ask anything about this drawing.</p>}
       </div>
 

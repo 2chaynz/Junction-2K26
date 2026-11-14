@@ -1,144 +1,143 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import type { Answer } from "./types";
+import { useEffect, useRef, useState } from "react";
+import type { Answer, Msg } from "./types";
 import "./final-demo.css";
 
-const Model3D = lazy(() => import("./Model3D"));
-const base = import.meta.env.BASE_URL + "demo/";
-const view = base + "harbor-overlay.ifc";
-const questions = ["Show me what has changed.", "How much wall area was added or removed?"];
-type Change = { guid: string; name: string; change: "added" | "removed"; area: number };
-const area = (n: number) => n.toFixed(1);
-const totals = (changes: Change[]) => [
-  changes.filter((c) => c.change === "added").reduce((n, c) => n + c.area, 0),
-  changes.filter((c) => c.change === "removed").reduce((n, c) => n + c.area, 0),
-];
-const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+export const demoBase = import.meta.env.BASE_URL + "demo/";
+export const demoPath = demoBase + "harbor-overlay.ifc";
+export const demoName = "Harbor Workshop";
 
-function saveTakeoff(changes: Change[]) {
-  const [added, removed] = totals(changes);
-  const rows = changes.map((c) => `<tr><td>${escapeHtml(c.name)}<small>${escapeHtml(c.guid)}</small></td><td>${c.change}</td><td>${area(c.area)} m²</td></tr>`).join("");
-  const html = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SiteLens · Wall takeoff</title>
-  <style>
-  *{box-sizing:border-box}body{margin:0;padding:clamp(16px,5vw,64px);background:#edf1f4;color:#152531;font:16px/1.5 system-ui}
-  main{max-width:850px;margin:auto;background:white;border-radius:18px;overflow:hidden}header,section{padding:clamp(20px,5vw,48px)}
-  header{background:#132331;color:white}h1{margin:.25em 0 0;font-size:clamp(36px,6vw,64px);line-height:1.05}
-  p{margin:.7em 0 0}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.metrics div{background:#edf1f4;padding:12px;border-radius:8px}
-  strong{display:block;font-size:clamp(17px,3vw,30px)}.add{color:#087858}.remove{color:#a23630}
-  table{margin-top:24px;width:100%;border-collapse:collapse}th,td{padding:12px 6px;text-align:left;border-bottom:1px solid #dee5ea}small{display:block;color:#465760;overflow-wrap:anywhere}
-  @media print{body{padding:0;background:white}header{color:#152531;background:white}}
-  </style><main><header><small style="color:inherit">SITELENS / REVISION TAKEOFF</small><h1>Wall area changes</h1><p>Harbor Workshop · Level 3 · Revision A → B</p></header>
-  <section><div class="metrics"><div>Added<strong class="add">+${area(added)} m²</strong></div><div>Removed<strong class="remove">−${area(removed)} m²</strong></div><div>Net<strong>${added >= removed ? "+" : "−"}${area(Math.abs(added - removed))} m²</strong></div></div>
-  <table><thead><tr><th>Element / IFC ID</th><th>Change</th><th>Gross side area</th></tr></thead><tbody>${rows}</tbody></table>
-  <p><small>Source: sample IFC revisions A and B, Qto_WallBaseQuantities.GrossSideArea. One gross face per changed wall.</small></p></section></main></html>`;
-  const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "sitelens-harbor-wall-takeoff.html";
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+type Change = { guid: string; name: string; level: string | null; change: "added" | "removed"; area: number | null };
+const prompts = [
+  "What are the changes?",
+  "What changed on the second floor?",
+  "Create a takeoff of these changes.",
+];
+
+function takeoffImage(rows: Change[], scope: string) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1080;
+  canvas.height = 326 + rows.length * 58;
+  const ctx = canvas.getContext("2d")!;
+  function text(s: string, x: number, y: number, font: string, color = "#1a1a1a") {
+    ctx.font = font;
+    ctx.fillStyle = color;
+    ctx.fillText(s, x, y);
+  }
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#d92d20";
+  ctx.fillRect(0, 0, canvas.width, 8);
+  text("SiteLens   /   Harbor Workshop", 48, 62, "600 20px sans-serif", "#666");
+  text("Revision takeoff", 48, 126, "600 56px sans-serif");
+  text("Floor 2  ·  Revision A → B  ·  Recreated IFC revisions", 50, 165, "22px sans-serif", "#666");
+  const total = (kind: Change["change"]) => rows.filter((row) => row.change === kind)
+    .reduce((sum, row) => sum + (row.area ?? 0), 0);
+  text("+" + total("added").toFixed(1) + " m² added", 48, 223, "600 32px sans-serif", "#087758");
+  text("−" + total("removed").toFixed(1) + " m² removed", 510, 223, "600 32px sans-serif", "#ba3027");
+  rows.forEach((row, i) => {
+    const y = 254 + i * 58;
+    ctx.fillStyle = i % 2 ? "#fff" : "#f5f5f3";
+    ctx.fillRect(48, y, 984, 54);
+    text(row.change === "added" ? "Added" : "Removed", 64, y + 34, "600 19px sans-serif",
+      row.change === "added" ? "#087758" : "#ba3027");
+    text(row.name, 208, y + 34, "22px sans-serif");
+    text(row.area === null ? "Area unavailable" : row.area.toFixed(1) + " m²", 840, y + 34, "22px sans-serif");
+  });
+  text("Source: Qto_WallBaseQuantities.GrossSideArea · one gross face per wall", 48, canvas.height - 24, "18px sans-serif", "#666");
+  return canvas.toDataURL("image/png");
 }
 
-export default function FinalDemo() {
-  const [changes, setChanges] = useState<Change[]>([]);
-  const [error, setError] = useState(false);
-  const [replay, setReplay] = useState(0);
-  const [step, setStep] = useState(0);
-  const [typed, setTyped] = useState("");
-  const [saved, setSaved] = useState(false);
-  const [hover, setHover] = useState<number | null>(null);
-  const [focus, setFocus] = useState<number | null>(null);
-  const ready = useCallback(() => setStep(1), []);
-
-  useEffect(() => {
-    const abort = new AbortController();
-    fetch(base + "harbor-changes.json", { signal: abort.signal }).then((response) => {
-      if (!response.ok) throw new Error("Revision evidence unavailable");
-      return response.json() as Promise<Change[]>;
-    }).then(setChanges).catch(() => { if (!abort.signal.aborted) setError(true); });
-    return () => abort.abort();
-  }, []);
-
-  const answered = step >= 3;
-  const quantity = step >= 6;
-  const [added, removed] = totals(changes);
-  const changeIds = useMemo(() => new Set(changes.map((c) => c.guid)), [changes]);
-  const answer = useMemo<Answer | null>(() => !answered ? null : ({
-    value: changes.length, unit: null, method: "ifc", confidence: 1, cost_eur: 0, time_s: 0, view, trace: [],
-    evidence: changes.map((c) => ({
-      file: base + (c.change === "added" ? "harbor-B.ifc" : "harbor-A.ifc"), page: 0, bbox: [],
-      label: `${c.change === "added" ? "Added" : "Removed"}: ${c.name}`, kind: "ifc", ifc_guid: c.guid, polygon: null,
+function revisionAnswer(rows: Change[], scope: string): Answer {
+  const added = rows.filter((row) => row.change === "added").length;
+  const removed = rows.length - added;
+  return {
+    value: `${scope}: ${added} added, ${removed} removed`,
+    method: "revision", confidence: 1, unit: null, cost_eur: 0, time_s: 0, view: demoPath,
+    trace: ["Compared wall IFC GlobalIds in revisions A and B."],
+    evidence: rows.map((row) => ({
+      file: demoPath, page: 0, bbox: [], polygon: null, kind: "ifc", ifc_guid: row.guid,
+      label: `${row.change === "added" ? "Added" : "Removed"}: ${row.name}`,
     })),
-  }), [answered, changes]);
+    table: {
+      title: "Wall changes", columns: ["Change", "Element", "Floor"],
+      rows: rows.map((row) => [row.change === "added" ? "Added" : "Removed", row.name, row.level?.replace("Level", "Floor") ?? "—"]),
+    },
+  };
+}
+
+export function useRevisionDemo(enabled: boolean, entered: boolean, onOpen: () => void) {
+  const [changes, setChanges] = useState<Change[] | null>(null);
+  const [error, setError] = useState("");
+  const [ready, setReady] = useState(false);
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [draft, setDraft] = useState("");
+  const [active, setActive] = useState<number | null>(null);
+  const [image, setImage] = useState("");
+  const automatic = useRef(true);
+  const open = useRef(onOpen);
+  open.current = onOpen;
 
   useEffect(() => {
-    if (step === 0 || step >= 7) return;
-    const question = step === 1 ? questions[0] : step === 4 ? questions[1] : null;
-    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let timer: ReturnType<typeof setTimeout>;
-    if (question) {
-      let n = 0;
-      const type = () => {
-        n = reduce ? question.length : n + 1;
-        setTyped(question.slice(0, n));
-        timer = n < question.length ? setTimeout(type, 33) : setTimeout(() => setStep(step + 1), 300);
-      };
-      timer = setTimeout(type, 200);
-    } else {
-      const delay = step === 3 ? 2600 : step === 6 ? 1500 : 350;
-      timer = setTimeout(() => {
-        if (step === 3) setTyped("");
-        setStep(step + 1);
-      }, delay);
-    }
-    return () => clearTimeout(timer);
-  }, [step, replay]);
+    if (!enabled) return;
+    const controller = new AbortController();
+    fetch("/api/demo/revisions", { signal: controller.signal }).then((res) => {
+      if (!res.ok) throw new Error("Could not load the BIM revisions.");
+      return res.json() as Promise<Change[]>;
+    }).then(setChanges).catch((err: Error) => { if (!controller.signal.aborted) setError(err.message); });
+    return () => controller.abort();
+  }, [enabled]);
 
-  function restart() {
-    setStep(0);
-    setTyped("");
-    setSaved(false);
-    setHover(null);
-    setFocus(null);
-    setReplay((n) => n + 1);
+  useEffect(() => {
+    if (!enabled || entered || !changes) return;
+    const timer = setTimeout(() => open.current(), 1300);
+    return () => clearTimeout(timer);
+  }, [enabled, entered, changes]);
+
+  function ask(question: string) {
+    if (!changes) return;
+    const q = question.toLowerCase();
+    const wantsTakeoff = /take\s*off/.test(q);
+    const floor = /\b(second|2nd|floor\s*2|level\s*2)\b/.test(q);
+    const previous = active === null ? undefined : messages[active];
+    const priorFloor = previous?.kind === "answer" && previous.answer.view === demoPath
+      && String(previous.answer.value).startsWith("Floor 2");
+    const focused = floor || (wantsTakeoff && priorFloor);
+    const rows = focused ? changes.filter((row) => row.level === "Level 2") : changes;
+    const scope = focused ? "Floor 2" : "Whole building";
+    const answer = revisionAnswer(rows, scope);
+    const recognized = wantsTakeoff || /chang|revision|compar/.test(q);
+    setDraft("");
+    if (wantsTakeoff) setImage(takeoffImage(rows, scope));
+    if (recognized) setActive(messages.length + 1);
+    setMessages([...messages, { kind: "user", path: demoPath, text: question }, recognized
+      ? { kind: "answer", path: demoPath, question, answer, steps: [] }
+      : { kind: "error", path: demoPath, text: "Ask about revision changes, Floor 2, or a takeoff of the changes." }]);
   }
 
-  return (
-    <main className="final-demo">
-      <header className="fd-top">
-        <b>SiteLens<span>.</span></b>
-        <nav><button onClick={restart} disabled={!changes.length}>Replay</button><a href={location.pathname}>Workspace</a></nav>
-      </header>
-      <div className="fd-body">
-        <section className="fd-stage" aria-label="Interactive BIM revision model">
-          <div className="fd-project"><span>SAMPLE IFC</span><h1>Harbor Workshop</h1><p>Revision A → B</p></div>
-          {!changes.length ? <p className="fd-loading" role="status">{error ? "Could not load the demo revisions. Reload to try again." : "Loading BIM…"}</p> :
-            <Suspense fallback={<p className="fd-loading">Loading BIM…</p>}>
-              <Model3D path={view} answer={answer} hover={hover} focus={focus} onHover={setHover} onFocus={setFocus} busy={step === 2 || step === 5}
-                demo={{ url: view, replay, overview: !quantity, changeIds, onReady: ready }} />
-            </Suspense>}
-          {answered && <div className="fd-legend"><span>Added</span><span>Removed</span></div>}
-        </section>
-        <aside className="fd-story" aria-label="Guided demo">
-          <div className="fd-progress" aria-label="Two demo highlights"><span className={quantity ? "" : "current"}>01 / Reveal</span><span className={quantity ? "current" : ""}>02 / Takeoff</span></div>
-          {step > 0 && <p className="fd-question" aria-label={step < 4 ? questions[0] : questions[1]}>{typed || "\u00a0"}</p>}
-          <div className="fd-result" aria-live="polite">
-            {step === 0 && <h2>See what changed.</h2>}
-            {answered && !quantity && <><h2>Two walls changed.</h2><p>A new east enclosure replaces an interior partition on Level 3.</p></>}
-            {quantity && <>
-              <h2>Wall area changes</h2>
-              <div className="fd-metrics"><div><span>Added</span><strong>+{area(added)} <small>m²</small></strong></div><div><span>Removed</span><strong>−{area(removed)} <small>m²</small></strong></div></div>
-              <div className="fd-rows">
-                {changes.map((c, i) => <button key={c.guid} aria-pressed={focus === i} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onClick={() => setFocus(focus === i ? null : i)}><span className={c.change}>{c.name}</span><span>{area(c.area)} m²</span></button>)}
-              </div>
-              <details><summary>Show measurement source</summary><p>Gross side area from one face of each changed wall, as recorded in the IFC quantities.</p><a href={base + "harbor-A.ifc"} download>Revision A</a>{" · "}<a href={base + "harbor-B.ifc"} download>Revision B</a></details>
-            </>}
-          </div>
-          {step === 7 && <div className="fd-save">
-            <p aria-live="polite">{saved ? "Takeoff downloaded." : "Want to save this as a takeoff?"}</p>
-            <button onClick={() => { saveTakeoff(changes); setSaved(true); }}>{saved ? "Download again" : "Save takeoff"} <span aria-hidden="true">↓</span></button>
-          </div>}
-        </aside>
-      </div>
-    </main>
-  );
+  const submit = useRef(ask);
+  submit.current = ask;
+  const step = messages.filter((message) => message.kind === "user").length;
+  useEffect(() => {
+    if (!enabled || !entered || !ready || !changes || !automatic.current || step >= prompts.length) return;
+    const prompt = prompts[step];
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let timer: ReturnType<typeof setTimeout>;
+    let n = 0;
+    function type() {
+      if (!automatic.current) return;
+      n = reduced ? prompt.length : n + 1;
+      setDraft(prompt.slice(0, n));
+      timer = n < prompt.length ? setTimeout(type, 35) : setTimeout(() => submit.current(prompt), 300);
+    }
+    timer = setTimeout(type, step === 0 ? 350 : 2200);
+    return () => clearTimeout(timer);
+  }, [enabled, entered, ready, changes, step]);
+
+  return {
+    changes, messages, draft, active, image, error,
+    onReady: setReady,
+    activate: setActive,
+    type(s: string) { automatic.current = false; setDraft(s); },
+    ask(q: string) { automatic.current = false; ask(q); },
+  };
 }

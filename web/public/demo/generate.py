@@ -1,17 +1,16 @@
-﻿"""Generate the self-contained IFC revisions and measured evidence for the demo."""
+"""Generate the self-contained IFC revisions and measured evidence for the demo."""
 from pathlib import Path
-import json
 import uuid
 
 import ifcopenshell.api as api
 from ifcopenshell.guid import compress
-from ifcopenshell.util.element import get_psets
 import numpy as np
 
 OUT = Path(__file__).resolve().parent
 WALLS = [
-    ("East workshop enclosure", "added", 6, 3.2, 17, 9, 6.4, False),
-    ("Workshop partition", "removed", 4, 3.2, 17, 6, 6.4, False),
+    ("East workshop enclosure", "added", 6, 3.2, 17, 13, 3.2, False),
+    ("Workshop partition", "removed", 4, 3.2, 17, 10, 3.2, False),
+    ("Roof service partition", "added", 3, 3.2, 8, 5, 6.4, True),
 ]
 
 
@@ -59,22 +58,14 @@ def build(revision):
                 block("Window", f"Glazing {i}/{x}", 2.66, .16, 2.25, x+.34, d-.2, z+.48, style="glass")
         if i == 2:
             block("Slab", "Roof", 24, 9, .3, 0, 0, z+3.2, style="deck")
-            for name, change, length, height, x, y, z, turn in WALLS:
-                if revision == "overlay" or (change == "added") == (revision == "B"):
-                    e = block("Wall", name, length, .22, height, x, y, z, turn)
-                    q = api.run("pset.add_qto", f, product=e, name="Qto_WallBaseQuantities")
-                    api.run("pset.edit_qto", f, qto=q, properties={"GrossSideArea": length * height})
+        for name, change, length, height, x, y, wall_z, turn in WALLS:
+            if wall_z == z and (revision == "overlay" or (change == "added") == (revision == "B")):
+                e = block("Wall", name, length, .22, height, x, y, z, turn)
+                q = api.run("pset.add_qto", f, product=e, name="Qto_WallBaseQuantities")
+                api.run("pset.edit_qto", f, qto=q, properties={"GrossSideArea": length * height})
     f.write(str(OUT / f"harbor-{revision}.ifc"))
     return f
 
 
-a, b = build("A"), build("B")
-build("overlay")
-before = {e.GlobalId: e for e in a.by_type("IfcWall")}
-after = {e.GlobalId: e for e in b.by_type("IfcWall")}
-changes = [
-    {"guid": guid, "name": e.Name, "change": change, "area": get_psets(e)["Qto_WallBaseQuantities"]["GrossSideArea"]}
-    for change, source, other in [("added", after, before), ("removed", before, after)]
-    for guid, e in source.items() if guid not in other
-]
-(OUT / "harbor-changes.json").write_text(json.dumps(changes, indent=2) + "\n", encoding="utf-8")
+for revision in ("A", "B", "overlay"):
+    build(revision)

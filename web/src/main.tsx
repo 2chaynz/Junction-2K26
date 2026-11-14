@@ -8,11 +8,10 @@ import "@fontsource/caveat/600.css";
 import "./styles.css";
 import App from "./App";
 
-const FinalDemo = React.lazy(() => import("./FinalDemo"));
 const demo = new URLSearchParams(location.search).has("demo");
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    {demo ? <React.Suspense fallback={null}><FinalDemo /></React.Suspense> : <App />}
+    <App revisionDemo={demo} />
   </React.StrictMode>,
 );
