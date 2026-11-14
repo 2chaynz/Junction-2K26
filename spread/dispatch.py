@@ -20,7 +20,10 @@ from spread.types import (
 
 import json, math, os
 HOUR, DAY = 60, 24 * 60
-P = {"qm": 1.0, "opt": "first", "f0": 1.0, "fstep": 0.10, "fn": 6, "fint": 60, "s0": 1.5, "sstep": 0.25, "sn": 5, "sint": 30, "trust": 0.0, "ramp": 0, "f1": 1.4, "rn": 8, "minslack": 0, "lowslack": 600, "lowmult": 1.0, "suplo": 0, "supmult": 1.3, "supdecl": 0, "offer": 0, "ofee": 0.6, "orad": 30, "onear": 30, "omax": 6, "rq": 0, "model": 0, "cc": 1.1, "eta": 0.08, "mmin": 0.9, "cm": 0, "ccm": 1.0, "lam": 0.5, "u": 0, "u1": 1.3, "u2": 1.7, "u3": 2.2, "t1": 600, "t2": 420, "t3": 300}
+P = {"qm": 1.0, "opt": "first", "f0": 1.0, "fstep": 0.10, "fn": 6, "fint": 60, "s0": 1.5, "sstep": 0.25, "sn": 5, "sint": 30, "trust": 0.0, "ramp": 0, "f1": 1.4, "rn": 8, "minslack": 0, "lowslack": 600, "lowmult": 1.0, "suplo": 0, "supmult": 1.3, "supdecl": 0, "offer": 0, "ofee": 0.6, "orad": 30, "onear": 30, "omax": 6, "rq": 0, "model": 0, "cc": 1.1, "eta": 0.08, "mmin": 0.9, "cm": 0, "ccm": 1.0, "lam": 0.5, "u": 0, "ra": 0.0, "tvk": 0.0, "tvp": 12500, "resc": 0, "rescfee": 1.5, "rescn": 3, "sd": 0, "sdslack": 480, "sdmult": 1.15, "sdsup": 40, "etad": 0.0, "etap": 0.0, "r0": 0.04, "u1": 1.3, "u2": 1.7, "u3": 2.2, "t1": 600, "t2": 420, "t3": 300}
+_best = os.path.join(os.path.dirname(os.path.abspath(__file__)), "best_params.json")
+if "SPREAD_PARAMS" not in os.environ and os.path.exists(_best):
+    P.update(json.load(open(_best)))
 P.update(json.loads(os.environ.get("SPREAD_PARAMS", "{}")))
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 # The events that need an answer. Views and account lines arrive with the next event that needs an answer.
@@ -132,7 +135,12 @@ class Desk:
         self.urgent: set[str] = set()  # the orders whose deadline warning has come
         self.trust: dict[str, int] = {}  # dealer id -> orders delivered on time (level 8 trust count)
         self.late_seen: set[str] = set()
+        self.at_risk: set[str] = set()
+        self.won_n = 0
         self.bias = 0.0
+        self.dealer_reqs: dict[str, int] = {}
+        self.bias_d: dict[int, float] = {}
+        self.bias_p: dict[tuple, float] = {}
         self.pending_q: dict[str, tuple] = {}
         self.offer_queue: dict[str, list[str]] = {}
         self.offer_fee: dict[str, int] = {}
@@ -151,6 +159,10 @@ class Desk:
             if gig["status"] in ("open", "booked", "working"):
                 self.carry({"type": "post", "stops": gig["stops"], "audience": gig["audience"], "schedule": gig["schedule"]}, gig["id"])
         self.requests = {e["request"]["id"]: e["request"] for e in history if e["kind"] == "price_request"}
+        self.dealer_of = {rid: r["dealerId"] for rid, r in self.requests.items()}
+        for e in history:
+            if e["kind"] == "ledger":
+                self.ledger(e["line"])
         self.urgent = {e["orderId"] for e in history if e["kind"] == "deadline_close"}
         self.orders = {o["id"]: o for o in snapshot["orders"] if o["id"] in self.requests and o["status"] != "cancelled"}
         for order in self.orders.values():
@@ -184,6 +196,9 @@ class Desk:
         elif event["kind"] == "deadline_close":  # it comes again when a driver drops the car after the first warning
             self.raise_fees(event["orderId"])
         elif event["kind"] == "gig_booked":
+            post = self.posts.get(event["gigId"])
+            if post:
+                self.at_risk.discard(post["stops"][0]["orderId"])
             self.booked.add(event["gigId"])
             self.offer_queue.pop(event["gigId"], None)
         elif event["kind"] == "offer_answered":
@@ -210,7 +225,11 @@ class Desk:
             self.late_seen.add(oid)
             self.trust[dealer] = max(0, self.trust.get(dealer, 0) - 1) // 2
 
+    def risk(self) -> float:
+        return (len(self.late_seen) + len(self.at_risk)) / max(40, self.won_n)
+
     def delivered(self, order_id: str, leg: int, at: int) -> None:
+        self.at_risk.discard(order_id)
         self.leg_gigs.get(order_id, {}).pop(leg, None)
         if order_id in self.orders:
             self.orders[order_id]["deliveredAt"][leg] = at
@@ -218,6 +237,7 @@ class Desk:
     def quote(self, request: PriceRequest) -> None:
         self.requests[request["id"]] = request
         self.dealer_of[request["id"]] = request["dealerId"]
+        self.dealer_reqs[request["dealerId"]] = self.dealer_reqs.get(request["dealerId"], 0) + 1
         opts = request["options"]
         chosen = opts[:1] if P["opt"] == "first" else opts[-1:] if P["opt"] == "last" else opts
         if P["opt"] == "nosame":
@@ -251,7 +271,9 @@ class Desk:
             leg0 = request["legs"][0]
             o0 = chosen[0]
             feats = [f"dealer:{request['dealerId']}", f"pk:{leg0['pickup']['placeId']}", f"dl:{leg0['delivery']['placeId']}", f"k:{o0['kind']}"]
-            base = mdl["icpt"] + sum(mdl["w"].get(f, 0.0) for f in feats) + self.bias
+            day = request["arrivedAt"] // DAY
+            pkey = (day, leg0["pickup"]["placeId"])
+            base = mdl["icpt"] + sum(mdl["w"].get(f, 0.0) for f in feats) + self.bias + self.bias_d.get(day, 0.0) + self.bias_p.get(pkey, 0.0)
             tr = 1 + P["trust"] * self.trust.get(request["dealerId"], 0) / 100
             cost = request["referenceFeeCents"] * P["cc"] * max(mults.values())
             if P["suplo"] and supply(self.world, leg0["pickup"]["placeId"]) < P["suplo"]:
@@ -259,19 +281,29 @@ class Desk:
             plate = 0.0
             if P["cm"]:
                 pc, plate = predict_cost(self.world, request)
-                cost = request["referenceFeeCents"] * pc * P["ccm"]
+                cost = request["referenceFeeCents"] * pc * P["ccm"] * (1 + P["ra"] * max(0.0, self.risk() - P["r0"]))
+            tv = 0.0
+            if P["tvk"] and self.trust.get(request["dealerId"], 0) < 25:
+                dayf = request["arrivedAt"] / DAY
+                per_day = self.dealer_reqs.get(request["dealerId"], 1) / max(0.5, dayf - 0.33)
+                tv = P["tvk"] * 0.01 * per_day * max(0.0, 4.75 - dayf) * 0.25 * P["tvp"]
             best, bm = 0.0, None
             for i in range(0, 160):
                 m = P["mmin"] + i * 0.01
                 p = 1 / (1 + math.exp(-(base + mdl["slope"] * math.log(m / tr))))
-                gain = (m * o0["listPriceCents"] * (1 - P["lam"] * plate) - cost) * p
+                gain = (m * o0["listPriceCents"] * (1 - P["lam"] * plate) - cost + tv * (1 - plate)) * p
                 if gain > best:
                     best, bm = gain, m
-            self.pending_q[request["id"]] = (base, math.log(bm / tr) if bm else None)
+            self.pending_q[request["id"]] = (base, math.log(bm / tr) if bm else None, day, pkey)
             if bm is None:
                 self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {o0["kind"]: o0["listPriceCents"] * 5}})
                 return
-            self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {o["kind"]: int(o["listPriceCents"] * bm) for o in chosen}})
+            prices = {o["kind"]: int(o["listPriceCents"] * bm) for o in chosen}
+            if P["sd"]:
+                sdo = next((o for o in opts if o["kind"] == "same_day"), None)
+                if sdo is not None and slack_of(sdo) >= P["sdslack"] and supply(self.world, leg0["pickup"]["placeId"]) >= P["sdsup"] and not leg0["pickup"]["privateAddress"] and not leg0["delivery"]["privateAddress"] and len(request["legs"]) == 1:
+                    prices["same_day"] = int(sdo["listPriceCents"] * bm * P["sdmult"])
+            self.outbox.append({"type": "quote", "requestId": request["id"], "prices": prices})
             return
         if P["rq"]:
             import random
@@ -281,15 +313,20 @@ class Desk:
         self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {o["kind"]: int(o["listPriceCents"] * P["qm"] * mults[o["kind"]] * (1 + P["trust"] * self.trust.get(request["dealerId"], 0) / 100)) for o in chosen}})
 
     def learn(self, rid: str, won: float) -> None:
-        base, lmeff = self.pending_q.pop(rid)
+        base, lmeff, day, pkey = self.pending_q.pop(rid)
         if lmeff is None:
             return
         mdl = load_model()
         p = 1 / (1 + math.exp(-(base + mdl["slope"] * lmeff)))
         self.bias += P["eta"] * (won - p)
         self.bias = max(-2.0, min(2.0, self.bias))
+        if P["etad"]:
+            self.bias_d[day] = max(-2.0, min(2.0, self.bias_d.get(day, 0.0) + P["etad"] * (won - p)))
+        if P["etap"]:
+            self.bias_p[pkey] = max(-2.0, min(2.0, self.bias_p.get(pkey, 0.0) + P["etap"] * (won - p)))
 
     def win(self, order: Order) -> None:
+        self.won_n += 1
         if order["id"] in self.pending_q:
             self.learn(order["id"], 1.0)
         if order["id"] in self.requests and order["id"] not in self.orders:  # rejoin can know it already
@@ -323,10 +360,13 @@ class Desk:
         if order is None:
             return
         self.urgent.add(order_id)
+        self.at_risk.add(order_id)
         self.send_post_of(order_id)
         for gig_id in self.gigs_of(order_id):
             if gig_id not in self.booked:
                 self.outbox.append({"type": "reprice", "gigId": gig_id, "schedule": self.fees_for(order, pickups(self.posts[gig_id]))})
+                if P["resc"]:
+                    self.rescue(order, gig_id)
 
     def fees_for(self, order: Order, cars: int) -> list[FeeStep]:
         """The fees for some of the order's cars from now: rising, or steep once its deadline warning has come."""
@@ -393,6 +433,19 @@ class Desk:
         for _ in range(3):
             self.next_offer(gig_id)
 
+    def rescue(self, order: Order, gig_id: str) -> None:
+        """Offers an unbooked gig at a high fee to the drivers who live nearest its pickup."""
+        if self.drivers_home is None:
+            self.drivers_home = [(d["id"], d["homePlaceId"]) for d in self.world.roster()]
+        action = self.posts[gig_id]
+        pick = next(s_ for s_ in action["stops"] if s_["kind"] == "pickup")
+        pp = order["legs"][pick["leg"]]["pickup"]["placeId"]
+        cands = sorted((km(h, pp), d) for d, h in self.drivers_home if km(h, pp) <= 80)
+        self.offer_queue[gig_id] = [d for _, d in cands][:30]
+        self.offer_fee[gig_id] = max(1, int(self.requests[order["id"]]["referenceFeeCents"] * pickups(action) / len(order["legs"]) * P["rescfee"]))
+        for _ in range(P["rescn"]):
+            self.next_offer(gig_id)
+
     def next_offer(self, gig_id: str) -> None:
         q = self.offer_queue.get(gig_id)
         day = self.now // DAY
@@ -430,10 +483,15 @@ class Desk:
             self.send()
 
     def send(self) -> None:
-        """Sends the outbox now. In practice, the outbox goes with the next advance instead."""
-        actions, self.outbox = self.outbox, []
-        if actions:
-            self.read_results(actions, self.world.act(actions))
+        """Sends the outbox now. In practice, the outbox goes with the next advance instead. Offers that the
+        results start go out in the same call."""
+        for _ in range(4):
+            actions, self.outbox = self.outbox, []
+            if not actions:
+                return
+            for i in range(0, len(actions), 50):
+                chunk = actions[i : i + 50]
+                self.read_results(chunk, self.world.act(chunk))
 
     def read_results(self, actions: list[Action], results: list[ActionResult]) -> None:
         """Remembers the gig of each post that the world accepted."""
@@ -709,7 +767,7 @@ def play_practice(world: World, level: int) -> None:
             report(WEEKDAYS[day % 7], world.score())
 
 
-def play_final(world: World) -> None:
+def play_final(world: World, now_fn=None) -> None:
     """Rebuilds the books, then answers events as they come. After a second without an event,
     it reads the clock."""
     history = world.events()
@@ -722,7 +780,7 @@ def play_final(world: World) -> None:
     desk.send()
     for event in world.stream(after=history[-1]["seq"] if history else -1, idle=1.0):
         day = desk.now // DAY
-        desk.now = world.client.final()["now"] if event is None else max(desk.now, event["at"])
+        desk.now = (now_fn() if now_fn else world.client.final()["now"]) if event is None else max(desk.now, event["at"])
         if event is not None:
             desk.handle(event)
         desk.send()

@@ -1,0 +1,639 @@
+"""The starter: a whole dispatch system that you can read in five minutes, then change. HANDBOOK.md says
+what it does and how to run it (`spread-starter --help` lists the options).
+
+To change it, copy this file and run the copy: python dispatch.py
+"""
+from __future__ import annotations
+
+import argparse
+import contextlib
+import re
+import sys
+import time
+from typing import NamedTuple, Optional
+
+from spread.client import Client, SpreadError, Unreachable, World
+from spread.types import (
+    Action, ActionResult, Audience, DeskEvent, DeskEventKind, DeskSnapshot, FeeStep, Gig, Note, Order, PostAction, PriceRequest,
+    Score, StopRef, TimeWindow,
+)
+
+import json, os
+HOUR, DAY = 60, 24 * 60
+P = {"qm": 1.0, "opt": "first", "f0": 1.0, "fstep": 0.10, "fn": 6, "fint": 60, "s0": 1.5, "sstep": 0.25, "sn": 5, "sint": 30, "trust": 0.0, "ramp": 0, "f1": 1.4, "rn": 8, "minslack": 0, "lowslack": 600, "lowmult": 1.0}
+P.update(json.loads(os.environ.get("SPREAD_PARAMS", "{}")))
+WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+# The events that need an answer. Views and account lines arrive with the next event that needs an answer.
+QUIET = bool(os.environ.get("SPREAD_QUIET"))
+WAKE_ON: list[DeskEventKind] = ["price_request", "order_won", "order_changed", "order_cancelled", "visit_failed", "gig_expired", "deadline_close"]
+
+
+class Retry(NamedTuple):
+    """How to post a leg again after a failed visit."""
+    pickup_from: int = 0
+    manual_licence: bool = False
+    plates: bool = False
+
+
+ROADS: dict = {}
+
+
+def road_minutes(a: str, b: str) -> int:
+    if not ROADS:
+        from spread.client import Client as _C
+        for r in _C().map()["roads"]:
+            ROADS[(r["from"], r["to"])] = r["minutes"]
+    return ROADS.get((a, b), 0)
+
+
+class Desk:
+    """What the starter remembers, and its answer to each event. The answers wait in the outbox
+    until the starter sends them, and the world applies them at the current minute."""
+
+    def __init__(self, world: World, level: int, now: int):
+        self.world, self.level, self.now = world, level, now
+        self.outbox: list[Action] = []  # the actions decided since the starter last sent
+        self.requests: dict[str, PriceRequest] = {}
+        self.orders: dict[str, Order] = {}  # the orders won and not cancelled
+        self.leg_gigs: dict[str, dict[int, str]] = {}  # order id -> leg -> the gig that carries the leg
+        self.booked: set[str] = set()  # the gigs that a driver holds now
+        self.posts: dict[str, PostAction] = {}  # gig id -> the post that made it
+        self.urgent: set[str] = set()  # the orders whose deadline warning has come
+        self.trust: dict[str, int] = {}  # dealer id -> orders delivered on time (level 8 trust count)
+        self.late_seen: set[str] = set()
+        self.dealer_of: dict[str, str] = {}
+
+    def rejoin(self, snapshot: DeskSnapshot, history: list[DeskEvent]) -> None:
+        """Rebuilds what it knows from the world, so a starter that stopped keeps its orders. Then answers
+        what it missed: open requests, orders without a gig, failed visits without a new gig, and the
+        deadline warnings, so the orders that had one keep their steep fees."""
+        posted: dict[str, list[Gig]] = {}  # order id -> its gigs, oldest first
+        self.booked = {gig["id"] for gig in snapshot["gigs"] if gig["status"] in ("booked", "working", "done")}
+        for gig in snapshot["gigs"]:
+            posted.setdefault(gig["stops"][0]["orderId"], []).append(gig)
+            if gig["status"] in ("open", "booked", "working"):
+                self.carry({"type": "post", "stops": gig["stops"], "audience": gig["audience"], "schedule": gig["schedule"]}, gig["id"])
+        self.requests = {e["request"]["id"]: e["request"] for e in history if e["kind"] == "price_request"}
+        self.urgent = {e["orderId"] for e in history if e["kind"] == "deadline_close"}
+        self.orders = {o["id"]: o for o in snapshot["orders"] if o["id"] in self.requests and o["status"] != "cancelled"}
+        for order in self.orders.values():
+            if order["status"] == "waiting" and not self.gigs_of(order["id"]):
+                self.post(order, undelivered(order))
+        for event in history:
+            order = self.orders.get(event.get("orderId", ""))
+            if order is None:
+                continue
+            if event["kind"] == "visit_failed" and order["deliveredAt"][event["leg"]] is None:
+                later = [g for g in posted.get(order["id"], []) if g["postedAt"] >= event["at"] and g["id"] != event["gigId"]]
+                if not any(stop["leg"] == event["leg"] for gig in later for stop in gig["stops"]):
+                    self.retry(order["id"], event["leg"], event["reason"])
+        for request in snapshot["openRequests"]:
+            self.quote(request)
+
+    def handle(self, event: DeskEvent) -> None:
+        if event["kind"] == "price_request":
+            self.quote(event["request"])
+        elif event["kind"] == "order_won":
+            self.win(event["order"])
+        elif event["kind"] == "order_changed":
+            self.change(event["order"])
+        elif event["kind"] == "order_cancelled":  # the world has stopped the car and told each of its gigs what happens
+            for books in (self.orders, self.leg_gigs):
+                books.pop(event["orderId"], None)
+        elif event["kind"] == "visit_failed":
+            self.retry(event["orderId"], event["leg"], event["reason"])
+        elif event["kind"] == "gig_expired":
+            self.repost(event["gigId"])
+        elif event["kind"] == "deadline_close":  # it comes again when a driver drops the car after the first warning
+            self.raise_fees(event["orderId"])
+        elif event["kind"] == "gig_booked":
+            self.booked.add(event["gigId"])
+        elif event["kind"] in ("gig_dropped", "no_show"):  # after a no-show the gig is open again; a late driver still comes
+            self.booked.discard(event["gigId"])
+        elif event["kind"] == "ledger":
+            self.ledger(event["line"])
+        elif event["kind"] == "delivered":
+            self.delivered(event["orderId"], event["leg"], event["at"])
+
+    def ledger(self, line) -> None:
+        oid = line.get("orderId")
+        order = self.orders.get(oid) if oid else None
+        dealer = order["dealerId"] if order else self.dealer_of.get(oid)
+        if dealer is None:
+            return
+        if line["kind"] == "revenue":
+            self.trust[dealer] = min(25, self.trust.get(dealer, 0) + 1)
+        elif line["kind"] == "late_refund" and oid not in self.late_seen:
+            self.late_seen.add(oid)
+            self.trust[dealer] = max(0, self.trust.get(dealer, 0) - 1) // 2
+
+    def delivered(self, order_id: str, leg: int, at: int) -> None:
+        self.leg_gigs.get(order_id, {}).pop(leg, None)
+        if order_id in self.orders:
+            self.orders[order_id]["deliveredAt"][leg] = at
+
+    def quote(self, request: PriceRequest) -> None:
+        self.requests[request["id"]] = request
+        self.dealer_of[request["id"]] = request["dealerId"]
+        opts = request["options"]
+        chosen = opts[:1] if P["opt"] == "first" else opts[-1:] if P["opt"] == "last" else opts
+        if P["opt"] == "nosame":
+            chosen = [o for o in opts if o["kind"] != "same_day"]
+        # estimated slack: time from when a driver could start to the last pickup that still delivers by the deadline
+        def slack_of(o):
+            leg0 = request["legs"][0]
+            drive = sum(road_minutes(l["pickup"]["placeId"], l["delivery"]["placeId"]) for l in request["legs"])
+            start = max(request["respondBy"] + 15, leg0["pickup"]["window"]["from"])
+            return min(o["deadline"] - drive, leg0["pickup"]["window"]["to"]) - (request["respondBy"] + 15)
+        kept = []
+        mults = {}
+        for o in chosen:
+            sl = slack_of(o)
+            if sl < P["minslack"]:
+                continue
+            kept.append(o)
+            mults[o["kind"]] = P["lowmult"] if sl < P["lowslack"] else 1.0
+        chosen = kept
+        if not chosen:
+            self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {opts[0]["kind"]: opts[0]["listPriceCents"] * 5}})
+            return
+        self.outbox.append({"type": "quote", "requestId": request["id"], "prices": {o["kind"]: int(o["listPriceCents"] * P["qm"] * mults[o["kind"]] * (1 + P["trust"] * self.trust.get(request["dealerId"], 0) / 100)) for o in chosen}})
+
+    def win(self, order: Order) -> None:
+        if order["id"] in self.requests and order["id"] not in self.orders:  # rejoin can know it already
+            self.orders[order["id"]] = order
+            self.post(order, undelivered(order))
+
+    def change(self, order: Order) -> None:
+        if order["id"] in self.orders:
+            self.orders[order["id"]] = order
+            if self.withdraw(order["id"]):
+                self.post(order, undelivered(order))
+
+    def repost(self, gig_id: str) -> None:
+        """Posts a gig again when one of its windows ended before a driver booked it."""
+        action = self.posts.get(gig_id)
+        # A gig the starter has already taken off and posted again, after a change of plan, needs nothing.
+        if action is None or not any(self.leg_gigs.get(s["orderId"], {}).get(s["leg"]) == gig_id for s in action["stops"]):
+            return
+        for stop in action["stops"]:
+            self.leg_gigs.get(stop["orderId"], {}).pop(stop["leg"], None)
+        order = self.orders.get(action["stops"][0]["orderId"])
+        if order is None:
+            return
+        # One of its windows has ended, perhaps at a site's closing time before the window's own end: post without its own stop windows.
+        stops = without_windows(action["stops"], float("inf"))
+        self.outbox.append({**action, "stops": stops, "schedule": self.fees_for(order, pickups(action))})
+
+    def raise_fees(self, order_id: str) -> None:
+        """From the order's deadline warning on, its gigs that no driver holds go at the steep fees."""
+        order = self.orders.get(order_id)
+        if order is None:
+            return
+        self.urgent.add(order_id)
+        self.send_post_of(order_id)
+        for gig_id in self.gigs_of(order_id):
+            if gig_id not in self.booked:
+                self.outbox.append({"type": "reprice", "gigId": gig_id, "schedule": self.fees_for(order, pickups(self.posts[gig_id]))})
+
+    def fees_for(self, order: Order, cars: int) -> list[FeeStep]:
+        """The fees for some of the order's cars from now: rising, or steep once its deadline warning has come."""
+        fee = self.requests[order["id"]]["referenceFeeCents"] * cars / len(order["legs"])
+        if P["ramp"] and order["id"] not in self.urgent:
+            end = order["lastPickupAt"] - 180
+            n = P["rn"]
+            if end - self.now < 30:
+                return [{"at": self.now, "feeCents": max(1, int(fee * P["f1"] + 0.5))}]
+            return [{"at": int(self.now + k * (end - self.now) / (n - 1)), "feeCents": max(1, int(fee * (P["f0"] + (P["f1"] - P["f0"]) * k / (n - 1)) + 0.5))} for k in range(n)]
+        return steep(self.now, fee, self.level) if order["id"] in self.urgent else rising(self.now, fee, self.level)
+
+    def retry(self, order_id: str, leg: int, reason: str) -> None:
+        if order_id in self.orders:
+            order = self.orders[order_id]
+            self.leg_gigs.get(order_id, {}).pop(leg, None)  # the world has taken the car out of the failed gig
+            car_not_there = reason in ("not_ready", "closed")
+            pickup_from = retry_from(order, self.requests[order_id], leg, self.now) if car_not_there else 0
+            self.post(order, [leg], Retry(pickup_from, manual_licence=reason == "licence", plates=reason == "no_plates"))
+
+    def post(self, order: Order, legs: list[int], retry: Retry = Retry()) -> None:
+        # A premium car needs an experienced driver: the fine is €150 a car.
+        request = self.requests[order["id"]]
+        manual, _, _ = note_flags(request)
+        audience: Audience = {"experienced": any(leg["car"]["premium"] for leg in order["legs"]), "manualLicence": retry.manual_licence or manual}
+        stops = without_windows(stops_for(order, legs, request, retry), self.now)
+        self.outbox.append({"type": "post", "stops": stops, "audience": audience, "schedule": self.fees_for(order, len(legs))})
+        if len(legs) == 1:
+            return
+        # A trade-in over the 12-hour limit for a gig with two cars goes as one gig per car.
+        self.send()
+        if not self.gigs_of(order["id"]):
+            for leg in legs:
+                self.post(order, [leg], retry)
+
+    def gigs_of(self, order_id: str) -> list[str]:
+        """The gigs that carry the order's undelivered legs: one, or one for each leg of a split trade-in."""
+        return list(dict.fromkeys(self.leg_gigs.get(order_id, {}).values()))
+
+    def carry(self, action: PostAction, gig_id: str) -> None:
+        """Remembers a gig that the world accepted: the post that made it, and the legs it carries."""
+        for stop in action["stops"]:
+            self.leg_gigs.setdefault(stop["orderId"], {})[stop["leg"]] = gig_id
+        self.posts[gig_id] = action
+
+    def withdraw(self, order_id: str) -> bool:
+        """Takes an order's gigs out of the drivers' app. False, and nothing withdrawn, when a driver holds one of them."""
+        self.send_post_of(order_id)
+        gigs = self.gigs_of(order_id)
+        if any(gig_id in self.booked for gig_id in gigs):
+            return False
+        self.leg_gigs.pop(order_id, None)
+        self.outbox += [{"type": "withdraw", "gigId": gig_id} for gig_id in gigs]
+        return True
+
+    def send_post_of(self, order_id: str) -> None:
+        """A post of the order still in the outbox goes to the world now, so the starter knows its gig. Each gig carries one order."""
+        if any(action["type"] == "post" and action["stops"][0]["orderId"] == order_id for action in self.outbox):
+            self.send()
+
+    def send(self) -> None:
+        """Sends the outbox now. In practice, the outbox goes with the next advance instead."""
+        actions, self.outbox = self.outbox, []
+        if actions:
+            self.read_results(actions, self.world.act(actions))
+
+    def read_results(self, actions: list[Action], results: list[ActionResult]) -> None:
+        """Remembers the gig of each post that the world accepted."""
+        for action, result in zip(actions, results):
+            if action["type"] == "post" and result["ok"] is True:
+                self.carry(action, result["id"])
+
+
+def retry_from(order: Order, request: PriceRequest, leg: int, now: int) -> int:
+    """When to try a car again after a visit found it not ready or the site closed: two hours on, or,
+    when the dealer moved the deadline for a car that is late, when the car should be ready by the
+    same delay."""
+    promised = next((o["deadline"] for o in request["options"] if o["kind"] == order["option"]), order["deadline"])
+    delay = max(0, order["deadline"] - promised)
+    return max(now + 2 * HOUR, order["legs"][leg]["pickup"]["window"]["from"] + delay)
+
+
+def undelivered(order: Order) -> list[int]:
+    return [leg for leg in range(len(order["legs"])) if order["deliveredAt"][leg] is None]
+
+
+def pickups(action: PostAction) -> int:
+    """The cars a post carries."""
+    return sum(1 for stop in action["stops"] if stop["kind"] == "pickup")
+
+
+def without_windows(stops: list[StopRef], before: float) -> list[StopRef]:
+    """Leaves out the stop windows that end before `before`, so the world's window applies: once the order's
+    window has ended, it runs to the end of the world."""
+    return [{k: v for k, v in stop.items() if k != "window"} if "window" in stop and stop["window"]["to"] < before else stop for stop in stops]
+
+
+def rising(now: int, fee: float, level: int) -> list[FeeStep]:
+    """The fee at once, then 10% of it more every hour: six steps, up to 1.5 times. Level 1 takes one fee only."""
+    # int(x + 0.5) rounds halves up, as JavaScript's Math.round does, so both starters post the same fees.
+    return [{"at": now + k * P["fint"], "feeCents": max(1, int(fee * (P["f0"] + k * P["fstep"]) + 0.5))} for k in range(1 if level == 1 else P["fn"])]
+
+
+def steep(now: int, fee: float, level: int) -> list[FeeStep]:
+    """1.5 times the fee at once, then a quarter of it more every half hour, up to 2.5 times. Level 1 takes one fee only."""
+    return [{"at": now + k * P["sint"], "feeCents": max(1, int(fee * (P["s0"] + k * P["sstep"]) + 0.5))} for k in range(1 if level == 1 else P["sn"])]
+
+
+def stops_for(order: Order, legs: list[int], request: PriceRequest, retry: Retry) -> list[StopRef]:
+    """A pickup and a delivery for each leg. A stop has its own window only when the note or the retry
+    makes it narrower. Without one, the world plans the pickup in the order's window and the delivery by
+    the deadline. A note that needs plates or a charge gets them on the first post."""
+    _, plates, low_battery_note = note_flags(request)
+    stops: list[StopRef] = []
+    for leg in legs:
+        car, pickup, delivery = order["legs"][leg]["car"], order["legs"][leg]["pickup"], order["legs"][leg]["delivery"]
+        noted = window_from_note(request, pickup["window"], "pickup")
+        start = max(noted["from"], retry.pickup_from)
+        pickup_window: TimeWindow = {"from": start, "to": max(noted["to"], start)}
+        delivery_base: TimeWindow = {"from": delivery["window"]["from"], "to": max(delivery["window"]["from"], order["deadline"])}
+        delivery_window = window_from_note(request, delivery_base, "delivery")
+        low_battery = car["electric"] and ((car["chargePercent"] is not None and car["chargePercent"] < 30) or low_battery_note)
+        first: StopRef = {"orderId": order["id"], "leg": leg, "kind": "pickup", "withPlates": retry.plates or plates, "withCharging": low_battery}
+        second: StopRef = {"orderId": order["id"], "leg": leg, "kind": "delivery"}
+        stops += [narrower(first, pickup_window, pickup["window"]), narrower(second, delivery_window, delivery_base)]
+    return stops
+
+
+def narrower(stop: StopRef, window: TimeWindow, base: TimeWindow) -> StopRef:
+    return {**stop, "window": window} if window["from"] > base["from"] or window["to"] < base["to"] else stop
+
+
+# Keywords, matched on lower-cased clauses. A closing word turns a time after it into the site's closing time.
+AFTER = re.compile(r"j.{0,2}keen|alkaen|aikaisintaan|\bafter\b|\bfrom\b|earliest|not before|ei ennen|valmi|\bready\b|efter|tidigast|inte före|\bklar\b|först|\bvasta\b|once paid|payment", re.ASCII)
+BEFORE = re.compile(r"ennen|mennessä|mennessa|viim|\bbefore\b|\bby\b|latest|ltaest|före|senast|\basti\b|\buntil\b|\btill\b|\btills\b|innan", re.ASCII)
+CLOSED = re.compile(r"kiinni|sulkee|suljet|\bcloses?\b|\bclosed\b|stänger|stängt|ei ketään|ei kukaan|nobody|no one|ingen", re.ASCII)
+DELIVERY = re.compile(r"toimit|perill|perila|perilä|peril[ae]|vastaanot|kohde|destination|dstination|deliver|arriv|receiv|leverera|leverans|framme|mottag", re.ASCII)
+PICKUP = re.compile(r"nou[dt]|hake|haett|hämt|\bhaku|collect|pick ?up|\bready\b|valmi|\bklar\b|luovut|handover|hand over|maks|maskaa|payment|pays|release", re.ASCII)
+CORRECTION = re.compile(r"korjaus|correction|corrected|\bcorr\b|ei kun|ei vaan|i mean|instead|rättelse", re.ASCII)
+HANDOVER = re.compile(r"vasta|maks|once paid|pays|payment|sitten|sen jälkeen|luovut", re.ASCII)
+DENIAL = re.compile(r"(?:\bnot|\binte|\bej|\bei)$", re.ASCII)
+# Opening hours as a range: "9-16", "klo 9.00-14.30", "kl 10-14".
+RANGE = re.compile(r"(?<![\d.:])(\d{1,2})(?:[.:](\d{2}))?\s*-\s*(\d{1,2})(?:[.:](\d{2}))?(?![\d])", re.ASCII)
+# A clock time: after klo/kl/kello/klockan/at, with a colon or dot, with am/pm, or next to a bound word.
+CLOCK = re.compile(
+    r"(?<![\w.:])(?:(?:klo|kl|kello|klockan|at)\.?\s*(\d{1,2})(?:[.:](\d{2}))?"
+    r"|(\d{1,2})[.:](\d{2})(?!\d)"
+    r"|(\d{1,2})(?=\s*(?:mennessä|mennessa|asti|alkaen|jälkeen|ennen|viimeistään|viim|latest|earliest|before|after|by)\b)"
+    r"|(\d{1,2})(?=\s*(?:am|pm)\b))(?:\s*(am|pm)\b)?",
+    re.ASCII,
+)
+DAY_WORDS = [
+    (re.compile(r"tänään|tanaan|\bidag\b|\btoday\b", re.ASCII), 0),
+    (re.compile(r"ylihuom\w*|i övermorgon|övermorgon|overmorgon|day after tomorrow", re.ASCII), 2),
+    (re.compile(r"\bhuom\w*n\w*|\bi morgon\b|\bimorgon\b|\btomorrow\b|\btomorow\b|\btmrw\b|\btmr\b|\btmw\b", re.ASCII), 1),
+]
+WEEKDAY = re.compile(
+    r"\b(maanantai\w*|måndag\w*|monday|mon|ma(?=\s+(?:klo|kl|\d))|mån(?=\s+(?:klo|kl|\d))"
+    r"|tiistai\w*|tisdag\w*|tuesday|tues?|ti(?=\s+(?:klo|kl|\d))"
+    r"|keskiviikko\w*|onsdag\w*|wednesday|wed|ke(?=\s+(?:klo|kl|\d))|ons(?=\s+(?:klo|kl|\d))"
+    r"|torstai\w*|torsdag\w*|thursday|thu|thurs|thur|to(?=\.?\s+(?:klo|kl|\d))|tors(?=\s+(?:klo|kl|\d))"
+    r"|perjantai\w*|fredag\w*|friday|fri|pe(?=\s+(?:klo|kl|\d))|fre(?=\s+(?:klo|kl|\d))"
+    r"|lauantai\w*|lördag\w*|saturday|sat|la(?=\s+(?:klo|kl|\d))"
+    r"|sunnuntai\w*|söndag\w*|sunday|sun|su(?=\s+(?:klo|kl|\d)))\b",
+    re.ASCII,
+)
+WORD_HOUR = re.compile(
+    r"(?<![a-zäöå])(?:(puoli|half)\s+)?"
+    r"(yhdentoista|kahdentoista|yhdelt[äa]|kahdelt[äa]|kolmelt[äa]|neljält[äa]|neljalt[äa]|viidelt[äa]|kuudelt[äa]|seitsemält[äa]|seitsemalt[äa]|kahdeksalt[äa]|kahdeksält[äa]"
+    r"|yhdeksält[äa]|yhdeksalt[äa]|kymmenelt[äa]|yhdeltätoista|kahdeltatoista"
+    r"|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|ett|två|tre|fyra|fem|sex|sju|åtta|nio|tio|elva|tolv)(?![a-zäöå])"
+)
+WORD_NUMBERS = {
+    "yhdeltä": 1, "yhdelta": 1, "yhdentoista": 11, "kahdentoista": 12, "kahdelta": 2, "kahdeltä": 2, "kolmelta": 3, "kolmeltä": 3, "neljältä": 4, "neljalta": 4,
+    "viideltä": 5, "viidelta": 5, "kuudelta": 6, "kuudeltä": 6, "seitsemältä": 7, "seitsemalta": 7, "kahdeksalta": 8, "kahdeksältä": 8,
+    "yhdeksältä": 9, "yhdeksalta": 9, "kymmeneltä": 10, "kymmenelta": 10, "yhdeltätoista": 11, "kahdeltatoista": 12,
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+    "ett": 1, "två": 2, "tre": 3, "fyra": 4, "fem": 5, "sex": 6, "sju": 7, "åtta": 8, "nio": 9, "tio": 10, "elva": 11, "tolv": 12,
+}
+WEEKDAY_INDEX = [("maa", 0), ("ma", 0), ("mon", 0), ("mån", 0), ("tii", 1), ("tue", 1), ("tis", 1), ("ti", 1), ("kes", 2), ("wed", 2), ("ons", 2), ("ke", 2),
+                 ("tor", 3), ("thu", 3), ("tors", 3), ("to", 3), ("per", 4), ("fri", 4), ("fre", 4), ("pe", 4), ("lau", 5), ("sat", 5), ("lör", 5), ("la", 5),
+                 ("sun", 6), ("sön", 6), ("su", 6)]
+
+
+def note_flags(request: PriceRequest) -> tuple[bool, bool, bool]:
+    """What the note says about the car: a manual gearbox, no plates, a weak battery."""
+    text = ((request.get("note") or {}).get("text") or "").lower()
+    manual = bool(re.search(r"manuaa|manual|manuell|ei automaatti|stick shift", text))
+    plates = bool(re.search(r"kilpi|kilvet|kilpe|rekkar|rekisterikilv|skylt|plates|siirtokilv|koekilv|unregistered|number plate|registration plate", text))
+    low_battery = bool(re.search(r"akku|batter", text)) and bool(re.search(r"heikko|weak|low|tyhj|vähis|vähän|empty|dead|flat", text))
+    return manual, plates, low_battery
+
+
+def note_clauses(text: str) -> list[str]:
+    """Splits a note at sentences, commas and slashes, so that each clause has one stop."""
+    t = text.lower().replace("–", "-").replace("—", "-")
+    t = re.sub(r"\b(kl|klo|viim|n|ma|ti|ke|to|pe|la|su|mon|tue|wed|thu|fri|sat|sun|tmrw)\.(?=\s)", r"\1", t)
+    return [c.strip() for c in re.split(r"\.(?!\d)|[!;\n/,?]", t) if c.strip()]
+
+
+def clause_stop(clause: str) -> str:
+    """A pickup word wins. A clause with only a delivery word is for the delivery; the rest are for the pickup."""
+    if PICKUP.search(clause):
+        return "pickup"
+    return "delivery" if DELIVERY.search(clause) else "pickup"
+
+
+def weekday_offset(word: str, arrival_wd: int) -> int:
+    """A weekday name is 2 to 6 days after the request arrives, never the arrival day or the next."""
+    index = next((i for prefix, i in WEEKDAY_INDEX if word.startswith(prefix)), 0)
+    offset = (index - arrival_wd) % 7
+    return offset + 7 if offset < 2 else offset
+
+
+def clock_times(clause: str, arrived: int, handover: bool) -> list[tuple[str, int]]:
+    """The (bound, minute) pairs of a clause: 'from' for a time from which, 'to' for a time until which."""
+    arrival_day = arrived // DAY
+    day_marks: list[tuple[int, int]] = []
+    for pattern, offset in DAY_WORDS:
+        day_marks += [(m.start(), offset) for m in pattern.finditer(clause)]
+    day_marks += [(m.start(), weekday_offset(m.group(1), arrival_day % 7)) for m in WEEKDAY.finditer(clause)]
+    times: list[tuple[int, int, int]] = []  # position, minute of the day, end position
+    for m in CLOCK.finditer(clause):
+        hour = int(m.group(1) or m.group(3) or m.group(5) or m.group(6) or 0)
+        minute = int(m.group(2) or m.group(4) or 0)
+        meridiem = m.group(7)
+        if meridiem == "pm" and hour < 12:
+            hour += 12
+        elif meridiem == "am" and hour == 12:
+            hour = 0
+        if hour <= 24 and minute <= 59:
+            times.append((m.start(), hour * HOUR + minute, m.end()))
+    for m in WORD_HOUR.finditer(clause):
+        before = clause[max(0, m.start() - 14) : m.start()]
+        if not (m.group(1) or m.group(2).endswith(("lta", "ltä", "toista")) or re.search(r"klo|kl|kello|klockan|at|by|from|until|till|before|after|efter|före|senast|viim|ennen|jälkeen|alkaen|mennessä|asti|innan|earliest|latest", before)):
+            continue
+        hour = WORD_NUMBERS[m.group(2)]
+        hour = hour if hour >= 9 else hour + 12  # an hour in words is a working hour, from 9 to 17
+        minute = 0
+        if m.group(1):  # "half three" is 14:30
+            hour, minute = hour - 1, 30
+        times.append((m.start(), hour * HOUR + minute, m.end()))
+    out: list[tuple[str, int]] = []
+    for pos, minute_of_day, end in sorted(times):
+        whole = clause if len(times) == 1 else clause[max(0, pos - 30) : end + 30]
+        before = re.sub(r"(?:klo|kl|kello|klockan|at)\.?$", "", clause[:pos].rstrip()).rstrip()
+        if DENIAL.search(before):  # "ei kun klo 18" denies the time it names
+            continue
+        offset = 0
+        if day_marks:
+            near = min(day_marks, key=lambda mark: abs(mark[0] - pos))
+            if abs(near[0] - pos) < 60:
+                offset = near[1]
+        value = (arrival_day + offset) * DAY + minute_of_day
+        if CLOSED.search(whole):
+            out.append(("to", value))
+        elif AFTER.search(whole):
+            out.append(("from", value))
+        elif BEFORE.search(whole):
+            out.append(("to", value))
+        elif CORRECTION.search(clause):
+            out.append(("", value))  # a corrected time takes the bound of the time it corrects
+        elif handover:
+            out.append(("from", value))  # the car is handed over only from then on
+    if not times and day_marks and CORRECTION.search(clause):
+        out.append(("day", (arrival_day + min(day_marks)[1]) * DAY))  # "I mean Wednesday" moves the time before it
+    return out
+
+
+def window_from_note(request: PriceRequest, window: TimeWindow, stop: str) -> TimeWindow:
+    """Narrows a stop's window by the note: a ready time or a payment handover is a start, a deadline or
+    a closing time an end, and opening hours a range, "arkisin 9-16". Days count from the request's
+    arrival: "huomenna" is tomorrow, a weekday name 2 to 6 days on. A correction replaces what came before."""
+    note = request.get("note")
+    if not note:
+        return window
+    start, end = window["from"], window["to"]
+    constraints: list[tuple[str, int]] = []
+    handover = stop == "pickup" and bool(HANDOVER.search(note["text"].lower()))
+    previous = "pickup"
+    for clause in note_clauses(note["text"]):
+        has_word = PICKUP.search(clause) or DELIVERY.search(clause)
+        kind = previous if CORRECTION.search(clause) and not has_word else clause_stop(clause)  # a correction goes with what it corrects
+        previous = kind
+        if kind != stop:
+            continue
+        for match in RANGE.finditer(clause):
+            hours = (int(match[1]), int(match[2] or 0), int(match[3]), int(match[4] or 0))
+            if hours[0] > 24 or hours[2] > 24 or hours[1] > 59 or hours[3] > 59:
+                continue
+            opens, closes = hours[0] * HOUR + hours[1], hours[2] * HOUR + hours[3]
+            if opens >= closes:
+                continue
+            start = max(start, start // DAY * DAY + opens)  # opening hours hold every day
+            end = min(end, end // DAY * DAY + closes)
+        constraints += clock_times(RANGE.sub(" ", clause), request["arrivedAt"], handover)
+    rebased: list[tuple[str, int]] = []
+    for bound, value in constraints:
+        if bound == "day":
+            if rebased:
+                rebased[-1] = (rebased[-1][0], value + rebased[-1][1] % DAY)
+            continue
+        rebased.append((bound, value))
+    inherited = "to"
+    constraints = []
+    for bound, value in rebased:
+        inherited = bound or inherited
+        constraints.append((inherited, value))
+    if CORRECTION.search(note["text"].lower()):
+        constraints = list({bound: value for bound, value in constraints}.items())
+    for bound, value in constraints:
+        if bound == "from":
+            start = max(start, value)
+        else:
+            end = min(end, value)
+    if start <= end:
+        return {"from": start, "to": end}
+    # A ready time after the window's end: the pickup still runs to the window's own end.
+    return {"from": start, "to": max(start, window["to"])} if stop == "pickup" else window
+
+
+def play_practice(world: World, level: int) -> None:
+    """Steps the world from one event that needs an answer to the next, and stops at each midnight for a report."""
+    snapshot = world.snapshot()
+    desk, ends_at = Desk(world, level, snapshot["now"]), snapshot["endsAt"]
+    while desk.now < ends_at:
+        day, midnight = desk.now // DAY, (desk.now // DAY + 1) * DAY
+        # One request a step: the advance applies the outbox, then moves the clock.
+        actions, desk.outbox = desk.outbox, []
+        step = world.advance(until=WAKE_ON, max=min(ends_at, midnight), actions=actions)
+        desk.read_results(actions, step["results"])
+        desk.now = step["now"]
+        for event in step["events"]:
+            desk.handle(event)
+        if desk.now // DAY > day and not QUIET:
+            report(WEEKDAYS[day % 7], world.score())
+
+
+def play_final(world: World) -> None:
+    """Rebuilds the books, then answers events as they come. After a second without an event,
+    it reads the clock."""
+    history = world.events()
+    snapshot = world.snapshot()
+    if snapshot["now"] >= snapshot["endsAt"]:
+        return
+    level = next((w["level"] for w in world.client.worlds() if w["worldId"] == world.id), 8)
+    desk = Desk(world, level, snapshot["now"])
+    desk.rejoin(snapshot, history)
+    desk.send()
+    for event in world.stream(after=history[-1]["seq"] if history else -1, idle=1.0):
+        day = desk.now // DAY
+        desk.now = world.client.final()["now"] if event is None else max(desk.now, event["at"])
+        if event is not None:
+            desk.handle(event)
+        desk.send()
+        if desk.now // DAY > day:
+            report(WEEKDAYS[day % 7], world.score())
+        if desk.now >= snapshot["endsAt"]:
+            return
+
+
+def report(label: str, score: Score) -> None:
+    orders = f"{score['wonOrders']:>4} orders  {score['onTimeShare']:6.1%} on time  {score['undeliveredShare']:5.1%} not delivered"
+    print(f"{label:<9}  margin €{score['marginCents'] / 100:>11,.2f}  revenue €{score['revenueCents'] / 100:>11,.2f}  {orders}", flush=True)
+
+
+def next_final(client: Client) -> World:
+    """Your copy of the final that is set or runs now. Waits while none is set and while the last one has
+    ended: the organisers set a test final 15 minutes before its start, and the final 30 minutes before."""
+    said = False
+    while True:
+        try:
+            world: Optional[World] = client.world(client.final()["worldId"])
+        except SpreadError as error:
+            if error.status != 404:
+                raise
+            world = None
+        if world is not None:
+            snapshot = world.snapshot()
+            if snapshot["now"] < snapshot["endsAt"]:
+                return world
+        if not said:
+            print("No final is set. Waiting for it: the organisers set a test final 15 minutes before its start, and the final 30 minutes before.", flush=True)
+            said = True
+        time.sleep(10)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Plays a Spread world with the starter. Set SPREAD_URL and SPREAD_KEY first.")
+    parser.add_argument("--level", type=int, choices=range(1, 9), default=8, help="the practice level, 1 to 8 (default 8)")
+    parser.add_argument("--seed", help="any text; the same seed gives the same world")
+    parser.add_argument("--board", action="store_true", help="play your next ranking run at the level; it counts in the practice rankings")
+    parser.add_argument("--final", action="store_true", help="play your copy of the final from the live stream")
+    args = parser.parse_args()
+    try:
+        client = Client()
+        score = None
+        if args.final:
+            world = None
+            # A server restart drops every connection. The desk then rebuilds its books from the server, as after its own restart.
+            while True:
+                try:
+                    if world is None:
+                        world = next_final(client)
+                        print(f"Final world {world.id}.", flush=True)
+                    play_final(world)
+                    score = world.score()
+                    break
+                except Unreachable as error:
+                    print(f"spread: {error}. Trying again in 5 seconds.", file=sys.stderr, flush=True)
+                    time.sleep(5)
+        else:
+            world = client.create(level=args.level, seed=args.seed, board=args.board)
+            # A ranking run that a team deletes plays to its end without the team's system, and counts.
+            name = f"{'Ranking run' if args.board else 'Practice world'} {world.id}"
+            stops = "Ctrl-C or an error stops your system: the run then plays to its end without it, and counts." if args.board else "Ctrl-C or an error stops the run and deletes the world."
+            print(f"{name}, level {args.level}. {stops}", flush=True)
+            try:
+                play_practice(world, args.level)
+            except BaseException as error:  # a world left behind holds one of the team's eight practice slots
+                try:
+                    world.delete()
+                    deleted = True
+                except SpreadError:
+                    deleted = False
+                after = (f"{name} plays to its end without your system, and counts." if args.board
+                         else f"{name} is deleted." if deleted else f"{name} is not deleted: it holds one of your eight practice slots.")
+                if isinstance(error, KeyboardInterrupt):
+                    sys.exit(f"Stopped. {after}")
+                print(f"Stopped by the error below. {after}", file=sys.stderr)
+                raise
+        score = score or world.score()
+        report("End", score)
+        print("Ranked." if score["ranked"] else "Not ranked: no order won." if score["wonOrders"] == 0 else "Not ranked: the delivery minimum is 90% of the orders on time.")
+    except SpreadError as error:
+        sys.exit(f"spread: {error}")
+    except KeyboardInterrupt:
+        sys.exit("Stopped. The final world keeps running without your system; start it again with --final.")
+
+
+if __name__ == "__main__":
+    main()

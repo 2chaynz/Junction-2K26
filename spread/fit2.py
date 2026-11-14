@@ -6,7 +6,7 @@ m=Client().map(); PL={p['id']:p for p in m['places']}; RD={(r['from'],r['to']):r
 import featlib
 def feats(rq,hc): return featlib.feats(rq,hc,PL,RD)
 X=[];Y=[];L=[];G=[]
-for wi,f in enumerate(sorted(glob.glob('data/o_d*.json'))):
+for wi,f in enumerate(sorted(glob.glob('data/o_[de]*.json'))):
     d=json.load(open(f)); hc=collections.Counter(d['homes'])
     for r in d['rows']:
         rq=r['request']; X.append(feats(rq,hc)); Y.append(r['cost']/rq['referenceFeeCents']); L.append(r['late']); G.append(wi)
