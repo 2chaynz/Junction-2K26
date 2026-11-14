@@ -130,7 +130,7 @@ def _ocr_labels(path: str, kind: str) -> list | None:
         return None
     try:
         return ocr.labels(str(data_root() / path), kind)
-    except ImportError:  # rapidocr not installed: boxes only
+    except Exception:  # rapidocr missing or OCR failed: keep the box answer
         return None
 
 
