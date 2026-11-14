@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 15:22 · Asif · T27 spread: same_day quoting + backlog gate = +16.6% on 12 paired L8 seeds (EUR 12.4k/wk, min on-time 94.9%). Round Sat 12:00: EUR 73.8k, rank 22/194 (10th EUR 87k). Test final 1: rank 35/217, 100% on-time, low win rate. Next: two-car gigs, cloud VM for the final
 - 2026-11-14 15:20 · ccolver · ccolver: T23 PR #37 revision quantities: A-801 door marks 41->38 (+3/-6, 38 = Stoa key), +19 SF in schedule edits; linework ft unstable (hatch threshold), indicative only. Diff path now first in router, no Stoa Q affected
 - 2026-11-14 15:18 · ccolver · T10 PR #38: full dataset dev 89.3% (25,295 Qs), CubiCasa5K official test 80.4% (6,796 Qs; easyiowa 78.7%), EUR 0.00001/answer. Gaps: windows 49% on test, IFC bsc-duplex 12/38 on dev
 - 2026-11-14 15:18 · johanseneuson · johanseneuson: PR T24 facts path: judges' free-form questions ('balcony?', 'how big is the kitchen', 'how many storeys') used to get no answer (~2/3). Now Gemini answers over facts our parsers extracted (no image) and cites them as evidence boxes, ~EUR 0.002/Q. Swiss 96.4 -> 97.5%. Needs GEMINI_API_KEY in the demo env
