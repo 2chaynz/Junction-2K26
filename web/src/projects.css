@@ -1,0 +1,94 @@
+/* Projects home + project-scoped explorer (T61). Same tokens as styles.css. */
+.red { color: var(--red); }
+
+/* Header: the project you're in, always visible (like ACC / Procore's project picker). */
+.projchip { display: inline-flex; align-items: center; gap: 6px; max-width: 260px; padding: 4px 10px; border: 1px solid var(--line); border-radius: var(--r); font-size: 13px; margin-right: 8px; }
+.projchip:hover { border-color: var(--line-strong); }
+.projchip .k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
+.projchip .caret { color: var(--dim); font-size: 10px; }
+
+/* Explorer */
+.crumbs .crumb { color: var(--dim); font-size: 12px; }
+.crumbs .crumb:hover { color: var(--red); text-decoration: underline; text-underline-offset: 2px; }
+.phead { padding: 2px 12px 8px; min-width: 0; }
+.ptitle { font-weight: 600; font-size: 16px; letter-spacing: -0.01em; }
+.psub { font-size: 12px; }
+.seg { display: flex; gap: 0; margin: 0 12px 8px; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.seg button { flex: 1; padding: 4px 0; font-size: 13px; color: var(--dim); background: var(--bg); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button:hover { color: var(--ink); }
+.seg button.on { color: var(--ink); box-shadow: inset 0 -2px 0 var(--red); }
+.seg .mono { font-size: 11px; margin-left: 2px; }
+.fcode { font-size: 10px; color: var(--dim); border: 1px solid var(--line); border-radius: 2px; padding: 0 3px; }
+.fhead.sub { padding-left: 12px; }
+
+/* Sessions */
+.sessions { display: flex; flex-direction: column; padding: 2px 0; }
+.snew { display: flex; align-items: center; gap: 6px; margin: 2px 12px 8px; padding: 6px 10px; border: 1px dashed var(--line-strong); border-radius: var(--r); font-size: 13px; background: var(--bg); }
+.snew:hover:not(:disabled) { border-color: var(--red); color: var(--red); }
+.snew .plus { font: 600 15px/1 var(--mono); }
+.snew.on { border-style: solid; }
+.sgroup { padding: 10px 12px 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
+.srow { position: relative; display: flex; align-items: stretch; border-left: 2px solid transparent; }
+.srow:hover { background: var(--canvas); }
+.srow.on { border-left-color: var(--red); background: var(--bg); }
+.sbody { flex: 1; min-width: 0; display: flex; flex-direction: column; text-align: left; padding: 6px 4px 6px 10px; }
+.stitle { font-size: 13px; }
+.srow.on .stitle { color: var(--red); }
+.smeta { font-size: 11px; display: flex; gap: 6px; }
+.sval { color: var(--ink); font-size: 11px; }
+.sdel { padding: 0 10px; color: var(--dim); font-size: 15px; visibility: hidden; }
+.srow:hover .sdel, .sdel.sure { visibility: visible; }
+.sdel:hover { color: var(--red); }
+.sdel.sure { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 0 10px; }
+.sdel.sure button:first-child { color: var(--red); }
+
+/* Chat head: which session the conversation lives in */
+.chathead { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--line); font-size: 13px; min-height: 37px; }
+.chathead .k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
+.chathead .saved { font-size: 11px; color: var(--dim); white-space: nowrap; }
+.chathead .new { font-size: 12px; color: var(--dim); border: 1px solid var(--line); border-radius: var(--r); padding: 1px 8px; white-space: nowrap; }
+.chathead .new:hover:not(:disabled) { color: var(--red); border-color: var(--red); }
+
+/* Projects page */
+.projects { max-width: 1180px; }
+.phero { display: flex; gap: 24px; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; }
+.psearch { padding: 0; border: 0; width: 320px; max-width: 100%; }
+.psearch input { padding: 8px 10px; font-size: 14px; }
+.pfilters { display: flex; flex-wrap: wrap; gap: 6px; margin: 32px 0 14px; }
+.pfilter { border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; font-size: 13px; }
+.pfilter:hover { border-color: var(--line-strong); }
+.pfilter.on { border-color: var(--ink); background: var(--ink); color: #fff; }
+.pfilter.on .dim { color: #bdbdbd; }
+.pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+.pcard { display: flex; flex-direction: column; text-align: left; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--bg); min-width: 0; transition: border-color 0.15s, box-shadow 0.15s; }
+.pcard:hover { border-color: var(--line-strong); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); }
+.pcard.on { border-color: var(--red); }
+.pthumb { position: relative; aspect-ratio: 16 / 10; background: var(--canvas); border-bottom: 1px solid var(--line); display: grid; place-items: center; overflow: hidden; }
+.pthumb img { width: 100%; height: 100%; object-fit: contain; background: #fff; mix-blend-mode: multiply; padding: 6px; }
+.pglyph { width: 64px; height: 48px; fill: none; stroke: var(--dim); stroke-width: 1.2; stroke-linejoin: round; }
+.pkind { position: absolute; left: 8px; top: 8px; font-size: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 2px; padding: 0 4px; color: var(--dim); }
+.pdemo { position: absolute; right: 8px; top: 4px; font: 600 18px/1 var(--hand); color: var(--red); transform: rotate(-6deg); border: 1.5px solid var(--red); border-radius: 3px; padding: 1px 6px 2px; background: rgba(255, 255, 255, 0.85); }
+.pcard .pbody, .prow .pbody { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px 12px; min-width: 0; }
+.pcard .pname, .prow .pname { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+.pcard.on .pname { color: var(--red); }
+.porg { font-size: 12px; }
+.pcount { font-size: 11px; margin-top: 2px; }
+.pfoot { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); min-width: 0; }
+.pcodes { display: flex; gap: 3px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.pcode { font-size: 10px; border: 1px solid var(--line-strong); border-radius: 2px; padding: 0 4px; color: var(--ink); }
+.psess { white-space: nowrap; font-size: 12px; }
+.precent { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.prow { display: flex; align-items: center; gap: 0; text-align: left; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); min-width: 0; }
+.prow:hover { border-color: var(--line-strong); }
+.prow.on { border-color: var(--red); }
+.prow .pbody { padding: 8px 10px; }
+.prow .pname { font-size: 14px; }
+.pmini { flex: 0 0 72px; align-self: stretch; display: grid; place-items: center; background: var(--canvas); border-right: 1px solid var(--line); overflow: hidden; }
+.pmini img { width: 100%; height: 100%; object-fit: contain; background: #fff; padding: 4px; }
+.pmini .pglyph { width: 36px; height: 28px; }
+
+@media (max-width: 640px) {
+  .page.projects { padding: 20px 16px 48px; }
+  .psearch { width: 100%; }
+}

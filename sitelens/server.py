@@ -444,6 +444,43 @@ def surprise():
     return {"path": path, "question": random.choice(qs[path])["question"]}
 
 
+class SessionBody(BaseModel):
+    project: str
+    id: str
+    msgs: list[dict]
+    title: str | None = None
+
+
+@app.get("/api/sessions")
+def sessions_list(project: str | None = None):
+    from . import sessions
+    return sessions.list_sessions(project) if project else sessions.overview()
+
+
+@app.get("/api/session")
+def session_get(project: str, id: str):
+    from . import sessions
+    s = sessions.get(project, id)
+    if s is None:
+        raise HTTPException(404, "session not found")
+    return s
+
+
+@app.put("/api/session")
+def session_put(req: SessionBody):
+    from . import sessions
+    try:
+        return sessions.put(req.project, req.id, req.msgs, req.title)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.delete("/api/session")
+def session_delete(project: str, id: str):
+    from . import sessions
+    return {"deleted": sessions.delete(project, id)}
+
+
 if WEB.is_dir():
     app.mount("/", StaticFiles(directory=WEB, html=True), name="web")
 

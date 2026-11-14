@@ -5,9 +5,14 @@ import Changes, { CHANGE_Q, PAIRS, onNewSheet } from "./Changes";
 import Chat from "./Chat";
 import Explorer from "./Explorer";
 import { Splitter, usePanels } from "./Splitter";
-import { DEMO, SOURCE_LABEL, TYPE, floorsOf, fmtSize, pickChips, sheetCode, shortName } from "./format";
+import { SOURCE_LABEL, TYPE, floorsOf, fmtSize, pickChips, sheetCode, shortName } from "./format";
 import HowItWorks from "./HowItWorks";
 import Measure from "./Measure";
+import Projects from "./Projects";
+import {
+  type Overview, type Recent, type SessionSummary, buildProjects, deleteSession, getRecent, getSession, listSessions,
+  newSessionId, projectKeyOf, saveSession, sessionsOverview, touchRecent,
+} from "./workspace";
 import Takeoff, { type Row } from "./Takeoff";
 import Stack from "./Stack";
 import type { Answer, Drawing, Mark, Msg, Shape, Step, Tool } from "./types";
@@ -17,7 +22,7 @@ import VlmBadge from "./VlmBadge";
 // three.js + web-ifc are ~4 MB: only fetch them when a model is opened in 3D.
 const Model3D = lazy(() => import("./Model3D"));
 
-const TABS = ["Ask", "How it works", "Benchmark"] as const;
+const TABS = ["Projects", "Ask", "How it works", "Benchmark"] as const;
 type Tab = (typeof TABS)[number] | "Takeoff";
 type SheetDrawing = Drawing & { model?: string | null };
 
@@ -109,6 +114,11 @@ export default function App() {
   const [mpu, setMpu] = useState<number | null>(null);
   const [msHot, setMsHot] = useState<string | null>(null);
   const [zoomTo, setZoomTo] = useState<number[] | null>(null);
+  const [sid, setSid] = useState(newSessionId);
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [overview, setOverview] = useState<Overview>({});
+  const [recent, setRecent] = useState<Recent>(getRecent);
+  const loaded = useRef<Msg[] | null>(null); // msgs as reopened from the server: unchanged → no re-save
 
   useEffect(() => {
     getDrawings()
@@ -123,8 +133,10 @@ export default function App() {
           if (q) run(p, q);
           return;
         }
-        const first = d.find((x) => x.path === DEMO[0]) ?? d.find((x) => x.source === "swiss_dwellings") ?? d[0];
-        if (first) setPath(first.path);
+        // Back to the project you were last in; first visit starts on the project list.
+        const last = Object.entries(getRecent()).sort((a, b) => b[1].t - a[1].t).find(([, r]) => d.some((x) => x.path === r.path));
+        if (last) setPath(last[1].path);
+        else setTab("Projects");
       })
       .catch((e) => setError(String(e)));
   }, []);
@@ -146,6 +158,39 @@ export default function App() {
   const allPaths = useMemo(() => drawings.map((d) => d.path), [drawings]);
   const chips = useMemo(() => pickChips(drawing), [drawing]);
   const busy = msgs.some((m) => m.kind === "pending");
+  const projects = useMemo(() => buildProjects(drawings), [drawings]);
+  const projKey = drawing ? projectKeyOf(drawing) : null;
+  const project = useMemo(() => projects.find((p) => p.key === projKey) ?? null, [projects, projKey]);
+  const sessProj = useRef<string | null>(null); // project the open session belongs to
+
+  useEffect(() => {
+    sessionsOverview().then(setOverview).catch(() => {});
+  }, [tab === "Projects"]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setSessions([]);
+    if (projKey) listSessions(projKey).then(setSessions).catch(() => {});
+  }, [projKey]);
+
+  useEffect(() => {
+    if (!projKey || !path) return;
+    touchRecent(projKey, path);
+    setRecent(getRecent());
+  }, [projKey, path]);
+
+  // Autosave: every finished question lands in the project's session list.
+  useEffect(() => {
+    if (busy || !projKey || msgs === loaded.current || !msgs.some((m) => m.kind === "user")) return;
+    const key = sessProj.current ?? projKey;
+    sessProj.current = key;
+    saveSession(key, sid, msgs)
+      .then((sum) => {
+        if (key !== projKey) return;
+        setSessions((l) => [sum, ...l.filter((x) => x.id !== sum.id)]);
+        setOverview((o) => ({ ...o, [key]: { sessions: (o[key]?.sessions ?? 0) + (sessions.some((x) => x.id === sum.id) ? 0 : 1), updated: sum.updated } }));
+      })
+      .catch(() => {});
+  }, [msgs, busy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -185,7 +230,69 @@ export default function App() {
     setChHover(null);
     setChFocus(null);
     activate(null);
+    const d = drawings.find((x) => x.path === p);
+    if (d && projectKeyOf(d) !== projKey) {
+      // Another project: its own conversation. The one we leave is already saved.
+      setMsgs([]);
+      setSid(newSessionId());
+      sessProj.current = projectKeyOf(d);
+      loaded.current = null;
+      return;
+    }
     setMsgs((m) => (m.length ? [...m, { kind: "switch", path: p }] : m));
+  }
+
+  function newSession() {
+    setMsgs([]);
+    setSid(newSessionId());
+    sessProj.current = projKey;
+    loaded.current = null;
+    setDraft("");
+    setMark(null);
+    activate(null);
+  }
+
+  async function openSession(id: string) {
+    if (!projKey || busy) return;
+    try {
+      const s = await getSession(projKey, id);
+      const ms = s.msgs ?? [];
+      loaded.current = ms;
+      sessProj.current = projKey;
+      setSid(id);
+      setMsgs(ms);
+      setTab("Ask");
+      setDraft("");
+      setMark(null);
+      setPen(false);
+      setChOn(false);
+      setMsOn(false);
+      // Reopen on the last answer: its sheet and its marks.
+      let i = ms.length - 1;
+      while (i >= 0 && ms[i].kind !== "answer") i--;
+      const last = ms[ms.length - 1];
+      const p = (i >= 0 ? ms[i].path : last?.path) ?? path;
+      if (p && p !== path && drawings.some((x) => x.path === p)) (setPath(p), setSize(null));
+      activate(i >= 0 ? i : null);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function removeSession(id: string) {
+    if (!projKey) return;
+    await deleteSession(projKey, id).catch(() => {});
+    setSessions((l) => l.filter((x) => x.id !== id));
+    setOverview((o) => (o[projKey] ? { ...o, [projKey]: { ...o[projKey], sessions: Math.max(0, o[projKey].sessions - 1) } } : o));
+    if (id === sid) newSession();
+  }
+
+  function openProject(key: string, at?: string) {
+    const p = projects.find((x) => x.key === key);
+    if (!p) return;
+    const target = [at, recent[key]?.path, p.cover?.path].find((x) => x && p.items.some((d) => d.path === x));
+    if (target) select(target);
+    setTab("Ask");
   }
 
   async function run(p: string, q: string) {
@@ -209,6 +316,7 @@ export default function App() {
     }
     setMsgs((m) => {
       const i = m.findIndex((x) => x.kind === "pending");
+      if (i < 0) return m; // the conversation was switched while this was answering
       const out = [...m];
       out[i] = next;
       if (next.kind === "answer") {
@@ -248,6 +356,8 @@ export default function App() {
     }
   }
 
+  const sessionTitle =
+    sessions.find((x) => x.id === sid)?.title ?? msgs.find((m): m is Extract<Msg, { kind: "user" }> => m.kind === "user")?.text ?? "New session";
   const act = active !== null ? msgs[active] : null;
   const shownMark = mark ?? (act?.kind === "answer" && act.path === path ? act.mark ?? null : null);
   const answer = act?.kind === "answer" && act.path === path ? act.answer : null;
@@ -270,6 +380,13 @@ export default function App() {
     <div className={`app ${tab === "Ask" ? "" : "paged"}`}>
       <header className="top">
         <span className="brand">SiteLens</span>
+        {project && (
+          <button className="projchip" onClick={() => setTab("Projects")} title="Switch project">
+            <span className="k">Project</span>
+            <span className="ellipsis">{project.name}</span>
+            <span className="caret">▾</span>
+          </button>
+        )}
         <nav className="tabs">
           {TABS.map((t) => (
             <button key={t} className={t === tab ? "on" : ""} onClick={() => setTab(t)}>
@@ -322,9 +439,27 @@ export default function App() {
       )}
       {tab === "How it works" && <main className="pagewrap"><HowItWorks /></main>}
       {tab === "Benchmark" && <main className="pagewrap"><Benchmark /></main>}
+      {tab === "Projects" && (
+        <main className="pagewrap">
+          <Projects projects={projects} overview={overview} recent={recent} current={projKey} onOpen={openProject} />
+        </main>
+      )}
 
       <div className="askview" hidden={tab !== "Ask"} {...panels.props}>
-        <Explorer ref={search} drawings={drawings} selected={path} onSelect={select} />
+        <Explorer
+          ref={search}
+          drawings={drawings}
+          projects={projects}
+          project={project}
+          selected={path}
+          onSelect={select}
+          onProjects={() => setTab("Projects")}
+          sessions={sessions}
+          session={sid}
+          onSession={openSession}
+          onNewSession={newSession}
+          onDeleteSession={removeSession}
+        />
         <main className="stage">
           <div className="canvas">
             {(hasPlan || floors.length > 1) && (
@@ -438,6 +573,17 @@ export default function App() {
           }}
           onHover={setHover}
           onFocus={setFocus}
+          head={
+            <div className="chathead">
+              <span className="k">Session</span>
+              <span className="ellipsis" title={sessionTitle}>{sessionTitle}</span>
+              <span className="spacer" />
+              {sessions.some((x) => x.id === sid) && <span className="saved">saved to {project?.name}</span>}
+              <button className="new" onClick={newSession} disabled={!msgs.length || busy} title="Start a fresh conversation">
+                + New
+              </button>
+            </div>
+          }
         />
         <Splitter side="explorer" w={panels.w} onChange={panels.set} />
         <Splitter side="chat" w={panels.w} onChange={panels.set} />
