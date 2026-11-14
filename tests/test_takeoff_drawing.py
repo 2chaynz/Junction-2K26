@@ -19,6 +19,7 @@ class DrawingTakeoff(unittest.TestCase):
             folder.mkdir(parents=True)
             with pymupdf.open() as doc:
                 page = doc.new_page()
+                page.insert_text((50, 50), "GROUND FLOOR PLAN")
                 page.insert_text((110, 110), "101.A")
                 for x, label in [(100, "0"), (150, "2"), (200, "4"), (220, "m")]:
                     page.insert_text((x - 2, 300), label, fontsize=8)
@@ -85,6 +86,7 @@ class DrawingTakeoff(unittest.TestCase):
                         page.set_rotation(270)
                     if layout == "later page":
                         page = doc.new_page()
+                        page.insert_text((100, 380), "GROUND FLOOR PLAN")
                     if layout in ("same page", "framed plan", "numeric label", "unrelated placement"):
                         page.insert_text((100, 380), "FIRST STOREY" if layout == "same page" else "LEVEL 01")
                     if layout == "framed plan":
@@ -145,6 +147,7 @@ class DrawingTakeoff(unittest.TestCase):
             path = "Plan.pdf"
             with pymupdf.open() as doc:
                 page = doc.new_page()
+                page.insert_text((50, 60), "GROUND FLOOR PLAN")
                 for x, label in [(100, "0"), (150, "2"), (200, "4"), (220, "m")]:
                     page.insert_text((x - 2, 300), label, fontsize=8)
                 page.draw_line((100, 303), (200, 303))
@@ -255,7 +258,7 @@ class DrawingTakeoff(unittest.TestCase):
             (Path(d) / path).touch()
             window = ("Windows", Evidence(path, [200, 100, 230, 104]), "Detected symbol", None)
             with patch.object(takeoff_2d, "_detected", return_value=[window]), \
-                 patch.object(takeoff_2d.measure, "_ocr", return_value=[("NOT TO SCALE", .99, [10, 10, 60, 22])]), \
+                 patch.object(takeoff_2d.measure, "_ocr", return_value=[("NOT TO SCALE", .99, [10, 10, 60, 22]), ("FLOOR PLAN", .99, [10, 40, 60, 52])]), \
                  patch.object(takeoff_2d.measure, "bar", return_value=[Scale("bar", .04, "bar", "", .8, [])]):
                 result = takeoff.takeoff(path)
             row, = result["rows"]
@@ -296,10 +299,8 @@ class DrawingTakeoff(unittest.TestCase):
                        for box in ([50, 100, 80, 104], [350, 100, 380, 104])]
             with patch.object(takeoff_2d, "_detected", return_value=windows):
                 result = takeoff.takeoff(path)
-            row, = result["rows"]
-            self.assertEqual(row["count"], 2)
-            self.assertEqual(row["size"], "")
-            self.assertTrue(any("multiple views" in line for line in row["reason"]))
+            self.assertEqual(result["rows"], [])
+            self.assertTrue(any("without one identifiable plan" in line for line in result["notes"]))
 
     def test_scan_view_boundaries(self):
         import numpy as np

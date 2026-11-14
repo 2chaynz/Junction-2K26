@@ -427,7 +427,7 @@ def _scan_metadata(labels, load_image, native_text="", has_schedule=False, bound
     if has_plan and has_other:
         regions, unbounded = _scan_views(load_image(), labels)
     # OCR headings alone cannot bound a schedule or its illustrations.
-    excluded = unbounded or _unbounded_schedule(text, has_schedule, has_plan, bounded_schedule)
+    excluded = not has_plan or len(list(PLAN_TITLE.finditer(text))) > 1 or unbounded or _unbounded_schedule(text, has_schedule, has_plan, bounded_schedule)
     issue = UNKNOWN_VIEW_SCALE if NOT_TO_SCALE.search(text) else ""
     if not issue and (has_other or len(list(PLAN_TITLE.finditer(text))) > 1):
         issue = "This sheet has multiple views; the applicable scale is unknown."
@@ -547,7 +547,7 @@ def _sheet(path, root, mtime, weights_mtime):
                                            for pattern in (SCHEDULE_TITLE, NON_PLAN_VIEW))]
             objects = _vector(path) if page.number == 0 else []
             if not objects:
-                if (has_other or schedule_unbounded) and not plan_frames:
+                if len(plan_titles) != 1 or ((has_other or schedule_unbounded) and not plan_frames):
                     excluded += 1
                 else:
                     objects = _detected(path, page)
@@ -609,7 +609,7 @@ def takeoff(path):
     if specs:
         notes.append("Numeric-only labels cannot be distinguished from dimensions and are not matched to schedules.")
     if excluded:
-        notes.append(f"Skipped symbol counts on {excluded} page(s) where a plan could not be separated from other views or a schedule.")
+        notes.append(f"Skipped symbol counts on {excluded} page(s) without one identifiable plan or where the plan could not be separated from other content.")
     if not weights.exists():
         notes.append("Symbol detector weights are unavailable; only supported drawing geometry can be counted.")
     if not rows:
