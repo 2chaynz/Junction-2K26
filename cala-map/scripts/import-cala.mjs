@@ -185,7 +185,9 @@ const startups = [...fromCala, ...waiting, ...keptUnlinked.map((s) => ({ ...s, s
 if (broke) console.log(`credits ran out: ${seedList.filter((seed, i) => !details[i] && !seed.old).length} Slush companies still to fetch; rerun when topped up`)
 // Sources go to their own file: they are a third of the data and the page loads them after first paint.
 const PROV = new URL('../src/data/prov.json', import.meta.url)
-const prov = Object.fromEntries(startups.filter((s) => s.prov && Object.keys(s.prov).length).map((s) => [s.id, s.prov]))
+// Startups kept from the previous file carry no prov any more: keep their earlier sources.
+const earlier = existsSync(PROV) ? JSON.parse(readFileSync(PROV, 'utf8')) : {}
+const prov = Object.fromEntries(startups.map((s) => [s.id, s.prov && Object.keys(s.prov).length ? s.prov : earlier[s.id]]).filter(([, p]) => p))
 writeFileSync(OUT, JSON.stringify(startups.map(({ prov: _, sources: __, industries: ___, ...s }) => s)))
 writeFileSync(PROV, JSON.stringify(prov))
 console.log(`${mismatched.size} name matches rejected (founding year does not fit)`)
