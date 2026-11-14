@@ -106,5 +106,11 @@
   "branch": "main",
   "text": "claimed",
   "at": "2026-11-14T13:32:38.302Z"
+ },
+ "T14": {
+  "who": "ccolver",
+  "branch": "ccolver/T23-revision-quantities",
+  "text": "claimed",
+  "at": "2026-11-14T13:35:06.730Z"
  }
 }
