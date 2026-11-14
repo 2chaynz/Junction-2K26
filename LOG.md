@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-15 00:09 · Asif · T77: merged PR #101: IFC all 3,062 Qs 84.5 -> 95.8%, dev 91.6 -> 99.8% (quoted names leaked into keywords, net room area from geometry before Revit Area, no curtain walls, Dutch words)
 - 2026-11-14 23:45 · ccolver · T80: merged PR #100: takeoff dropdowns (category/type/size/level/quantity/sort, live counts) + motion (count-up cards, staggered rows, share bars)
 - 2026-11-14 23:41 · ccolver · T81: verified live dimensions for all P2 takeoff categories and fixed PNG layout.
 - 2026-11-14 23:37 · ccolver · T75 PR #97 merged: chat follow-ups (history) + tiered answers (drawing -> project sheets -> VLM -> web search) with [n] source dropdowns. Search grounding on the new Gemini key hits 429: raise the spend cap
