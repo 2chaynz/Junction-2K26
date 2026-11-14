@@ -61,8 +61,26 @@ def _footprint_area(space) -> float | None:
         return None
 
 
-def _matches(room: str, s: dict) -> bool:
-    return room in (s["long"], s["name"], f"{s['long']} ({s['name']})", f"{s['long']} (Rum nr. {s['name']})")
+def _room_labels(s: dict) -> tuple[str, ...]:
+    return s["long"], s["name"], f"{s['long']} ({s['name']})", f"{s['long']} (Rum nr. {s['name']})"
+
+
+def _mentions(question: str, label: str | None) -> bool:
+    if not label:
+        return False
+    return re.search(rf"(?<![\w.\-]){re.escape(label)}(?![\w\-])", question, re.IGNORECASE) is not None
+
+
+def _storey_labels(name: str) -> tuple[str, ...]:
+    level = re.fullmatch(r"(\d+)\.\s*korrus", name, re.IGNORECASE)
+    if level:
+        return name, f"floor {level[1]}", f"level {level[1]}"
+    return (name,)
+
+
+def _named_storeys(f, question: str) -> set[str]:
+    return {s.Name for s in f.by_type("IfcBuildingStorey") if s.Name
+            and any(_mentions(question, label) for label in _storey_labels(s.Name))}
 
 
 ELEMENTS = [  # question keyword (en / da / et / de / fi) → IFC types
@@ -120,10 +138,16 @@ def _aggregate(ifc: Path, question: str) -> Answer | None:
     """Counts and quantity totals per storey: 'How many doors on X', 'total length of all walls on X'."""
     import ifcopenshell.util.unit as UU
     quoted = QUOTED.findall(question)
-    if len(quoted) != 1:
-        return None
-    storey = quoted[0]
     f = _file(str(ifc))
+    if len(quoted) == 1:
+        storey = quoted[0]
+    elif not quoted:
+        names = _named_storeys(f, question)
+        if len(names) != 1:
+            return None
+        storey = next(iter(names))
+    else:
+        return None
     whole_model = storey not in {s.Name for s in f.by_type("IfcBuildingStorey")}
     if whole_model and not re.search(r"(?i)in the model|i modellen|mudelis|im modell", question):
         return None
@@ -177,10 +201,23 @@ def answer(path: str, question: str) -> Answer | None:
     if not re.search(r"(?i)area|m²|m2|pind|areal|fl.che|superficie", question):
         return None  # TODO (T4): counts, wall lengths, slab volumes, text questions
     quoted = QUOTED.findall(question)
-    if len(quoted) < 2:
-        return None  # TODO (ifc ticket): counts, wall lengths, slab volumes, text questions
-    room, storey = quoted[0], quoted[1]
-    hits = [s for s in spaces(str(ifc)) if s["storey"] == storey and _matches(room, s)]
+    if len(quoted) >= 2:
+        room, storey = quoted[:2]
+        hits = [s for s in spaces(str(ifc)) if s["storey"] == storey and room in _room_labels(s)]
+    else:
+        names = _named_storeys(_file(str(ifc)), question)
+        if len(names) != 1:
+            return None
+        storey = next(iter(names))
+        room_question = question
+        for label in _storey_labels(storey):
+            room_question = re.sub(re.escape(label), " ", room_question, flags=re.IGNORECASE)
+        matches = [(len(label), s) for s in spaces(str(ifc)) if s["storey"] == storey
+                   for label in _room_labels(s) if _mentions(room_question, label)]
+        longest = max((length for length, _ in matches), default=0)
+        hits = list({s["guid"]: s for length, s in matches if length == longest}.values())
+        if len(hits) != 1:
+            return None
     if not hits or not hits[0]["area"]:
         return None
     s = hits[0]
