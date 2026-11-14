@@ -17,7 +17,9 @@ from .. import data_root
 from ..answer import Answer, Evidence
 
 ASK = re.compile(r"(?i)\b(conflicts?|cross-?check\w*|discrepanc\w*|inconsisten\w*|mismatch\w*|consistent|match(es)?|agree)\b")
+STRONG = re.compile(r"(?i)\b(conflicts?|cross-?check\w*|discrepanc\w*|inconsisten\w*|mismatch\w*)\b")
 TOPIC = re.compile(r"(?i)\b(doors?|schedules?|plans?|sets?|drawings?|sheets?)\b")
+DOORS = re.compile(r"(?i)\bdoors?\b")
 MARK = re.compile(r"^(\d{2,3})\.[A-Z]\d?$")
 ROOM = re.compile(r"^\d{3}$")
 ROW_MIN_WORDS = 5     # a schedule row has the mark plus size / type / material columns to its right

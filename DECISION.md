@@ -6,7 +6,17 @@ Updated Sat 14 Nov 2026. Main challenge: **Stoa, Make Blueprints Talk** (`contex
 - **Tech tracks:** Gemini + Gemma (VLM path, T7), Verda (detector training, T5). ElevenLabs only if the voice stretch ships.
 - **Side project:** Bahn Express Spread (owner: 2chaynz). Separate submission.
 - **Idea:** SiteLens: answers questions about construction drawings and BIM, shows where the answer comes from, and shows the cost per answer.
-- **One-line pitch:** Ask your drawings a question; get the right answer with the exact spot highlighted, for a fraction of a cent.
+- **One-line pitch:** The one tool every project role opens the drawings in: ask, measure, take off, compare revisions, with the exact spot highlighted, for a fraction of a cent.
+- **Pitch angle:** one integration tool for the whole project team, not another point solution. Today they juggle a PDF viewer, Bluebeam, a BIM viewer, takeoff software, Excel and emails to the designer. SiteLens reads every format (vector PDF, scans, DXF, IFC, schedules) and does the jobs in one place.
+
+| Role | Job they do today | SiteLens feature |
+|---|---|---|
+| Project engineer | look up facts, chase RFIs | ask in plain language, answer + highlighted evidence |
+| Site manager / superintendent | check what's built vs. drawn, latest revision | what changed between issues, plan vs schedule cross-check, 3D floors |
+| Project manager | quantify change orders, sign off | revision quantities, confidence + "please check" flags |
+| Estimator / QS | takeoffs, measuring | takeoff list with CSV download, measure tool (area/length, scale), Bluebeam PDF markup export |
+
+- Pitch order: pain (5 tools, hours a week) → one tool → demo one question per role → accuracy + €/answer vs. Gemini.
 - **Why the change:** Stoa grades on 7,990 questions with known answers (counts, areas, lengths, volumes, text). None involve photos or building standards.
 - **Demo flow:**
   1. Load a real Stoa drawing or IFC model.

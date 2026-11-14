@@ -6,6 +6,7 @@ import Chat from "./Chat";
 import Explorer from "./Explorer";
 import { DEMO, SOURCE_LABEL, TYPE, floorsOf, fmtSize, pickChips, sheetCode, shortName } from "./format";
 import HowItWorks from "./HowItWorks";
+import Takeoff, { type Row } from "./Takeoff";
 import type { Answer, Drawing, Msg, Step } from "./types";
 import Stack from "./Stack";
 import Viewer from "./Viewer";
@@ -14,7 +15,7 @@ import VlmBadge from "./VlmBadge";
 // three.js + web-ifc are ~4 MB: only fetch them when a model is opened in 3D.
 const Model3D = lazy(() => import("./Model3D"));
 
-const TABS = ["Ask", "How it works", "Benchmark"] as const;
+const TABS = ["Ask", "Takeoff", "How it works", "Benchmark"] as const;
 type Tab = (typeof TABS)[number];
 
 function SheetInfo({ d, all, view, size }: { d: Drawing; all: string[]; view: string; size: [number, number] | null }) {
@@ -167,6 +168,25 @@ export default function App() {
     });
   }
 
+  // A takeoff row becomes a chat answer, so the drawing / 3D view marks every element in it.
+  function showRow(r: Row) {
+    const label = `${r.category}: ${r.type}${r.size ? ` · ${r.size}` : ""}`;
+    const a: Answer = {
+      value: r.count, unit: "count", method: "takeoff", confidence: 1, cost_eur: 0, evidence: r.evidence,
+      trace: [`takeoff row: ${label}`, `${r.count} element(s)${r.levels.length ? ` on ${r.levels.join(", ")}` : ""}`],
+      time_s: 0, view: drawing?.view ?? path,
+    };
+    setTab("Ask");
+    setChOn(false);
+    setHover(null);
+    setFocus(null);
+    if (r.evidence.some((e) => e.ifc_guid)) setMode("3d");
+    setMsgs((m) => {
+      setActive(m.length + 1);
+      return [...m, { kind: "user", path, text: `Takeoff: ${label}` }, { kind: "answer", path, question: label, answer: a, steps: [] }];
+    });
+  }
+
   async function onRandom() {
     try {
       const s = await surprise();
@@ -204,6 +224,11 @@ export default function App() {
         {tab === "Ask" && <button className="btn" onClick={onRandom}>Random question</button>}
       </header>
 
+      {tab === "Takeoff" && (
+        <main className="pagewrap">
+          <Takeoff path={path} name={path.split("/").pop() ?? ""} onShow={showRow} />
+        </main>
+      )}
       {tab === "How it works" && <main className="pagewrap"><HowItWorks /></main>}
       {tab === "Benchmark" && <main className="pagewrap"><Benchmark /></main>}
 
