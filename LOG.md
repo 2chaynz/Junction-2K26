@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 21:29 · 2chaynz · T69 PR #88: How it works is an interactive diagram in site language (hover lanes, click panels with real examples + Try it), cross-review PASS
 - 2026-11-14 21:15 · johanseneuson · johanseneuson: detector round done. Merged PR #87 (NMS IoU 0.4): cubicasa dev 82.8 -> 83.6%. Measured on the clean preview plans and NOT adopted: YOLO11x on all data 79.4% (bigger model = no gain, we are label/data-bound), YOLO11m->l retrain on 74% data 77.7%, 1536/1600px inference, flip-TTA, per-style thresholds, count-averaging two models. Weighted-box fusion of two models is +1.1 dev / +0.7 tuning but 2x inference + 114MB second model: available if we want it (weights in junction-data/weights). H100 about to be deleted
 - 2026-11-14 20:41 · ccolver · T65 PR #84: MSD overlap benchmark on 29 plans; geometry improved kitchen counts, default unchanged.
 - 2026-11-14 20:40 · ccolver · T66: PR #85 passes local checks; blocked after second cross-review on plan-tag placement and multi-tag lookup. Stoa preview has no matching questions.
