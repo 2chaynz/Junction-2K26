@@ -123,6 +123,8 @@ def extract(path: str) -> list[Table]:
         # keep columns used by ≥ 15% of rows
         use = [sum(1 for r in data_rows if any(abs(t[0] - c) <= 12 for t in _join_tokens(r))) for c in cols]
         cols = [c for c, u in zip(cols, use) if u >= max(2, 0.15 * len(data_rows))]
+        if not cols:
+            continue
         def cell_of(x):
             return max((k for k, c in enumerate(cols) if x >= c - 12), default=0)
         header = [""] * len(cols)
@@ -213,7 +215,9 @@ def _llm(path: str, question: str, tables: list[Table]) -> Answer | None:
         v = re.sub(r"(\d)' - (\d)", r"\1'-\2", v)   # 5' - 10 3/8" -> 5'-10 3/8" (as printed)
     if isinstance(v, float) and v.is_integer():
         v = int(v)
-    return Answer(value=v, unit=None, method="vector+llm", confidence=0.7, cost_eur=round(cost, 6),
+    unit = ("count" if re.search(r"(?i)how many|number of", question) and isinstance(v, (int, float))
+            else "ft2" if re.search(r"(?i)area", question) and isinstance(v, (int, float)) else None)
+    return Answer(value=v, unit=unit, method="vector+llm", confidence=0.7, cost_eur=round(cost, 6),
                   evidence=[Evidence(file=path, bbox=t.boxes[i], label=" | ".join(c for c in t.rows[i] if c)[:80]) for i in idx],
                   trace=[f"{len(tables)} tables extracted from the sheet's text layer", f"{model} read table '{t.title}'",
                          f"rows used: {idx[:20]}{' …' if len(idx) > 20 else ''}"])
