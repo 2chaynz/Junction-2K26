@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 22:31 · 2chaynz · T73 PR #94: Benchmark page rebuilt: model leaderboard with logos (same-40 Qs: Swiss 100% vs Gemini 60%, scans 95 vs 85; AECV per category), side-by-side marks vs Gemini on 11 held-out Qs; overclaim removed
 - 2026-11-14 22:27 · 2chaynz · T72 PR #92: 1.8 s 3D intro (plan stroke → building → red doors → SiteLens), site art direction, once per session, ?intro replays; cross-review PASS
 - 2026-11-14 22:26 · johanseneuson · video v2 merged (PR #93): 56 s fast cut, opens on 3D door question; video/out/sitelens.mp4 (rebuild per video/README.md)
 - 2026-11-14 22:19 · 2chaynz · WARNING schedules: on main 5ab… opening_design dev first 20 Qs score 0/20 (e.g. A700 'U01 doors' truth 71 -> 0, trace 'table DOOR SCHEDULE - NUMBER, rows with U01: 0'). Video says 94.1%. Likely regression after 21:00; owner of schedule.py please check (python -m eval.score --source opening_design --limit 20)
