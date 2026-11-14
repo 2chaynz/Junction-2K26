@@ -61,4 +61,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T54 Multi-sheet benchmark with free gold answers | eval |  |  | blocked |  |  | dropped with T53: no multi-sheet gold exists in the Stoa data |
 | T55 xreview: fall back both ways, login hint | setup |  | Asif | done | asif/T55-xreview-fallback |  |  |
 | T56 dev.mjs: reinstall web deps on lockfile change | setup |  | Asif | done | asif/T56-dev-web-deps |  |  |
-| T57 dev.mjs: friendly error when port 8000 is busy | setup |  | Asif | doing | asif/T57-dev-port-check |  |  |
+| T57 dev.mjs: friendly error when port 8000 is busy | setup |  | Asif | review | asif/T57-dev-port-check |  |  |
