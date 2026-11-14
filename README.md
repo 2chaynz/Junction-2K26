@@ -57,7 +57,10 @@ node scripts/dev.mjs                     # sets up venv + web build, serves http
 - Score on the answer key: `python -m eval.score --split dev`
 
 ## Team
-johanseneuson (detector, vector, schedules) · 2chaynz (UI, design) · ccolver (scores, room OCR, revision diff) · Asif (VLM backends, IFC fixes, team tooling).
+- **johanseneuson:** detector + scan path, vector, IFC and VLM paths, schedules, two-methods check, review mode, proof strip, Bluebeam export, demo video, deploy.
+- **2chaynz:** UI and art direction: live reasoning, clarify, IFC 3D view, draw-to-ask, How it works, Benchmark page, intro, architecture diagram.
+- **ccolver:** scores, room OCR, VLM crops, revision diff + quantities, takeoff, measure, plan vs schedule check, cited follow-ups, AECV-Bench.
+- **Asif:** projects workspace and app shell (picker, start screen, Overview, sessions), VLM backends + picker, IFC and schedule fixes, honest headline numbers, one-command start, agent tooling.
 
 ## Credits
 Drawings and models come from Stoa's Junction dataset. Each source keeps its own licence and credit in `data/<source>/LICENSE.md` inside the dataset:
