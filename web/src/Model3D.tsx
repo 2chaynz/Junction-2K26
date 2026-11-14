@@ -42,12 +42,12 @@ type Info = { title: string; rows: [string, string][] };
 
 const FLOOR_LABELS = {
   en: { floors: "Floors", all: "All", level: "Floor", roof: "Roof", foundation: "Foundation" },
-  et: { floors: "Korrused", all: "K?ik", level: "Korrus", roof: "Katus", foundation: "Vundament" },
+  et: { floors: "Korrused", all: "Kõik", level: "Korrus", roof: "Katus", foundation: "Vundament" },
   fi: { floors: "Kerrokset", all: "Kaikki", level: "Kerros", roof: "Katto", foundation: "Perustus" },
   da: { floors: "Etager", all: "Alle", level: "Etage", roof: "Tag", foundation: "Fundament" },
   de: { floors: "Geschosse", all: "Alle", level: "Geschoss", roof: "Dach", foundation: "Fundament" },
-  fr: { floors: "?tages", all: "Tous", level: "?tage", roof: "Toit", foundation: "Fondation" },
-  uk: { floors: "???????", all: "???", level: "??????", roof: "???", foundation: "?????????" },
+  fr: { floors: "Étages", all: "Tous", level: "Étage", roof: "Toit", foundation: "Fondation" },
+  uk: { floors: "Поверхи", all: "Усі", level: "Поверх", roof: "Дах", foundation: "Фундамент" },
 };
 
 function floorName(name: string, labels: typeof FLOOR_LABELS.en): string {
