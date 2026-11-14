@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 20:18 · ccolver · T63: built-in question suggestions and random drafts use English; merged PR #80
 - 2026-11-14 20:10 · ccolver · T60: merged PR #79 for original drawing links, BIM navigation, and the Tools menu.
 - 2026-11-14 20:02 · johanseneuson · johanseneuson: demo taken down again (team doesn't want it public yet): service stopped, Gemini key removed from the server. The deploy script stays in the repo (scripts/deploy-remote.sh) for when we want it back
 - 2026-11-14 20:01 · ccolver · T59: merged wheel zoom for the stacked Building view in PR #78.
