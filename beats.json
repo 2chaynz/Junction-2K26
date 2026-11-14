@@ -32,8 +32,8 @@
  "T19": {
   "who": "ccolver",
   "branch": "ccolver/T19-room-ocr",
-  "text": "claimed",
-  "at": "2026-11-14T12:28:21.597Z"
+  "text": "room-label OCR (sitelens/ocr.py, rapidocr) wired into detector path for bedroom/bath/WC counts",
+  "at": "2026-11-14T12:29:44.378Z"
  },
  "T8": {
   "who": "2chaynz",
