@@ -450,10 +450,6 @@ def _pdf_scan_words(page, native_text, has_schedule, bounded_schedule):
     regions, excluded, issue = _scan_metadata(
         unique_labels + native_lines, lambda: gray, has_schedule=has_schedule, bounded_schedule=bounded_schedule
     )
-    native_non_plan = {line.strip().casefold() for line in native_text.splitlines() if NON_PLAN_VIEW.fullmatch(line)}
-    recognized = {label.strip().casefold() for label, _ in labels if NON_PLAN_VIEW.fullmatch(label)}
-    if native_non_plan - recognized:
-        excluded = True
     if NOT_TO_SCALE.search(native_text):
         issue = UNKNOWN_VIEW_SCALE
     words = [(label, [v / zoom for v in box]) for label, box in labels]
