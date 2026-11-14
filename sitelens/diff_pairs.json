@@ -1,0 +1,22 @@
+[
+  {
+    "old": "data/opening_design/Sports_Complex/Transfer/_Archive/20150814 - Issued for Permit/XSC - A-201 - Elevations - Exterior.pdf",
+    "new": "data/opening_design/Sports_Complex/Transfer/_Archive/20160210 -Addendum 1/A-201 - Elevations - Exterior.pdf",
+    "note": "Addendum 1: polycarbonate panel → phenolic resin panels (Class A flame spread); envelope schedule reworked"
+  },
+  {
+    "old": "data/opening_design/Sports_Complex/Transfer/_Archive/20150814 - Issued for Permit/XSC - A-801 - Door and Finish Schedules & Wall Types.pdf",
+    "new": "data/opening_design/Sports_Complex/Sheets - Current Set/A-801 - Door and Finish Schedules & Wall Types.pdf",
+    "note": "permit → current set: Golf Simulator room removed, door heights 8'-0\" → 7'-10 1/4\", studs 18\" → 16\" O.C. Both files are in the preview"
+  },
+  {
+    "old": "data/opening_design/Vacation_Rental/Transfer/20170503 ----- ISSUE FOR PERMIT ------/S400 - BRACING ELEVATION.pdf",
+    "new": "data/opening_design/Vacation_Rental/Transfer/20170519 ----- ISSUE FOR BID & PERMIT -------/The Downtowner_ARCH_Exterior Details - Sheet - S400 - BRACING ELEVATION.pdf",
+    "note": "permit → bid set, 16 days: bracing redrawn, details renumbered"
+  },
+  {
+    "old": "data/opening_design/Vacation_Rental/Transfer/20170503 ----- ISSUE FOR PERMIT ------/S401 - BRACING DETAILS.pdf",
+    "new": "data/opening_design/Vacation_Rental/Transfer/20170519 ----- ISSUE FOR BID & PERMIT -------/The Downtowner_ARCH_Exterior Details - Sheet - S401 - BRACING DETAILS.pdf",
+    "note": "permit → bid set: connection plates and rods resized (1/2\" rod → 3/4\" lag bolts, 5/8\" bent plate)"
+  }
+]
