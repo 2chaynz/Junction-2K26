@@ -40,7 +40,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T33 Cross-check: plan vs schedule conflicts | ai |  | ccolver | done | ccolver/T33-crosscheck |  |  |
 | T34 IFC 3D view: answer elements highlighted in the model | app | T28 | 2chaynz | done | 2chaynz/T34-ifc-3d |  |  |
 | T35 Cross-review script that finds Codex (ChatGPT app install) | setup |  | Asif | done | asif/T35-xreview |  |  |
-| T36 Live reasoning in chat: verifiable steps while answering | app | T34 | 2chaynz | review | 2chaynz/T36-live-reasoning |  |  |
+| T36 Live reasoning in chat: verifiable steps while answering | app | T34 | 2chaynz | done | 2chaynz/T36-live-reasoning |  |  |
 | T37 Reasoning stream backend: router steps + /api/ask/stream | ai |  | 2chaynz | done | 2chaynz/T37-reasoning-stream |  |  |
 | T38 One-command local start (scripts/dev.mjs) | setup |  | Asif | done | asif/T38-dev-script |  |  |
 | T39 Ask back when unclear: clarify + reformulate | ai |  | 2chaynz | review | 2chaynz/T39-clarify |  |  |
