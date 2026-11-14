@@ -93,3 +93,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T86 VLM picker in the Ask composer | app |  | Asif | done | asif/T86-vlm-picker |  |  |
 | T87 Health: scale bar beside a metres bar, tests run standalone | app |  | 2chaynz | done | 2chaynz/T87-health |  |  |
 | T88 README team credits | pitch |  | Asif | done | asif/T88-team-credits |  |  |
+| T89 Loaders everywhere, no demo stickers, motion on Home | app |  |  | todo |  |  |  |
