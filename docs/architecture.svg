@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1640 1085" role="img" aria-label="SiteLens architecture: a question and a drawing go through a cheapest-first router over four paths (BIM, vector, raster detector, VLM fallback); each path returns a value with evidence boxes and a cost; answers are scored against Stoa's answer key; the detector is fine-tuned on CubiCasa5K excluding Stoa drawings." font-family="Times New Roman, Georgia, serif" fill="#1f1f24">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1640 1290" role="img" aria-label="SiteLens architecture: a question and a drawing go through a cheapest-first router over four paths (BIM, vector, raster detector, VLM fallback); each path returns a value with evidence boxes and a cost; answers are scored against Stoa's answer key; the detector is fine-tuned on CubiCasa5K excluding Stoa drawings." font-family="Times New Roman, Georgia, serif" fill="#1f1f24">
 <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1f1f24"/></marker><marker id="ahg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6b6b75"/></marker></defs>
-<rect width="1640" height="1085" fill="white"/>
+<rect width="1640" height="1290" fill="white"/>
 <text x="32" y="160" font-size="24" text-anchor="middle" fill="#1f1f24" transform="rotate(-90 32 160)">BIM</text>
 <g stroke="#1f1f24" stroke-width="2" fill="#ece9fd">
 <path d="M60,125 l60,-30 l60,30 v60 l-60,30 l-60,-30 z"/>
@@ -103,7 +103,7 @@
 <line x1="200" y1="600" x2="244" y2="600" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
 <rect x="250" y="558" width="180" height="84" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
 <text x="340.0" y="590.0" font-size="21" text-anchor="middle" dominant-baseline="middle">YOLO detector</text>
-<text x="340.0" y="618.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">fine-tuned + OCR labels</text>
+<text x="340.0" y="618.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">fine-tuned + OCR, on CPU</text>
 <line x1="430" y1="600" x2="462" y2="600" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
 <path d="M470,552 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#f7a1a1"/>
 <path d="M496,552 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#cf4a4a"/>
@@ -119,7 +119,7 @@
 <rect x="720" y="558" width="200" height="84" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
 <text x="820.0" y="590.0" font-size="21" text-anchor="middle" dominant-baseline="middle">Count boxes</text>
 <text x="820.0" y="618.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">class filter per question</text>
-<text x="820" y="666" font-size="15" text-anchor="middle" fill="#6b6b75" font-style="italic">≈ €0.0001 · T5 / T6 training</text>
+<text x="820" y="666" font-size="15" text-anchor="middle" fill="#6b6b75" font-style="italic">€0 local · open weights · T5/T6</text>
 <line x1="920" y1="600" x2="984" y2="600" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
 <path d="M990,560 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#79bf9d"/>
 <path d="M1016,560 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#2d6e50"/>
@@ -144,7 +144,7 @@
 <line x1="200" y1="820" x2="244" y2="820" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
 <rect x="250" y="778" width="180" height="84" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
 <text x="340.0" y="810.0" font-size="21" text-anchor="middle" dominant-baseline="middle">Crop renderer</text>
-<text x="340.0" y="838.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">region of interest only</text>
+<text x="340.0" y="838.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">cuts out only the region</text>
 <line x1="430" y1="820" x2="462" y2="820" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
 <path d="M470,772 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#b5b5bd"/>
 <path d="M496,772 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#6e6e78"/>
@@ -158,9 +158,9 @@
 <line x1="510" y1="820" x2="586" y2="820" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
 <line x1="680" y1="820" x2="714" y2="820" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
 <rect x="720" y="778" width="200" height="84" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
-<text x="820.0" y="810.0" font-size="21" text-anchor="middle" dominant-baseline="middle">Small VLM</text>
-<text x="820.0" y="838.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">Gemma / Gemini on crop</text>
-<text x="820" y="886" font-size="15" text-anchor="middle" fill="#6b6b75" font-style="italic">≈ €0.001 · T7 + frontier baseline</text>
+<text x="820.0" y="810.0" font-size="21" text-anchor="middle" dominant-baseline="middle">Small open VLM</text>
+<text x="820.0" y="838.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">Qwen3-VL-2B / Gemma</text>
+<text x="820" y="886" font-size="15" text-anchor="middle" fill="#6b6b75" font-style="italic">€0 local · open weights · T7</text>
 <line x1="920" y1="820" x2="984" y2="820" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
 <path d="M990,780 l8.32,-8.32 h26 l-8.32,8.32 z" fill="#79bf9d"/>
 <path d="M1016,780 l8.32,-8.32 v26 l-8.32,8.32 z" fill="#2d6e50"/>
@@ -180,7 +180,11 @@
 <rect x="590" y="105" width="90" height="780" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="3.5"/>
 <text x="635.0" y="495.0" font-size="24" text-anchor="middle" dominant-baseline="middle"></text>
 <text x="628" y="495" font-size="34" text-anchor="middle" fill="#1f1f24" transform="rotate(-90 628 495)">Router</text>
-<text x="662" y="495" font-size="16" text-anchor="middle" fill="#6b6b75" font-style="italic" transform="rotate(-90 662 495)">cheapest first</text>
+<text x="662" y="495" font-size="16" text-anchor="middle" fill="#6b6b75" font-style="italic" transform="rotate(-90 662 495)">plain code · no model · €0</text>
+<text x="574" y="118" font-size="22" text-anchor="middle" fill="#6b6b75">①</text>
+<text x="635" y="935" font-size="22" text-anchor="middle" fill="#6b6b75">②</text>
+<text x="236" y="774" font-size="22" text-anchor="middle" fill="#6b6b75">③</text>
+<text x="706" y="774" font-size="22" text-anchor="middle" fill="#6b6b75">④</text>
 <text x="698" y="270.0" font-size="14" text-anchor="start" fill="#6b6b75" font-style="italic">None → next</text>
 <text x="698" y="490.0" font-size="14" text-anchor="start" fill="#6b6b75" font-style="italic">None → next</text>
 <text x="698" y="710.0" font-size="14" text-anchor="start" fill="#6b6b75" font-style="italic">None → next</text>
@@ -207,27 +211,29 @@
 <path d="M1064,380 C1084,380 1080,510.0 1106,510.0" fill="none" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
 <path d="M1064,600 C1084,600 1080,510.0 1106,510.0" fill="none" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
 <path d="M1064,820 C1084,820 1080,510.0 1106,510.0" fill="none" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
-<text x="1235" y="282" font-size="15" text-anchor="middle" fill="#6b6b75" font-style="italic">first path that answers</text>
+<text x="1235" y="282" font-size="15" text-anchor="middle" fill="#6b6b75" font-style="italic">first path that answers wins</text>
 <rect x="1430" y="170" width="180" height="200" rx="8" fill="#fafafa" stroke="#6b6b75" stroke-width="2.5" stroke-dasharray="9 7"/>
 <text x="1520.0" y="270.0" font-size="24" text-anchor="middle" dominant-baseline="middle"></text>
 <text x="1520" y="210" font-size="24" text-anchor="middle" fill="#1f1f24">Demo UI</text>
 <text x="1520" y="250" font-size="16" text-anchor="middle" fill="#6b6b75">boxes on the plan</text>
 <text x="1520" y="282" font-size="16" text-anchor="middle" fill="#6b6b75">step-by-step trace</text>
 <text x="1520" y="314" font-size="16" text-anchor="middle" fill="#6b6b75">€ per answer</text>
-<rect x="1430" y="520" width="180" height="230" rx="8" fill="#fafafa" stroke="#6b6b75" stroke-width="2.5" stroke-dasharray="9 7"/>
-<text x="1520.0" y="635.0" font-size="24" text-anchor="middle" dominant-baseline="middle"></text>
-<text x="1520" y="560" font-size="24" text-anchor="middle" fill="#1f1f24">Scorer</text>
-<text x="1520" y="598" font-size="16" text-anchor="middle" fill="#6b6b75">vs. answer key</text>
-<text x="1520" y="628" font-size="16" text-anchor="middle" fill="#6b6b75">count: exact</text>
-<text x="1520" y="658" font-size="16" text-anchor="middle" fill="#6b6b75">area/len/vol: ±2%</text>
-<text x="1520" y="688" font-size="16" text-anchor="middle" fill="#6b6b75">dev split only</text>
-<text x="1520" y="718" font-size="16" text-anchor="middle" fill="#6b6b75">vs. Gemini full sheet</text>
+<rect x="1430" y="505" width="180" height="280" rx="8" fill="#fafafa" stroke="#6b6b75" stroke-width="2.5" stroke-dasharray="9 7"/>
+<text x="1520.0" y="645.0" font-size="24" text-anchor="middle" dominant-baseline="middle"></text>
+<text x="1520" y="545" font-size="24" text-anchor="middle" fill="#1f1f24">Scorer</text>
+<text x="1520" y="580" font-size="16" text-anchor="middle" fill="#6b6b75">vs. answer key</text>
+<text x="1520" y="609" font-size="16" text-anchor="middle" fill="#6b6b75">count: exact</text>
+<text x="1520" y="638" font-size="16" text-anchor="middle" fill="#6b6b75">area/len/vol: ±2%</text>
+<text x="1520" y="667" font-size="16" text-anchor="middle" fill="#6b6b75">dev split only</text>
+<text x="1520" y="696" font-size="16" text-anchor="middle" fill="#6b6b75">baseline: Gemini API</text>
+<text x="1520" y="725" font-size="16" text-anchor="middle" fill="#6b6b75">on full sheet (paid,</text>
+<text x="1520" y="754" font-size="16" text-anchor="middle" fill="#6b6b75">comparison only)</text>
 <path d="M1360,420 H1390 V270 H1426" fill="none" stroke="#6b6b75" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#ahg)"/>
 <path d="M1360,600 H1390 V635 H1426" fill="none" stroke="#6b6b75" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#ahg)"/>
 <rect x="1430" y="820" width="180" height="70" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
 <text x="1520.0" y="845.0" font-size="19" text-anchor="middle" dominant-baseline="middle">questions.jsonl</text>
 <text x="1520.0" y="873.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">7,990 Qs · Stoa key</text>
-<line x1="1520" y1="820" x2="1520" y2="754" stroke="#6b6b75" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#ahg)"/>
+<line x1="1520" y1="820" x2="1520" y2="790" stroke="#6b6b75" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#ahg)"/>
 <rect x="230" y="950" width="800" height="92" rx="10" fill="#f6f6f8" stroke="#6b6b75" stroke-width="2.5" stroke-dasharray="9 7"/>
 <rect x="250" y="966" width="200" height="64" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
 <text x="350.0" y="988.0" font-size="18" text-anchor="middle" dominant-baseline="middle">CubiCasa5K labels</text>
@@ -239,7 +245,7 @@
 <line x1="705" y1="996" x2="755" y2="996" stroke="#1f1f24" stroke-width="3" marker-end="url(#ah)"/>
 <rect x="760" y="966" width="230" height="64" rx="8" fill="#f2f2f4" stroke="#1f1f24" stroke-width="2.5"/>
 <text x="875.0" y="988.0" font-size="18" text-anchor="middle" dominant-baseline="middle">YOLO fine-tune</text>
-<text x="875.0" y="1016.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">Verda A100 · ≈ 1–2 h</text>
+<text x="875.0" y="1016.0" font-size="15" fill="#6b6b75" text-anchor="middle" dominant-baseline="middle">Verda A100 · ≈ €4 of €200 credit</text>
 <path d="M875,1030 V1062 H222 V692 H340 V646" fill="none" stroke="#6b6b75" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#ahg)"/>
 <text x="214" y="760" font-size="17" text-anchor="middle" fill="#6b6b75" font-style="italic" transform="rotate(-90 214 760)">weights</text>
 <path d="M1080,988 l6.4,-6.4 h20 l-6.4,6.4 z" fill="#79bf9d"/>
@@ -252,4 +258,28 @@
 <text x="1224" y="1006" font-size="17" text-anchor="start" fill="#1f1f24">evidence (bbox / guid)</text>
 <line x1="1420" y1="1000" x2="1470" y2="1000" stroke="#6b6b75" stroke-width="3" stroke-dasharray="8 6"/>
 <text x="1480" y="1006" font-size="17" text-anchor="start" fill="#1f1f24">offline / evaluation</text>
+<rect x="40" y="1110" width="380" height="160" rx="10" fill="#f6f6f8" stroke="#6b6b75" stroke-width="2"/>
+<text x="58" y="1144" font-size="21" text-anchor="start" fill="#1f1f24" font-weight="bold">① Router</text>
+<text x="58" y="1176" font-size="17" text-anchor="start" fill="#3a3a42">Plain code, not a model.</text>
+<text x="58" y="1202" font-size="17" text-anchor="start" fill="#3a3a42">Calls the paths in order;</text>
+<text x="58" y="1228" font-size="17" text-anchor="start" fill="#3a3a42">the first that answers wins.</text>
+<text x="58" y="1254" font-size="17" text-anchor="start" fill="#3a3a42">Costs nothing.</text>
+<rect x="433" y="1110" width="380" height="160" rx="10" fill="#f6f6f8" stroke="#6b6b75" stroke-width="2"/>
+<text x="451" y="1144" font-size="21" text-anchor="start" fill="#1f1f24" font-weight="bold">② Cheapest first</text>
+<text x="451" y="1176" font-size="17" text-anchor="start" fill="#3a3a42">Free, exact readers (BIM, vector)</text>
+<text x="451" y="1202" font-size="17" text-anchor="start" fill="#3a3a42">run before any model. A model</text>
+<text x="451" y="1228" font-size="17" text-anchor="start" fill="#3a3a42">only runs when they can't answer.</text>
+<text x="451" y="1254" font-size="17" text-anchor="start" fill="#3a3a42">Cost = 25% of Stoa's score.</text>
+<rect x="826" y="1110" width="380" height="160" rx="10" fill="#f6f6f8" stroke="#6b6b75" stroke-width="2"/>
+<text x="844" y="1144" font-size="21" text-anchor="start" fill="#1f1f24" font-weight="bold">③ Crop renderer</text>
+<text x="844" y="1176" font-size="17" text-anchor="start" fill="#3a3a42">Sends only a small region</text>
+<text x="844" y="1202" font-size="17" text-anchor="start" fill="#3a3a42">(title block, one room) to the VLM,</text>
+<text x="844" y="1228" font-size="17" text-anchor="start" fill="#3a3a42">not the whole sheet: faster,</text>
+<text x="844" y="1254" font-size="17" text-anchor="start" fill="#3a3a42">cheaper, and more accurate.</text>
+<rect x="1219" y="1110" width="380" height="160" rx="10" fill="#f6f6f8" stroke="#6b6b75" stroke-width="2"/>
+<text x="1237" y="1144" font-size="21" text-anchor="start" fill="#1f1f24" font-weight="bold">④ €0 per answer</text>
+<text x="1237" y="1176" font-size="17" text-anchor="start" fill="#3a3a42">Detector and VLM are open weights</text>
+<text x="1237" y="1202" font-size="17" text-anchor="start" fill="#3a3a42">running locally. Gemini is only the</text>
+<text x="1237" y="1228" font-size="17" text-anchor="start" fill="#3a3a42">paid comparison baseline. Only paid</text>
+<text x="1237" y="1254" font-size="17" text-anchor="start" fill="#3a3a42">step: detector training (credit).</text>
 </svg>
