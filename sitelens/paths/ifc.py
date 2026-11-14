@@ -11,7 +11,7 @@ from .. import data_root
 from ..answer import Answer, Evidence
 
 QUOTED = re.compile(r"['‘«“„]([^'’»”“]+)['’»”“]")
-AREA_KEY = re.compile(r"(?i)netfloorarea|net floor area|netarea|pindala|areal|fl.che|^area$")
+AREA_KEY = re.compile(r"(?i)^(?!.*(gross|brutto)).*(netfloorarea|net floor area|netarea|pindala|nettoareal|nettofl.che|^area$)")
 
 
 def model_path(path: str) -> Path | None:
@@ -49,6 +49,8 @@ def answer(path: str, question: str) -> Answer | None:
     ifc = model_path(path)
     if ifc is None:
         return None
+    if not re.search(r"(?i)area|m²|m2|pind|areal|fl.che|superficie", question):
+        return None  # TODO (T4): counts, wall lengths, slab volumes, text questions
     quoted = QUOTED.findall(question)
     if len(quoted) < 2:
         return None  # TODO (ifc ticket): counts, wall lengths, slab volumes, text questions

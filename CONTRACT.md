@@ -28,6 +28,7 @@ Core = drawing Q&A with evidence, measured by `eval/score.py` on Stoa's answer k
                "label": "room 2.09 · 15.90 m²", "kind": "text", "polygon": null, "ifc_guid": null}],
  "trace": ["found room 2.09 'Zimmer'", "area label 15.90 m²", "vector path, 0.03s"]}
 ```
+- `kind: "ifc"` evidence has `bbox: []` and an `ifc_guid` instead (no 2D drawing); the UI shows it as a model element.
 - `bbox` units: PDF points for PDFs (PyMuPDF page coords), pixels for images. `kind`: box | polygon | text | ifc.
 - Counts: one Evidence per counted object, so the UI can show every hit.
 

@@ -20,22 +20,30 @@ def _load(name):
     try:
         return importlib.import_module(name)
     except ModuleNotFoundError as e:
-        if e.name and name.startswith(e.name.rsplit(".", 1)[0]) and e.name == name:
+        if e.name == name:
             return None  # path not written yet
         raise
 
 
 def answer(path: str, question: str) -> Answer:
+    errors: list[str] = []
     for name in PATHS:
         mod = _load(name)
         if mod is None:
             continue
         t = time.time()
-        a = mod.answer(path, question)
+        try:
+            a = mod.answer(path, question)
+        except Exception as e:  # one broken path must not block the fallbacks
+            errors.append(f"{name.rsplit('.', 1)[1]} path failed: {e!r}")
+            continue
         if a is not None and a.value is not None:
+            a.trace = errors + a.trace
             a.trace.append(f"{name.rsplit('.', 1)[1]} path, {time.time() - t:.2f}s")
             return a
-    return Answer.unknown("no path could answer")
+    a = Answer.unknown("no path could answer")
+    a.trace = errors + a.trace
+    return a
 
 
 if __name__ == "__main__":
