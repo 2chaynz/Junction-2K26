@@ -47,10 +47,14 @@ function takeoffImage(rows: Change[], scope: string) {
   canvas.width = 1080;
   canvas.height = 410 + groups.length * 50;
   const ctx = canvas.getContext("2d")!;
-  function text(s: string, x: number, y: number, font: string, color = "#1a1a1a") {
+  const elementColumn = 64;
+  const dimensionColumn = 382;
+  const addedColumn = 804;
+  const removedColumn = 924;
+  function text(s: string, x: number, y: number, font: string, color = "#1a1a1a", width = canvas.width - x - 48) {
     ctx.font = font;
     ctx.fillStyle = color;
-    ctx.fillText(s, x, y, x === 330 ? 398 : canvas.width - x - 48);
+    ctx.fillText(s, x, y, width);
   }
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -61,18 +65,18 @@ function takeoffImage(rows: Change[], scope: string) {
   text(scope + "  |  Baseline and proposed renovation", 50, 165, "22px sans-serif", "#666");
   text("+" + total.added + " added", 48, 223, "600 32px sans-serif", "#087758");
   text(total.removed + " removed", 510, 223, "600 32px sans-serif", "#ba3027");
-  text("ELEMENT TYPE", 64, 263, "600 17px sans-serif", "#666");
-  text("LOCAL BOUNDS X × Y × Z", 330, 263, "600 17px sans-serif", "#666");
-  text("ADDED", 754, 263, "600 17px sans-serif", "#087758");
-  text("REMOVED", 884, 263, "600 17px sans-serif", "#ba3027");
+  text("ELEMENT TYPE", elementColumn, 263, "600 17px sans-serif", "#666");
+  text("LOCAL BOUNDS X × Y × Z", dimensionColumn, 263, "600 17px sans-serif", "#666");
+  text("ADDED", addedColumn, 263, "600 17px sans-serif", "#087758");
+  text("REMOVED", removedColumn, 263, "600 17px sans-serif", "#ba3027");
   groups.forEach(([kind, count], i) => {
     const y = 280 + i * 50;
     ctx.fillStyle = i % 2 ? "#fff" : "#f5f5f3";
     ctx.fillRect(48, y, 984, 48);
-    text(kind, 64, y + 31, "22px sans-serif");
-    text(dimensionText(count.sizes), 330, y + 31, "18px sans-serif");
-    text(String(count.added), 754, y + 31, "22px sans-serif", "#087758");
-    text(String(count.removed), 884, y + 31, "22px sans-serif", "#ba3027");
+    text(kind, elementColumn, y + 31, "22px sans-serif", "#1a1a1a", dimensionColumn - elementColumn - 18);
+    text(dimensionText(count.sizes), dimensionColumn, y + 31, "18px sans-serif", "#1a1a1a", addedColumn - dimensionColumn - 18);
+    text(String(count.added), addedColumn, y + 31, "22px sans-serif", "#087758");
+    text(String(count.removed), removedColumn, y + 31, "22px sans-serif", "#ba3027");
   });
   text("Dimensions: local geometry bounds, min–max across measured elements of each type.", 48, canvas.height - 83, "18px sans-serif", "#666");
   text("Added from [2]; removed from [1]. BIM-SPEED / TU Berlin, CC BY 4.0.", 48, canvas.height - 55, "18px sans-serif", "#666");
@@ -141,9 +145,13 @@ export function useRevisionDemo(enabled: boolean, entered: boolean, onOpen: () =
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
-    fetch("/api/demo/revisions", { signal: controller.signal }).then((res) => {
+    fetch("/api/demo/revisions", { signal: controller.signal, cache: "no-store" }).then(async (res) => {
       if (!res.ok) throw new Error("Load the full Junction dataset to open the Vitoria IFC revisions.");
-      return res.json() as Promise<Change[]>;
+      const rows: Change[] = await res.json();
+      if (!rows.some((row) => row.level === demoFloor && row.dimensions?.length === 3)) {
+        throw new Error("P2 geometry measurements are missing. Restart SiteLens with the current demo server and full dataset.");
+      }
+      return rows;
     }).then(setChanges).catch((err: Error) => { if (!controller.signal.aborted) setError(err.message); });
     return () => controller.abort();
   }, [enabled]);
