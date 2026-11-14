@@ -204,6 +204,23 @@ class DrawingTakeoff(unittest.TestCase):
                 self.assertEqual(row["count"], 1)
                 self.assertEqual(row["evidence"][0]["bbox"], [90, 100, 110, 110])
 
+    def test_framed_plan_beside_unframed_elevation(self):
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"STOA_DATA": d, "SITELENS_STORE": d}):
+            path = "Views.pdf"
+            with pymupdf.open() as doc:
+                page = doc.new_page()
+                page.draw_rect(pymupdf.Rect(20, 20, 320, 450))
+                page.insert_text((50, 50), "GROUND FLOOR PLAN")
+                page.insert_text((370, 50), "NORTH ELEVATION")
+                doc.save(Path(d) / path)
+            windows = [("Windows", Evidence(path, box), "Detected symbol", None)
+                       for box in ([80, 100, 110, 104], [390, 100, 420, 104])]
+            with patch.object(takeoff_2d, "_detected", return_value=windows):
+                result = takeoff.takeoff(path)
+            row, = result["rows"]
+            self.assertEqual(row["count"], 1)
+            self.assertEqual(row["evidence"][0]["bbox"], [80, 100, 110, 104])
+
     def test_raster_not_to_scale_label_blocks_window_estimate(self):
         from sitelens.measure import Scale
 

@@ -529,15 +529,16 @@ def _sheet(path, root, mtime, weights_mtime):
             multiple_views = len(plan_titles) > 1 or (has_plan and (has_other or bool(excluded_views)))
             schedule_unbounded = _unbounded_schedule(text, tables, has_plan, bounded_schedule)
             plan_frames = []
-            if schedule_unbounded and has_plan:
+            if (schedule_unbounded or has_other) and has_plan:
                 plan_frames = [frame for frame in _framed_regions(page, PLAN_TITLE, .9)
                                if not any(pymupdf.Rect(frame).intersects(pymupdf.Rect(region))
                                           for region in regions)
-                               and not SCHEDULE_TITLE.search(page.get_text(
-                                   clip=pymupdf.Rect(frame) * page.derotation_matrix))]
+                               and not any(pattern.search(page.get_text(
+                                   clip=pymupdf.Rect(frame) * page.derotation_matrix))
+                                           for pattern in (SCHEDULE_TITLE, NON_PLAN_VIEW))]
             objects = _vector(path) if page.number == 0 else []
             if not objects:
-                if has_other or (schedule_unbounded and not plan_frames):
+                if (has_other or schedule_unbounded) and not plan_frames:
                     excluded += 1
                 else:
                     objects = _detected(path, page)
