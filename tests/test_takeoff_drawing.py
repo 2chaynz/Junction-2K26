@@ -271,22 +271,23 @@ class DrawingTakeoff(unittest.TestCase):
 
         from PIL import Image
 
-        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"STOA_DATA": d, "SITELENS_STORE": d}):
-            path = "Hybrid.pdf"
-            image = io.BytesIO()
-            Image.new("L", (200, 200), 255).save(image, "PNG")
-            with pymupdf.open() as doc:
-                page = doc.new_page()
-                page.insert_image(pymupdf.Rect(20, 20, 500, 500), stream=image.getvalue())
-                page.insert_text((30, 530), "A-201")
-                doc.save(Path(d) / path)
-            with patch("sitelens.ocr._engine") as engine, patch.object(takeoff_2d, "_detected") as detect:
-                engine.return_value.return_value = (
-                    [([[0, 0], [100, 0], [100, 12], [0, 12]], "NORTH ELEVATION", .99)], None
-                )
-                result = takeoff.takeoff(path)
-            detect.assert_not_called()
-            self.assertEqual(result["rows"], [])
+        for native_title in (False, True):
+            with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"STOA_DATA": d, "SITELENS_STORE": d}):
+                path = "Hybrid.pdf"
+                image = io.BytesIO()
+                Image.new("L", (200, 200), 255).save(image, "PNG")
+                with pymupdf.open() as doc:
+                    page = doc.new_page()
+                    page.insert_image(pymupdf.Rect(20, 20, 500, 500), stream=image.getvalue())
+                    page.insert_text((30, 530), "NORTH ELEVATION" if native_title else "A-201")
+                    doc.save(Path(d) / path)
+                with patch("sitelens.ocr._engine") as engine, patch.object(takeoff_2d, "_detected") as detect:
+                    engine.return_value.return_value = (
+                        [([[0, 0], [100, 0], [100, 12], [0, 12]], "A-201" if native_title else "NORTH ELEVATION", .99)], None
+                    )
+                    result = takeoff.takeoff(path)
+                detect.assert_not_called()
+                self.assertEqual(result["rows"], [])
 
     def test_manual_calibration_can_scale_single_view_scanned_pdf(self):
         manual = {"source": "manual", "m_per_unit": .04, "text": "Manual calibration", "refs": []}

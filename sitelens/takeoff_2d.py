@@ -194,7 +194,7 @@ def _scale(path, page, bars, ambiguous_view="", scanned_pdf=False):
         return None, "The scale could not be verified for the scanned view.", []
     notes = measure.notes(path, page)
     if len(notes) > 1:
-        return None, "Multiple view scales are printed; calibrate this page in Measure before using a plan span.", []
+        return None, "Multiple scales are printed; the window's scale could not be verified.", []
     choices = bars or notes
     if not choices:
         return None, "No verified scale bar or printed scale found on this page.", []
@@ -205,7 +205,7 @@ def _scale(path, page, bars, ambiguous_view="", scanned_pdf=False):
     if bars and notes:
         delta = abs(notes[0].m_per_unit / first.m_per_unit - 1)
         if delta > .02:
-            return None, f"The bar and printed scale disagree by {delta:.0%}; calibrate this page in Measure.", refs + notes[0].refs
+            return None, f"The bar and printed scale disagree by {delta:.0%}.", refs + notes[0].refs
         text += f"; printed scale agrees within {delta:.1%}"
         refs += notes[0].refs
     return first.m_per_unit, text, refs
@@ -430,6 +430,10 @@ def _pdf_scan_words(page, native_text):
                       max(p[0] for p in quad), max(p[1] for p in quad)])
               for quad, text, confidence in result or [] if confidence >= .8]
     regions, excluded, issue = _scan_metadata(labels, lambda: gray)
+    native_non_plan = {line.strip().casefold() for line in native_text.splitlines() if NON_PLAN_VIEW.fullmatch(line)}
+    recognized = {label.strip().casefold() for label, _ in labels if NON_PLAN_VIEW.fullmatch(label)}
+    if native_non_plan - recognized:
+        excluded = True
     if NOT_TO_SCALE.search(native_text):
         issue = UNKNOWN_VIEW_SCALE
     words = [(label, [v / zoom for v in box]) for label, box in labels]
