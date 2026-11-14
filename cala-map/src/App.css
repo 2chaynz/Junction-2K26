@@ -77,6 +77,7 @@ input:focus { border-color: #ffffff4d; }
 /* ---------- map ---------- */
 .map { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; min-height: 0; }
 .map-canvas { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--dark); }
+.deck-box { position: absolute; inset: 0; }
 .map-head { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: center; align-items: center; padding: 10px 14px; pointer-events: none; }
 .map-head > * { pointer-events: auto; }
 .coords { position: absolute; left: 14px; top: 12px; color: var(--muted); font: 12px var(--pixel); }

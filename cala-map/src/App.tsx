@@ -1,53 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { DeckGL } from '@deck.gl/react'
-import { LinearInterpolator, OrthographicView } from '@deck.gl/core'
-import { IconLayer, PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
-import { IS_MOCK, POSITIONS, SECTORS, STAGES, STARTUPS } from './data/load'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { IS_MOCK, SECTORS, STAGES, STARTUPS } from './data/load'
 import type { Startup } from './data/types'
-import { layoutIslands, type Tile } from './layout'
+import type { Tile } from './layout'
 import { useStored } from './useStored'
 import { sendMagicLink, signOut, supabase, useSession } from './auth'
-import { useClock, useVoyage } from './anim'
-import { Icon, iconUrl, type IconName } from './icons'
+import { useClock } from './anim'
+import { Icon, type IconName } from './icons'
 import { Logo, sigilUrl } from './Logo'
+import { MapView, type FlyRequest } from './MapView'
+import { BY_ID, ISLANDS, LAND, TILES } from './world'
 import './App.css'
 
-const { tiles: TILES, islands: ISLANDS } = layoutIslands(STARTUPS, SECTORS, POSITIONS)
-const BY_ID = new Map(TILES.filter((t) => t.startup).map((t) => [t.startup!.id, t]))
-const LAND = new Map(TILES.map((t) => [`${t.x},${t.y}`, t]))
 const COUNTRIES = [...new Set(STARTUPS.map((s) => s.country))].sort()
 const YEARS = [...new Set(STARTUPS.map((s) => s.founded).filter(Boolean) as number[])].sort()
 // Stage comes from funding rounds; hide it until Cala details are imported.
 const HAS_STAGES = STARTUPS.some((s) => s.stage !== 'Unknown')
 const SOFA_SECONDS = 6
-const THIS_YEAR = new Date().getFullYear()
-
-const FLY = {
-  transitionDuration: 1200,
-  transitionInterpolator: new LinearInterpolator({ transitionProps: ['target', 'zoom'] }),
-  transitionEasing: (k: number) => (k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2),
-}
-
-// Glints on open water, scattered once around the archipelago.
-const SEA = (() => {
-  const xs = TILES.map((t) => t.x)
-  const ys = TILES.map((t) => t.y)
-  const [x0, x1, y0, y1] = [Math.min(...xs) - 30, Math.max(...xs) + 30, Math.min(...ys) - 30, Math.max(...ys) + 30]
-  const pts: { p: [number, number]; phase: number; speed: number }[] = []
-  for (let i = 0; pts.length < 900 && i < 5000; i++) {
-    const p: [number, number] = [Math.round(x0 + Math.random() * (x1 - x0)), Math.round(y0 + Math.random() * (y1 - y0))]
-    if (!LAND.has(`${p[0]},${p[1]}`)) pts.push({ p, phase: Math.random() * 6.28, speed: 0.4 + Math.random() * 1.2 })
-  }
-  return pts
-})()
-
-const boatSvg = (flip: boolean) => `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 16 16' shape-rendering='crispEdges'><g ${flip ? "transform='translate(16 0) scale(-1 1)'" : ''}><rect x='7' y='1' width='1' height='10' fill='#ddd'/><path d='M8 2h1v1h1v1h1v1h1v1h1v1h1v2H8z' fill='#f4ead2'/><path d='M3 7h4v3H3z' fill='#e8c878'/><path d='M1 11h14v1h-1v1h-1v1H3v-1H2v-1H1z' fill='#8a5a3c'/><path d='M2 14h12v1H2z' fill='#5fa8c8'/></g></svg>`)}`
-const BOAT = { right: { url: boatSvg(false), width: 64, height: 64, id: 'boat-r' }, left: { url: boatSvg(true), width: 64, height: 64, id: 'boat-l' } }
-const SPRITE = {
-  gem: { url: iconUrl('gem', '#f0a0d8'), width: 64, height: 64, id: 'gem' },
-  coin: { url: iconUrl('coin', '#ebc878'), width: 64, height: 64, id: 'coin' },
-  seed: { url: iconUrl('seed', '#7ee0a0'), width: 64, height: 64, id: 'seed' },
-}
+const now = () => performance.now() / 1000
 
 interface Filters { sector: string; stage: string; country: string; investor: string; year: string; funded: string }
 const NO_FILTERS: Filters = { sector: '', stage: '', country: '', investor: '', year: '', funded: '' }
@@ -73,7 +42,7 @@ export default function App() {
   const initial = readHash()
   const startId = initial?.id && BY_ID.has(initial.id) ? initial.id : STARTUPS[0].id
   const start = BY_ID.get(startId)!
-  const [view, setView] = useState<{ target: [number, number, number]; zoom: number } & Partial<typeof FLY>>({ target: [start.x, start.y, 0], zoom: 4.2 })
+  const [fly, setFly] = useState<FlyRequest>({ x: start.x, y: start.y, zoom: 4.2, seq: 0 })
   const [selectedId, setSelectedId] = useState(startId)
   const [history, setHistory] = useState<string[]>([])
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
@@ -96,12 +65,10 @@ export default function App() {
   const [sofa, setSofa] = useState(false)
   const [explored, setExplored] = useState(false)
   const [copied, setCopied] = useState(false)
-  const lastHop = useRef(0)
+  const [hopAt, setHopAt] = useState(now)
 
-  const clock = useClock()
   const tile = BY_ID.get(selectedId)!
   const selected = tile.startup!
-  const voyage = useVoyage([tile.x, tile.y], clock)
   const visible = useMemo(() => new Set(STARTUPS.filter((s) => matches(s, filters)).map((s) => s.id)), [filters])
   const discoveredSet = useMemo(() => new Set(discovered), [discovered])
   const gemSet = useMemo(() => new Set(gems.filter((g) => BY_ID.has(g))), [gems])
@@ -116,7 +83,7 @@ export default function App() {
     .map((t) => t.startup!), [tile])
 
   function flyTo(x: number, y: number, zoom?: number) {
-    setView((v) => ({ ...v, ...FLY, target: [x, y, 0], zoom: zoom ?? Math.max(v.zoom, 3.6) }))
+    setFly((f) => ({ x, y, zoom, seq: f.seq + 1 }))
   }
 
   function select(id: string, fly = true) {
@@ -127,7 +94,7 @@ export default function App() {
     setAddMenu(false)
     if (!discoveredSet.has(id)) setDiscovered([...discovered, id])
     if (fly) flyTo(t.x, t.y)
-    lastHop.current = clock
+    setHopAt(now())
   }
 
   // Next = nearest unseen startup that passes the filters, preferring this island.
@@ -155,27 +122,28 @@ export default function App() {
     flyTo(t.x, t.y)
   }
 
+  const toggleSofa = () => { setHopAt(now()); setSofa((v) => !v) }
   const toggleGem = () => setGems(isGem ? gems.filter((g) => g !== selected.id) : [...gems.filter((g) => BY_ID.has(g)), selected.id])
   const toggleFilter = (k: keyof Filters, v: string) => setFilters((f) => ({ ...f, [k]: f[k] === v ? '' : v }))
-
-  // The canvas only gets its final size after the first layout pass.
-  useEffect(() => {
-    const id = setTimeout(() => flyTo(start.x, start.y, 4.2), 150)
-    return () => clearTimeout(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   useEffect(() => {
     window.history.replaceState(null, '', `#${tile.x}~${tile.y}/startup~${selectedId}`)
   }, [selectedId, tile])
 
   // Sofa mode: hop to the next startup every few seconds.
+  const nextRef = useRef(next)
+  nextRef.current = next
   useEffect(() => {
-    if (sofa && clock - lastHop.current > SOFA_SECONDS) {
-      lastHop.current = clock
-      next()
-    }
-  })
+    if (!sofa) return
+    const id = setInterval(() => nextRef.current(), SOFA_SECONDS * 1000)
+    return () => clearInterval(id)
+  }, [sofa, hopAt])
+
+  // Stable handlers so the memoised map only re-renders when its data changes.
+  const selectRef = useRef(select)
+  selectRef.current = select
+  const onPick = useCallback((id: string) => selectRef.current(id, false), [])
+  const onIsland = useCallback((sector: string) => setFilters((f) => ({ ...f, sector: f.sector === sector ? '' : sector })), [])
 
   useEffect(() => {
     const island = ISLANDS.find((i) => i.sector === filters.sector)
@@ -189,7 +157,7 @@ export default function App() {
         n: next, ArrowRight: next, p: previous, ArrowLeft: previous, s: shuffle, g: toggleGem,
         '/': () => setDrawer('search'),
         r: () => flyTo(tile.x, tile.y),
-        ' ': () => { lastHop.current = clock; setSofa((v) => !v) },
+        ' ': toggleSofa,
         Escape: () => setDrawer('none'),
       }
       if (actions[e.key]) {
@@ -201,99 +169,10 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const zoomedIn = view.zoom >= 3
-  const layers = [
-    new ScatterplotLayer<(typeof SEA)[number]>({
-      id: 'sea',
-      data: SEA,
-      getPosition: (d) => d.p,
-      getRadius: 0.12,
-      radiusMinPixels: 0.6,
-      getFillColor: (d) => [120, 170, 200, 25 + 70 * Math.sin(clock * d.speed + d.phase) ** 8],
-      updateTriggers: { getFillColor: Math.floor(clock * 10) },
-    }),
-    new PolygonLayer<Tile>({
-      id: 'tiles',
-      data: TILES,
-      getPolygon: (t) => [[t.x - 0.47, t.y - 0.47], [t.x + 0.47, t.y - 0.47], [t.x + 0.47, t.y + 0.47], [t.x - 0.47, t.y + 0.47]],
-      getFillColor: (t) => {
-        const on = !t.startup || visible.has(t.startup.id)
-        const dim = explored && t.startup && !discoveredSet.has(t.startup.id) ? 0.3 : 1
-        const a = on ? 255 : 45
-        return [t.color[0] * dim, t.color[1] * dim, t.color[2] * dim, a]
-      },
-      stroked: false,
-      pickable: true,
-      autoHighlight: true,
-      highlightColor: [255, 255, 255, 50],
-      transitions: { getFillColor: 400 },
-      updateTriggers: { getFillColor: [visible, explored, discovered] },
-      onClick: ({ object }) => object?.startup && select(object.startup.id, false),
-    }),
-    new IconLayer<Tile>({
-      id: 'sprites',
-      data: zoomedIn ? TILES.filter((t) => t.startup && t.startup.id !== selectedId && (gemSet.has(t.startup.id) || t.startup.funding || (t.startup.founded ?? 0) >= THIS_YEAR - 2)) : [],
-      getPosition: (t) => [t.x + 0.22, t.y - 0.22],
-      getIcon: (t) => (gemSet.has(t.startup!.id) ? SPRITE.gem : t.startup!.funding ? SPRITE.coin : SPRITE.seed),
-      getSize: 0.5,
-      sizeUnits: 'common',
-      updateTriggers: { getIcon: gems },
-    }),
-    new IconLayer<Tile>({
-      id: 'cover',
-      data: [tile],
-      getPosition: (t) => [t.x, t.y],
-      getIcon: (t) => ({ url: sigilUrl(t.startup!.name, t.color), width: 70, height: 70, id: `s-${t.startup!.id}` }),
-      getSize: 1.15,
-      sizeUnits: 'common',
-      sizeMinPixels: 6,
-    }),
-    new TextLayer({
-      id: 'labels',
-      data: ISLANDS,
-      getPosition: (i) => [i.cx, i.cy],
-      getText: (i) => i.sector,
-      getColor: [236, 170, 205, 235],
-      // World units, so labels grow and shrink with the island like a map.
-      getSize: (i) => Math.max(4, i.radius * 0.5),
-      sizeUnits: 'common',
-      sizeMinPixels: 10,
-      sizeMaxPixels: 58,
-      fontFamily: '"IM Fell English", Georgia, serif',
-      characterSet: 'auto',
-      fontSettings: { sdf: true },
-      outlineWidth: 3,
-      outlineColor: [10, 9, 9, 220],
-      pickable: true,
-      onClick: ({ object }) => object && toggleFilter('sector', object.sector),
-    }),
-    new ScatterplotLayer<[number, number]>({
-      id: 'wake',
-      data: voyage.wake,
-      getPosition: (p) => p,
-      getRadius: (_, { index }) => 0.12 + (index / Math.max(1, voyage.wake.length)) * 0.3,
-      getFillColor: (_, { index }) => [190, 225, 240, 30 + (index / Math.max(1, voyage.wake.length)) * 160],
-      updateTriggers: { getRadius: clock, getFillColor: clock },
-    }),
-    new IconLayer({
-      id: 'boat',
-      data: [0],
-      // Bobs at anchor, steadier while under sail.
-      getPosition: () => [voyage.pos[0], voyage.pos[1] - 1.15 + Math.sin(clock * 2.2) * (voyage.sailing ? 0.05 : 0.14)],
-      getIcon: () => (voyage.heading < 0 ? BOAT.left : BOAT.right),
-      getSize: 2.4,
-      sizeUnits: 'common',
-      sizeMinPixels: 22,
-      sizeMaxPixels: 60,
-      updateTriggers: { getPosition: clock, getIcon: voyage.heading },
-    }),
-  ]
-
   const results = query.trim().length > 1
     ? STARTUPS.filter((s) => `${s.name} ${s.description}`.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 40)
     : []
   const islandMembers = openIsland ? (lists[openIsland] ?? []).map((id) => BY_ID.get(id)?.startup).filter(Boolean) as Startup[] : []
-  const sofaProgress = sofa ? Math.min(1, (clock - lastHop.current) / SOFA_SECONDS) : 0
   const funded = !!selected.funding || selected.rounds.length > 0
 
   const filterRows: { key: keyof Filters; label: string; options: string[]; value: string | null }[] = [
@@ -381,18 +260,7 @@ export default function App() {
 
       <main className="map">
         <div className="map-canvas">
-          <DeckGL
-            views={new OrthographicView({ flipY: true })}
-            viewState={view}
-            controller={{ inertia: 400 }}
-            onViewStateChange={({ viewState }) => setView(viewState as typeof view)}
-            layers={layers}
-            getCursor={({ isHovering }) => (isHovering ? 'pointer' : 'grab')}
-            getTooltip={({ object }) => {
-              const s = (object as Tile)?.startup
-              return s ? { html: `<b>${s.name}</b><div>${s.sector} · ${s.country}${s.founded ? ` · ${s.founded}` : ''}</div>`, className: 'map-tip', style: {} } : null
-            }}
-          />
+          <MapView tile={tile} visible={visible} explored={explored} discovered={discoveredSet} gems={gemSet} fly={fly} onPick={onPick} onIsland={onIsland} />
           <header className="map-head">
             <span className="coords">{tile.x}~{tile.y}</span>
             <button className={`map-title ${explored ? 'on' : ''}`} onClick={() => setExplored(!explored)} title="Dim startups you have not seen">
@@ -459,18 +327,13 @@ export default function App() {
         <footer className="transport">
           <div className="transport-main">
             <button className="t-btn" title="Previous (p)" onClick={previous} disabled={!history.length}><Icon name="prev" /></button>
-            <button className={`t-btn boat-btn ${sofa ? 'on' : ''}`} title="Sofa mode: sail on autopilot (space)" onClick={() => { lastHop.current = clock; setSofa(!sofa) }}>
+            <button className={`t-btn boat-btn ${sofa ? 'on' : ''}`} title="Sofa mode: sail on autopilot (space)" onClick={toggleSofa}>
               <Icon name="boat" size={22} />
             </button>
             <button className="t-btn wide" title="Next: navigate (n)" onClick={next}><Icon name="next" /><span>navigate</span></button>
             <button className="t-btn" title="Surprise me (s)" onClick={shuffle}><Icon name="compass" /></button>
           </div>
-          <div className="transport-bar">
-            <button className="t-mini" onClick={() => { lastHop.current = clock; setSofa(!sofa) }}><Icon name={sofa ? 'pause' : 'play'} size={10} /></button>
-            <span className="time">{sofa ? `0:0${Math.floor(sofaProgress * SOFA_SECONDS)}` : '0:00'}</span>
-            <div className="bar"><div className="bar-fill" style={{ width: `${sofaProgress * 100}%` }} /></div>
-            <span className="time">0:0{SOFA_SECONDS}</span>
-          </div>
+          <SofaBar sofa={sofa} hopAt={hopAt} onToggle={toggleSofa} />
         </footer>
       </main>
 
@@ -567,5 +430,19 @@ function StartupList({ items, current, onPick, meta, empty }: { items: Startup[]
         )
       })}
     </ul>
+  )
+}
+
+// Own clock so the progress bar animates without re-rendering the whole app.
+function SofaBar({ sofa, hopAt, onToggle }: { sofa: boolean; hopAt: number; onToggle: () => void }) {
+  const clock = useClock(sofa ? 20 : 1)
+  const progress = sofa ? Math.min(1, Math.max(0, clock - hopAt) / SOFA_SECONDS) : 0
+  return (
+    <div className="transport-bar">
+      <button className="t-mini" onClick={onToggle}><Icon name={sofa ? 'pause' : 'play'} size={10} /></button>
+      <span className="time">0:0{Math.floor(progress * SOFA_SECONDS)}</span>
+      <div className="bar"><div className="bar-fill" style={{ width: `${progress * 100}%` }} /></div>
+      <span className="time">0:0{SOFA_SECONDS}</span>
+    </div>
   )
 }
