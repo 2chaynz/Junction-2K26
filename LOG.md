@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 11:30 · ccolver · ccolver: problem-space outreach questions for Stoa/site users (ideas/ccolver-outreach.md): users, features they'd use, what a good doc summary needs
 - 2026-11-14 11:13 · 2chaynz · UI design locked in grill session (ideas/2chaynz-ui.md): blueprint+redline, 3D Esplanades build-up, Ask/How/Benchmark tabs. T8 split to confirm with team
 - 2026-11-14 04:22 · johanseneuson · johanseneuson (A100): PR #17 T7 baseline, same 40 dev Qs/source: cubicasa ours 85% vs Gemma 4 12B whole-sheet 55%; swiss ours 100% vs 50% (Gemma areas 0%); ours ~EUR 0.00001/answer vs Gemma EUR 0.003-0.005. opening_design: both 0%, no path yet (schedule tables) - open gap
 - 2026-11-14 04:03 · johanseneuson · johanseneuson (on A100): PR #13 T4 IFC = 96.6% of all 1049 ifc_models Qs (was 74.5%), no wrong answers, EUR 0. Dev ifc: area/length/volume 100%, count 97.7%. Dev overall now 53.4% before detector. Detector (T6, epoch~7 weights) = 62.7% dev cubicasa; saunas via bench clusters 89% (was 47%), floors via storey boxes 90%
