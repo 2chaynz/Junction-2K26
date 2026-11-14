@@ -43,3 +43,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T36 Live reasoning in chat: verifiable steps while answering | app | T34 |  | todo |  |  |  |
 | T37 Reasoning stream backend: router steps + /api/ask/stream | ai |  | 2chaynz | done | 2chaynz/T37-reasoning-stream |  |  |
 | T38 One-command local start (scripts/dev.mjs) | setup |  | Asif | doing | asif/T38-dev-script |  |  |
+| T39 Ask back when unclear: clarify + reformulate | ai |  |  | todo |  |  |  |
