@@ -94,8 +94,6 @@ def _associate(objects, words, specs, repeated_marks=()):
             if not (x0 - gap <= x <= x1 + gap and y0 - gap <= y <= y1 + gap):
                 continue
             marked = specs.get((cat, token, True), [])
-            if marked and token in repeated_marks:
-                continue
             matches = marked + specs.get((cat, token, False), [])
             if matches:
                 matching.append((token, box, matches, bool(marked)))
@@ -108,7 +106,7 @@ def _associate(objects, words, specs, repeated_marks=()):
             marks[cat, token] += 1
     return {id(ev): (token, matches, Evidence(ev.file, list(box), page=ev.page, label=f"Plan tag {token}", kind="text"))
             for box, items in out.items() if len(items) == 1 for ev, token, matches, mark, cat in items
-            if candidate_counts[id(ev)] == 1 and (not mark or marks[cat, token] == 1)}
+            if candidate_counts[id(ev)] == 1 and (not mark or (token not in repeated_marks and marks[cat, token] == 1))}
 
 
 def _words(page):
