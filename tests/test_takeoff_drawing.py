@@ -218,7 +218,7 @@ class DrawingTakeoff(unittest.TestCase):
                 page = doc.new_page()
                 page.insert_text((50, 50), "FLOOR PLAN - LEVEL 1")
                 page.insert_text((430, 800), "LEVEL 01")
-                page.insert_text((430, 815), "SHEET NO: A-101")
+                page.insert_text((430, 815), "A-101")
                 page.draw_rect(pymupdf.Rect(330, 70, 570, 240))
                 page.insert_text((340, 95), "DOOR SCHEDULE")
                 for y, row in [(115, ("MARK", "TYPE", "WIDTH")),
@@ -320,7 +320,7 @@ class DrawingTakeoff(unittest.TestCase):
         self.assertIn("multiple views", issue)
         title_block = ("LEVEL 01", [430, 560, 500, 575])
         _, excluded, issue = takeoff_2d._scan_metadata(
-            [plan, title_block, ("SHEET NO: A-101", [430, 577, 520, 590])], lambda: image
+            [plan, title_block, ("A-101", [430, 577, 520, 590])], lambda: image
         )
         self.assertFalse(excluded)
         self.assertEqual(issue, "")
