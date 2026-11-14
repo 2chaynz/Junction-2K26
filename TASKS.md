@@ -36,7 +36,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T29 New VLM available: update button | app | T20 | 2chaynz | done | 2chaynz/T29-vlm-update |  |  |
 | T30 Scorer: live progress + resume for long paid runs | eval |  |  | todo |  |  |  |
 | T31 What changed view: revision diff in the UI | app | T28 | ccolver | done | ccolver/T31-changes-view |  |  |
-| T32 Takeoff list: doors, windows, columns, beams, walls + dims | ai | T31 | ccolver | review | ccolver/T32-takeoff |  |  |
+| T32 Takeoff list: doors, windows, columns, beams, walls + dims | ai | T31 | ccolver | done | ccolver/T32-takeoff |  |  |
 | T33 Cross-check: plan vs schedule conflicts | ai |  | ccolver | done | ccolver/T33-crosscheck |  |  |
 | T34 IFC 3D view: answer elements highlighted in the model | app | T28 | 2chaynz | done | 2chaynz/T34-ifc-3d |  |  |
 | T35 Cross-review script that finds Codex (ChatGPT app install) | setup |  | Asif | done | asif/T35-xreview |  |  |
