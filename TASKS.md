@@ -17,3 +17,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T10 Comparable scores: full preview + official split | eval |  |  | todo |  |  |  |
 | T11 opening_design: read schedule tables | ai |  |  | todo |  |  |  |
 | T12 Two methods agree: confidence + please check | ai | T6 |  | todo |  |  |  |
+| T13 Crop renderer for the VLM path | ai | T7 |  | todo |  |  |  |
