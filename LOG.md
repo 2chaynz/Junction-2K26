@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-15 01:28 · ccolver · T85 merged PR #105: sheet revisions demo (?demo=sheets); header buttons dropped per main
 - 2026-11-15 01:21 · 2chaynz · T89 PR #110: loaders (takeoff, 3D, drawings, overview), demo stamps removed, turntables hover-only (home 30 -> 61 fps), longer motion timings. Full UI walk: no errors
 - 2026-11-15 01:18 · ccolver · T83 merged PR #106: UI English-only; IFC/takeoff/answer strings translated on load (dictionary, Gemini fallback for type/storey names); CONTRACT: POST /api/translate, drawings.title
 - 2026-11-15 01:06 · Asif · T86 merged (#107): VLM picker moved to Ask composer, hot-swaps backend/model; Final demo button removed (use ?demo); /api/vlm contract extended
