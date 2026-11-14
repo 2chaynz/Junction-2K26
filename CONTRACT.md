@@ -65,9 +65,10 @@ GET  /api/random                                      → {"path", "question"} f
 | Name | Used by | Notes |
 |---|---|---|
 | `STOA_DATA` | everything | unzipped dataset folder (contains `questions.jsonl`). Keep it outside the repo |
-| `SITELENS_VLM` | vlm path | backend: `gemini` \| `gemma` \| `nemotron` \| `vllm`. Unset = path off. Per call: `vlm.use_backend(name)` |
+| `SITELENS_VLM` | vlm path | backend: `gemini` \| `gemma` \| `gemma-api` \| `nemotron` \| `nemotron-verda` \| `vllm`. Unset = path off. Per call: `vlm.use_backend(name)` |
 | `GEMINI_API_KEY` | vlm path (gemini) | share directly, never commit. Model: `SITELENS_GEMINI_MODEL` (default `gemini-3.8-flash`) |
-| `SITELENS_GEMMA` | vlm path (gemma) | local Gemma weights dir, CUDA GPU |
+| `SITELENS_GEMMA` | vlm path (gemma) | local Gemma weights dir, CUDA GPU. `gemma-api`: Gemma 4 on the Gemini API (`SITELENS_GEMMA_API_MODEL`, default `gemma-4-31b-it`) |
+| `VERDA_INFERENCE_KEY` | vlm path (nemotron-verda) | Verda's Junction Nemotron 3.5 Super VL endpoint |
 | `NVIDIA_API_KEY` | vlm path (nemotron) | build.nvidia.com key. Default model `nvidia/nemotron-3.5-super-vl-120b-a12b`; `SITELENS_VLM_THINKING=1` turns reasoning on |
 | `SITELENS_VLM_URL` / `_MODEL` / `_KEY` | vlm path (nemotron, vllm) | OpenAI-compatible server, e.g. `http://localhost:8001/v1`. Required for `vllm`; model defaults to the served one |
 | `SITELENS_VLM_EUR_MTOK` | vlm path (nemotron, vllm) | `"in,out"` EUR per Mtok. Unset on `vllm` → cost = wall time × `SITELENS_GPU_EUR_H` |
