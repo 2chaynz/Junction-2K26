@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
+import { Component, Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { T } from "./introTime";
 import "./intro.css";
 
@@ -7,9 +7,31 @@ const SEEN = "sitelens.intro";
 
 const DOORS = 6;
 
+// No WebGL or a failed chunk must cost only the animation, never the app.
+class Quiet extends Component<{ children: ReactNode; onError: () => void }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch() {
+    this.props.onError();
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
+function seen() {
+  try {
+    return !!sessionStorage.getItem(SEEN);
+  } catch {
+    return false;
+  }
+}
+
 function show() {
   if (new URLSearchParams(location.search).has("intro")) return true;
-  return !sessionStorage.getItem(SEEN) && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return !seen() && !matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 export default function Intro() {
@@ -38,7 +60,11 @@ export default function Intro() {
   }, []);
 
   const enter = useCallback(() => {
-    sessionStorage.setItem(SEEN, "1");
+    try {
+      sessionStorage.setItem(SEEN, "1");
+    } catch {
+      // private mode: the intro just shows again next time
+    }
     setLeaving(true);
     setTimeout(() => setOpen(false), 450);
   }, []);
@@ -52,9 +78,11 @@ export default function Intro() {
   if (!open) return null;
   return (
     <div className={`intro ${done ? "done" : ""} ${leaving ? "leaving" : ""}`} role="dialog" aria-label="SiteLens intro">
-      <Suspense fallback={null}>
-        <Scene start={start} onReady={ready} onFrame={frame} />
-      </Suspense>
+      <Quiet onError={() => setDone(true)}>
+        <Suspense fallback={null}>
+          <Scene start={start} onReady={ready} onFrame={frame} />
+        </Suspense>
+      </Quiet>
 
       <div className="intro-progress"><span ref={bar} /></div>
       <button className="intro-skip" onClick={enter}>Skip</button>
