@@ -225,8 +225,8 @@ def answer(path: str, question: str) -> Answer | None:
         return Answer(value=len(rs), unit="count", method="vector", confidence=0.9,
                       evidence=[_room_ev(plan, stem, r) for r in rs],
                       trace=[f"rooms whose label is '{quoted[0]}': {len(rs)}"])
-    if kind is None:
-        return None
+    if kind is None or (quoted and kind != "apartment"):
+        return None  # fixture inside a named room isn't supported yet: don't guess the floor total
     objs = plan.objects.get(kind, [])
     return Answer(value=len(objs), unit="count", method="vector", confidence=0.9 if kind != "shower" else 0.7,
                   evidence=[_ev(plan, stem, b, kind) for b in objs],
