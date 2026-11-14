@@ -65,9 +65,14 @@ export default function AskTab() {
   }
 
   async function onSurprise() {
-    const s = await surprise();
-    select(s.path);
-    run(s.path, s.question);
+    try {
+      const s = await surprise();
+      select(s.path);
+      run(s.path, s.question);
+    } catch (e) {
+      setError(String(e));
+      setStatus("error");
+    }
   }
 
   const chips = drawing ? (showAll ? drawing.questions : drawing.questions.slice(0, 5)) : [];
@@ -86,7 +91,9 @@ export default function AskTab() {
           <span className="mono">{drawing ? SOURCE_LABEL[drawing.source] ?? drawing.source : ""}</span>
           <span className={`status ${status}`}>{STATUS_LABEL[status]}</span>
         </div>
-        {view ? (
+        {view.endsWith(".ifc") ? (
+          <div className="empty">3D model: the 3D view comes in step 3. Answers and evidence are on the right.</div>
+        ) : view ? (
           <Viewer view={view} answer={answer} hover={hover} focus={focus} onHover={setHover} />
         ) : (
           <div className="empty">{error || "Loading drawings…"}</div>

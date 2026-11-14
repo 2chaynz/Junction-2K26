@@ -27,5 +27,6 @@ export async function ask(path: string, question: string): Promise<Answer> {
 
 export async function surprise(): Promise<{ path: string; question: string }> {
   const r = await fetch("/api/random");
+  if (!r.ok) throw new Error(`random: ${r.status}`);
   return r.json();
 }
