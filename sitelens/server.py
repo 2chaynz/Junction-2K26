@@ -134,6 +134,7 @@ def ifc(path: str):
 class Ask(BaseModel):
     path: str
     question: str
+    region: dict | None = None   # T49: brush mark on the shown sheet {page, bbox, points, r}
 
 
 GENERAL_PROMPT = """You are SiteLens, a tool that answers questions about construction drawings and BIM models.
@@ -176,8 +177,10 @@ def _general(path: str, question: str) -> dict | None:
             "evidence": [], "trace": [f"no path answered; {model} answered as a general question"]}
 
 
-def _ask(path: str, question: str, on_step=None) -> dict:
+def _ask(path: str, question: str, on_step=None, region: dict | None = None) -> dict:
     t = time.time()
+    if region:
+        return _ask_region(path, question, region, on_step, t)
 
     def step(kind: str, text: str) -> None:
         if on_step:
@@ -225,10 +228,21 @@ def _ask(path: str, question: str, on_step=None) -> dict:
     return a
 
 
+def _ask_region(path: str, question: str, region: dict, on_step, t: float) -> dict:
+    """A painted mark makes "this" clear: no clarify, no answer key (Stoa's questions are whole-sheet)."""
+    from .region import answer as region_answer
+    try:
+        a = region_answer(path, question, region, on_step, view=_view_of(path)).to_dict()
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    a["time_s"], a["view"] = round(time.time() - t, 3), _view_of(path)
+    return a
+
+
 @app.post("/api/ask")
 def ask(req: Ask):
     _safe(req.path)
-    return _ask(req.path, req.question)
+    return _ask(req.path, req.question, region=req.region)
 
 
 @app.post("/api/ask/stream")
@@ -242,7 +256,7 @@ def ask_stream(req: Ask):
 
     def work():
         try:
-            q.put({"answer": _ask(req.path, req.question, lambda s: q.put({"step": s}))})
+            q.put({"answer": _ask(req.path, req.question, lambda s: q.put({"step": s}), req.region)})
         except Exception as e:
             q.put({"error": repr(e)})
         q.put(END)
