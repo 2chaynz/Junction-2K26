@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 18:03 · johanseneuson · johanseneuson: viz ideas for the 25% verify criterion in ideas/johanseneuson-viz.md. Top 4: (1) review mode: step through uncertain marks, tick/cross, count updates, near-miss boxes promotable; (2) proof strip of evidence crops + arithmetic receipt linked to marks; (3) us vs Gemini side by side on one drawing (boxes + cost); (4) export redline as real PDF annotations (Bluebeam)
 - 2026-11-14 18:00 · 2chaynz · T34 PR #49: IFC 3D view (three.js + web-ifc): cited GUIDs glow red, rooms as red volumes, Plan/3D toggle, scan sweep while answering. facts+llm answers cite no GUIDs, so nothing lights up for them
 - 2026-11-14 17:59 · Asif · T20 final (40 dev Qs/source): gemini-3.8-flash cubi 85% swiss 60% opening 82% (EUR 0.004-0.021/ans); nemotron-verda 52.5/30/0% (EUR 0.0002-0.0005); gemma-api cubi 57.5% free, rest stopped (57s/ans)
 - 2026-11-14 17:59 · 2chaynz · T37 PR #50: router streams reasoning steps live (POST /api/ask/stream, NDJSON). T36 UI uses it once T34 lands
