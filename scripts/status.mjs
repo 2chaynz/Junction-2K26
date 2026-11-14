@@ -11,11 +11,10 @@
 //   node scripts/status.mjs publish <paths...>           push ideas/, context/, tickets/ files to main
 //   node scripts/status.mjs watch [--force]              hook: notice when shared files change on main
 //   node scripts/status.mjs beat [T3] "<doing now>"      heartbeat: what this agent is doing (ticket from branch)
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, rmSync, existsSync, cpSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
 const env = { ...process.env, GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "never" };
 const sh = (cmd, args, opts = {}) =>
@@ -126,13 +125,13 @@ const branchTicket = () => {
   catch { return ""; }
 };
 const minsAgo = (iso) => Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-function pushBeat(id, text) {
+function pushBeat(id, text, { tries = 4, timeout = 20000 } = {}) {
   let who = "agent", branch = "";
   try { who = git(["config", "user.name"], { cwd: root }); } catch {}
   try { branch = git(["branch", "--show-current"], { cwd: root }); } catch {}
   const pipe = { cwd: root, stdio: ["pipe", "pipe", "pipe"] };
-  for (let attempt = 1; attempt <= 4; attempt++) {
-    fetchBeats();
+  for (let attempt = 1; attempt <= tries; attempt++) {
+    fetchBeats(timeout);
     let parent = "";
     try { parent = git(["rev-parse", "--verify", "--quiet", `origin/${BEATS}`], { cwd: root }); } catch {}
     const beats = parent ? readBeats() : {};
@@ -141,7 +140,7 @@ function pushBeat(id, text) {
     const blob = sh("git", ["hash-object", "-w", "--stdin"], { ...pipe, input: JSON.stringify(beats, null, 1) + "\n" });
     const tree = sh("git", ["mktree"], { ...pipe, input: `100644 blob ${blob}\tbeats.json\n` });
     const commit = git(["commit-tree", tree, ...(parent ? ["-p", parent] : []), "-m", `beat ${id}`], { cwd: root });
-    try { git(["push", "--quiet", "origin", `${commit}:refs/heads/${BEATS}`], { cwd: root, timeout: 20000 }); return true; }
+    try { git(["push", "--quiet", "origin", `${commit}:refs/heads/${BEATS}`], { cwd: root, timeout }); return true; }
     catch (e) { if (!/non-fast-forward|fetch first|rejected|cannot lock ref/.test(String(e.stderr || e.message))) return false; }
   }
   return false;
@@ -306,15 +305,16 @@ const commands = {
   beat() {
     const id = /^T\d+$/i.test(pos[0] || "") ? pos.shift().toUpperCase() : branchTicket();
     if (flags.hook) {
-      // Runs after every tool call: throttled, detached, silent, never fails.
+      // Runs after every tool call: throttled, silent, never fails. Inline, not detached:
+      // Claude Code on Windows kills a hook's child processes when the hook exits.
       try {
         if (!id) return;
         const s = readState();
         const last = s.beats?.[id] || 0;
         if (Date.now() - last < AUTO_BEAT_MS) return;
         writeState({ ...s, beats: { ...s.beats, [id]: Date.now() } });
-        spawn(process.execPath, [fileURLToPath(import.meta.url), "beat", id],
-          { cwd: root, detached: true, stdio: "ignore", windowsHide: true }).unref();
+        // One short try keeps the hook under its 10s timeout; the next one comes in 5 min.
+        pushBeat(id, "", { tries: 1, timeout: 4000 });
       } catch {}
       return;
     }
