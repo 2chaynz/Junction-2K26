@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-15 01:06 · Asif · T88: merged PR #109: README Team section credits each person's main tickets; teammates please check your line
 - 2026-11-15 01:02 · 2chaynz · health check on main 2236b8e: :8000 rebuilt, check.sh + live smoke OK (Swiss 12, IFC, scan, A700 71, highlight OCR, stream, export, 3D). 4 test files failed: 3 path-only, 1 real (scale bar beside metres bar). PR #108 fixes both
 - 2026-11-15 00:51 · 2chaynz · T84 PR #103: motion (press feedback, sliding tab ink, hover lift, benchmark bars/count-ups in view, section reveal, 3D wireframe loader, answer count-up). 3 review rounds, PASS. Note: past feature freeze, user's call
 - 2026-11-15 00:49 · 2chaynz · T79 PR #104: BIM project cards on Home spin (PyVista clay turntables, 8 models, 2.7 MB); render script scripts/render_turntables.py; cross-review PASS
