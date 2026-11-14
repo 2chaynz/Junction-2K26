@@ -79,4 +79,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T72 Intro: loading screen with blueprint-to-building 3D animation | app |  | 2chaynz | done | 2chaynz/T72-intro |  |  |
 | T73 Benchmark page: interactive, model logos, honest numbers | app |  | 2chaynz | done | 2chaynz/T73-benchmark |  |  |
 | T74 Keep repeated marks in takeoff ambiguity checks | app |  | ccolver | doing | ccolver/T74-takeoff-marks |  |  |
-| T75 Chat follow-ups + cited reasoning: drawing, project, web | app |  |  | todo |  |  |  |
+| T75 Chat follow-ups + cited reasoning: drawing, project, web | app |  | ccolver | doing | ccolver/T75-cited-reasoning |  |  |
