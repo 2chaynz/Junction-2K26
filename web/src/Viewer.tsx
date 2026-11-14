@@ -250,16 +250,28 @@ export default function Viewer({
                 {b.poly && b.poly.length > 2 && (
                   <polygon className="area" points={b.poly.map((p) => p.join(",")).join(" ")} />
                 )}
-                <path
-                  d={Math.max(b.x1 - b.x0, b.y1 - b.y0) * t.s > 70 ? penRect(b, 3 / t.s) : penLoop(b, 9 / t.s)}
-                  pathLength={1}
-                  style={{
-                    animationDelay: `${Math.min(k * 45, 1400)}ms`,
-                    // Firefox ignores non-scaling-stroke under CSS transforms: keep width in screen px by hand.
-                    strokeWidth: (hover === b.i || focus === b.i ? 4.5 : 2.4) / t.s,
-                  }}
-                />
-                {boxes.length <= 60 && (
+                {changes ? (
+                  // revision diff: a flat highlighter over the changed cells, like a marker on a printed table
+                  <rect
+                    className="hl"
+                    x={b.x0 - 1}
+                    y={b.y0 - 1}
+                    width={b.x1 - b.x0 + 2}
+                    height={b.y1 - b.y0 + 2}
+                    style={{ strokeWidth: (hover === b.i || focus === b.i ? 2 : 0) / t.s }}
+                  />
+                ) : (
+                  <path
+                    d={Math.max(b.x1 - b.x0, b.y1 - b.y0) * t.s > 70 ? penRect(b, 3 / t.s) : penLoop(b, 9 / t.s)}
+                    pathLength={1}
+                    style={{
+                      animationDelay: `${Math.min(k * 45, 1400)}ms`,
+                      // Firefox ignores non-scaling-stroke under CSS transforms: keep width in screen px by hand.
+                      strokeWidth: (hover === b.i || focus === b.i ? 4.5 : 2.4) / t.s,
+                    }}
+                  />
+                )}
+                {boxes.length <= 60 && !changes && (
                   <text x={Math.max(b.x1, b.x0 + 9 / t.s) + 4 / t.s} y={b.y0 - 2 / t.s} fontSize={13 / t.s}>
                     {b.i + 1}
                   </text>
