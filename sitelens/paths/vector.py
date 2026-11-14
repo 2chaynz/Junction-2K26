@@ -151,8 +151,9 @@ def _fit_pdf(stem: str, anchors: dict) -> np.ndarray | None:
     pdf = data_root() / f"{stem}.pdf"
     if not pdf.exists() or len(anchors) < 2:
         return None
-    import pymupdf
-    words = pymupdf.open(pdf)[0].get_text("words")
+    from ..cache import pdf_text
+
+    _, words, _ = pdf_text(pdf)
     P = {w[4]: ((w[0] + w[2]) / 2, (w[1] + w[3]) / 2) for w in words if NUM.match(w[4])}
     pairs = [(anchors[k], P[k]) for k in anchors if k in P]
     if len(pairs) < 2:
