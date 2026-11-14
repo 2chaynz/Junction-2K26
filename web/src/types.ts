@@ -33,9 +33,12 @@ export type Drawing = { path: string; source: string; view: string; questions: K
 // One reasoning step streamed by /api/ask/stream (CONTRACT.md → Step).
 export type Step = { kind: "understand" | "try" | "skip" | "fail" | "found" | "trace" | "general" | "check" | "clarify"; path: string; text: string; t: number };
 
+// T49: highlighter stroke on the shown sheet, in evidence coords. r = brush radius.
+export type Mark = { page: number; bbox: number[]; points: number[][]; r: number };
+
 export type Msg =
-  | { kind: "user"; path: string; text: string }
-  | { kind: "answer"; path: string; question: string; answer: Answer; steps: Step[] }
+  | { kind: "user"; path: string; text: string; mark?: Mark }
+  | { kind: "answer"; path: string; question: string; answer: Answer; steps: Step[]; mark?: Mark }
   | { kind: "pending"; path: string; steps: Step[] }
   | { kind: "error"; path: string; text: string }
   | { kind: "switch"; path: string };

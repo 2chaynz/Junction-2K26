@@ -10,7 +10,7 @@ import HowItWorks from "./HowItWorks";
 import Measure from "./Measure";
 import Takeoff, { type Row } from "./Takeoff";
 import Stack from "./Stack";
-import type { Answer, Drawing, Msg, Shape, Step, Tool } from "./types";
+import type { Answer, Drawing, Mark, Msg, Shape, Step, Tool } from "./types";
 import Viewer from "./Viewer";
 import VlmBadge from "./VlmBadge";
 
@@ -68,6 +68,8 @@ export default function App() {
   const [hover, setHover] = useState<number | null>(null);
   const [focus, setFocus] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
+  const [pen, setPen] = useState(false);
+  const [mark, setMark] = useState<Mark | null>(null);
   const [error, setError] = useState("");
   const [size, setSize] = useState<[number, number] | null>(null);
   const [mode, setMode] = useState<"plan" | "3d" | "stack">("plan");
@@ -120,6 +122,16 @@ export default function App() {
   const allPaths = useMemo(() => drawings.map((d) => d.path), [drawings]);
   const chips = useMemo(() => pickChips(drawing), [drawing]);
   const busy = msgs.some((m) => m.kind === "pending");
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setPen(false);
+      setMark(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const hasPair = PAIRS.has(path);
   const showCh = chOn && hasPair;
 
@@ -144,6 +156,8 @@ export default function App() {
     setPath(p);
     setSize(null);
     setDraft("");
+    setMark(null);
+    setPen(false);
     setChHover(null);
     setChFocus(null);
     activate(null);
@@ -151,9 +165,12 @@ export default function App() {
   }
 
   async function run(p: string, q: string) {
+    const region = mark ?? undefined;
     setDraft("");
+    setMark(null);
+    setPen(false);
     activate(null);
-    setMsgs((m) => [...m, { kind: "user", path: p, text: q }, { kind: "pending", path: p, steps: [] }]);
+    setMsgs((m) => [...m, { kind: "user", path: p, text: q, mark: region }, { kind: "pending", path: p, steps: [] }]);
     const steps: Step[] = [];
     let next: Msg;
     try {
@@ -161,8 +178,8 @@ export default function App() {
         steps.push(s);
         const snap = [...steps];
         setMsgs((m) => m.map((x) => (x.kind === "pending" ? { ...x, steps: snap } : x)));
-      });
-      next = { kind: "answer", path: p, question: q, answer, steps };
+      }, region);
+      next = { kind: "answer", path: p, question: q, answer, steps, mark: region };
     } catch (e) {
       next = { kind: "error", path: p, text: `Something broke: ${String(e)}` };
     }
@@ -208,6 +225,7 @@ export default function App() {
   }
 
   const act = active !== null ? msgs[active] : null;
+  const shownMark = mark ?? (act?.kind === "answer" && act.path === path ? act.mark ?? null : null);
   const answer = act?.kind === "answer" && act.path === path ? act.answer : null;
   const view = showCh || msOn ? drawing?.view ?? "" : answer?.view ?? drawing?.view ?? "";
   const isIfc = path.endsWith(".ifc");
@@ -299,6 +317,10 @@ export default function App() {
                 onSize={(w, h) => setSize([w, h])}
                 busy={busy || (showCh && !ch?.answer && !ch?.error)}
                 changes={showCh}
+                pen={pen && !showCh && !(msOn && tool)}
+                mark={showCh ? null : shownMark}
+                onPen={showCh ? undefined : setPen}
+                onMark={showCh ? undefined : (m) => (setMark(m), activate(null))}
                 shapes={msOn ? shapes : []}
                 tool={msOn ? tool : null}
                 mpu={mpu}
@@ -358,6 +380,8 @@ export default function App() {
           draft={draft}
           busy={busy}
           setDraft={setDraft}
+          mark={mark}
+          onClearMark={() => setMark(null)}
           onAsk={(q) => run(path, q)}
           onActivate={(i) => {
             const m = msgs[i];

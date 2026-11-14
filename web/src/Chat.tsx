@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { METHOD_NAME, fmtAnswer, fmtEur, fmtTime, fmtValue, shortName } from "./format";
-import type { Answer, Msg, Step, Table } from "./types";
+import type { Answer, Mark, Msg, Step, Table } from "./types";
 
 type Props = {
   msgs: Msg[];
@@ -13,6 +13,8 @@ type Props = {
   busy: boolean;
   setDraft: (s: string) => void;
   onAsk: (q: string) => void;
+  mark?: Mark | null; // T49: highlighted spot the next question is about
+  onClearMark?: () => void;
   onActivate: (msg: number) => void;
   onHover: (i: number | null) => void;
   onFocus: (i: number | null) => void;
@@ -234,6 +236,10 @@ export default function Chat(p: Props) {
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (p.mark) input.current?.focus();
+  }, [p.mark]);
+
+  useEffect(() => {
     log.current?.scrollTo({ top: log.current.scrollHeight, behavior: "smooth" });
   }, [p.msgs]);
 
@@ -245,7 +251,13 @@ export default function Chat(p: Props) {
         {p.msgs.map((m, i) => {
           if (m.kind === "switch")
             return <div key={i} className="divider"><span>{shortName(m.path)}</span></div>;
-          if (m.kind === "user") return <div key={i} className="msg user">{m.text}</div>;
+          if (m.kind === "user")
+            return (
+              <div key={i} className="msg user">
+                {m.mark && <span className="marked" title="Asked about a highlighted spot" />}
+                {m.text}
+              </div>
+            );
           if (m.kind === "pending")
             return <div key={i} className="msg sl pending"><Thinking steps={m.steps} live /></div>;
           if (m.kind === "error") return <div key={i} className="msg sl error">{m.text}</div>;
@@ -276,6 +288,12 @@ export default function Chat(p: Props) {
             ))}
           </div>
         )}
+        {p.mark && (
+          <span className="markchip">
+            Highlighted spot
+            <button type="button" onClick={p.onClearMark} aria-label="Remove highlight">×</button>
+          </span>
+        )}
         <form
           className="ask"
           onSubmit={(e) => {
@@ -287,7 +305,7 @@ export default function Chat(p: Props) {
             ref={input}
             value={p.draft}
             onChange={(e) => p.setDraft(e.target.value)}
-            placeholder="Ask about this drawing, any language"
+            placeholder={p.mark ? "What is this? Area of this room? How many doors here?" : "Ask about this drawing, any language"}
           />
           <button className="send" disabled={p.busy || !p.draft.trim()} aria-label="Ask">
             Ask

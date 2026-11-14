@@ -1,0 +1,9 @@
+.sketch { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+.sketch.pen { pointer-events: all; cursor: crosshair; touch-action: none; }
+.sketch .hl { fill: none; stroke: rgba(255, 196, 0, 0.42); stroke-linecap: round; stroke-linejoin: round; mix-blend-mode: multiply; }
+.viewer-tools button.pen-on { background: #ffd84d; border-color: #e6b800; }
+.markchip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 3px 4px 3px 8px; margin-bottom: 6px;
+  border-radius: var(--r); background: rgba(255, 196, 0, 0.22); border: 1px solid rgba(230, 170, 0, 0.6); }
+.markchip button { padding: 0 6px; color: var(--dim); font-size: 15px; line-height: 1; }
+.markchip button:hover { color: var(--ink); }
+.msg.user .marked { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 50%; background: #ffc400; vertical-align: -1px; }
