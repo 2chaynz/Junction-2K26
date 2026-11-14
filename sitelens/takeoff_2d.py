@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import math
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from functools import lru_cache
 from pathlib import Path
 
@@ -120,7 +120,7 @@ def _words(page):
 NON_PLAN_VIEW = re.compile(
     r"(?im)^[ \t]*(?![^\r\n]*\b(?:see|refer|consult|verify|check|note)\b)"
     r"(?![^\r\n]*\b\d+[A-Z]?[ \t]*/[ \t]*[A-Z][A-Z0-9-]*\d\b)"
-    r"[^\r\n]*\b(?:elevations?|sections?|details?|legends?|reflected ceiling plans?)\b[^\r\n]*$"
+    r"[^\r\n]*\b(?:elev(?:ations?)?|sec(?:tions?)?|details?|legends?|reflected ceiling plans?)\b[^\r\n]*$"
 )
 PLAN_TITLE = re.compile(
     r"(?im)^[ \t]*(?:[\w-]+[ \t]+){0,5}"
@@ -581,12 +581,9 @@ def takeoff(path):
         return schedule
     specs, inspected, limited, failed = _specs(path, page_tables)
     rows = []
-    mark_pages = defaultdict(set)
-    for page, objects, words, _, _, _ in pages:
-        if objects:
-            for token, _ in words:
-                mark_pages[token.upper()].add(page)
-    repeated_marks = {token for token, seen in mark_pages.items() if len(seen) > 1}
+    mark_counts = Counter(token.upper() for _, objects, words, _, _, _ in pages
+                          if objects for token, _ in words)
+    repeated_marks = {token for token, count in mark_counts.items() if count > 1}
     for page, objects, words, bars, ambiguous_view, scanned_pdf in pages:
         page_rows = _rows(objects, words, specs, _scale(path, page, bars, ambiguous_view, scanned_pdf),
                           measure.is_image(path), repeated_marks)

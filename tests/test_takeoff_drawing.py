@@ -172,7 +172,7 @@ class DrawingTakeoff(unittest.TestCase):
                 mixed.insert_text((400, 50), "EAST ELEVATION")
                 mixed.draw_rect(pymupdf.Rect(395, 36, 520, 66))
                 elevation = doc.new_page()
-                elevation.insert_text((50, 50), "ELEVATION - NORTH 1:100")
+                elevation.insert_text((50, 50), "NORTH ELEV.")
                 doc.save(Path(d) / path)
 
             def detected(path, page):
@@ -244,6 +244,7 @@ class DrawingTakeoff(unittest.TestCase):
         words = [("D1", [18, 2, 20, 4]), ("D2", [0, 2, 2, 4])]
         specs = {("Doors", tag, True): [tag] for tag in ("D1", "D2")}
         self.assertEqual(takeoff_2d._associate(doors, words, specs), {})
+        self.assertEqual(takeoff_2d._associate(doors[:1], words[:1], specs, {"D1"}), {})
 
     def test_conflicting_mark_and_type_leave_size_unknown(self):
         door = Evidence("plan.pdf", [0, 0, 20, 10])
