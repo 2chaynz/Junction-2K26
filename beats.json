@@ -340,5 +340,11 @@
   "branch": "ccolver/T66-plan-reference",
   "text": "Implement exact tag, grid qualifier, and detail matching with evidence.",
   "at": "2026-11-14T18:33:23.761Z"
+ },
+ "T67": {
+  "who": "2chaynz",
+  "branch": "2chaynz/T67-region-ocr",
+  "text": "claimed",
+  "at": "2026-11-14T18:35:10.627Z"
  }
 }
