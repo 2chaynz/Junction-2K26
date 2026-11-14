@@ -14,7 +14,7 @@ from functools import lru_cache
 from pathlib import Path
 
 import fitz  # PyMuPDF
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -172,12 +172,18 @@ def _crop(p: Path, page: int, scale: float, clip: str, pad: float):
 
 
 @app.get("/api/ifc")
-def ifc(path: str):
+def ifc(path: str, request: Request):
     """Raw IFC bytes for the in-browser 3D viewer."""
     p = _safe(path)
     if p.suffix.lower() != ".ifc":
         raise HTTPException(400, "not an IFC file")
-    return FileResponse(p, media_type="application/octet-stream", headers={"Cache-Control": "private, max-age=300"})
+    stat = p.stat()
+    etag = f'"{stat.st_mtime_ns:x}-{stat.st_ctime_ns:x}-{stat.st_size:x}"'
+    headers = {"Cache-Control": "private, no-cache", "ETag": etag}
+    validators = {value.strip().removeprefix("W/") for value in request.headers.get("if-none-match", "").split(",")}
+    if etag in validators or "*" in validators:
+        return Response(status_code=304, headers=headers)
+    return FileResponse(p, stat_result=stat, media_type="application/octet-stream", headers=headers)
 
 
 @app.get("/api/takeoff")

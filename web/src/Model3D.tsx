@@ -143,17 +143,20 @@ const quantile = (xs: number[], q: number) => {
 };
 
 const ifcBytes = new Map<string, { until: number; data: Promise<ArrayBuffer> }>();
-function fetchIfc(url: string) {
+async function readIfc(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`ifc: ${response.status}`);
+  return response.arrayBuffer();
+}
+
+function fetchSampleIfc(url: string) {
   const hit = ifcBytes.get(url);
   if (hit && hit.until > Date.now()) {
     ifcBytes.delete(url);
     ifcBytes.set(url, hit);
     return hit.data;
   }
-  const data = fetch(url).then((r) => {
-    if (!r.ok) throw new Error(`ifc: ${r.status}`);
-    return r.arrayBuffer();
-  }).catch((error) => {
+  const data = readIfc(url).catch((error) => {
     if (ifcBytes.get(url)?.data === data) ifcBytes.delete(url);
     throw error;
   });
@@ -163,8 +166,8 @@ function fetchIfc(url: string) {
   return data;
 }
 
-async function load(url: string, root: THREE.Group, alive: () => boolean): Promise<Model | null> {
-  const [a, buf] = await Promise.all([ifcApi(), fetchIfc(url)]);
+async function load(url: string, root: THREE.Group, alive: () => boolean, sample: boolean): Promise<Model | null> {
+  const [a, buf] = await Promise.all([ifcApi(), sample ? fetchSampleIfc(url) : readIfc(url)]);
   await new Promise((r) => setTimeout(r, 30)); // let "Loading" paint: streaming blocks the thread
   if (!alive()) return null;
   const id = a.OpenModel(new Uint8Array(buf), { COORDINATE_TO_ORIGIN: true });
@@ -445,7 +448,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
     for (const m of [...s.root.children] as THREE.Mesh[]) m.geometry.dispose();
     s.root.clear();
     s.fly = null;
-    load(modelUrl, s.root, () => !dead)
+    load(modelUrl, s.root, () => !dead, !!demo)
       .then(async (m) => {
         if (!m) return;
         opened = m;
