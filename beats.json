@@ -58,5 +58,11 @@
   "branch": "asif/T20-vlm-backends",
   "text": "backends coded + selftest ok; need keys + dataset to score",
   "at": "2026-11-14T12:27:00.621Z"
+ },
+ "T10": {
+  "who": "ccolver",
+  "branch": "ccolver/T19-room-ocr",
+  "text": "claimed",
+  "at": "2026-11-14T12:32:33.594Z"
  }
 }
