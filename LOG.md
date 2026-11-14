@@ -2,6 +2,9 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 23:19 · ccolver · T71: merged Vitoria demo and documented the IFC revision endpoints.
+- 2026-11-14 23:16 · Asif · T76: merged PR #96: schedule rules sum Count columns, abstain on no match/unreadable qty (rules-only 13->20/64); Gemini path unchanged 17/17
+- 2026-11-14 23:14 · Asif · T76: schedule 'regression' = no GEMINI_API_KEY in the eval env; with key opening_design dev 17/17 counts. Rules-only fallback 13->20/64 in PR #96. Load .env before scoring or demoing schedules
 - 2026-11-14 22:52 · ccolver · T62/T74: merged cited 2D takeoff and repeated-tag ambiguity fix (PRs #82, #95).
 - 2026-11-14 22:35 · ccolver · T71: workspace demo, PNG and Esplanades takeoff verified in Edge; latest PR head needs cross-review.
 - 2026-11-14 22:31 · 2chaynz · T73 PR #94: Benchmark page rebuilt: model leaderboard with logos (same-40 Qs: Swiss 100% vs Gemini 60%, scans 95 vs 85; AECV per category), side-by-side marks vs Gemini on 11 held-out Qs; overclaim removed

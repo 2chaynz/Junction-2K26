@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import collections
+from hashlib import sha256
 import io
 import os
 import json
@@ -14,7 +15,7 @@ from functools import lru_cache
 from pathlib import Path
 
 import fitz  # PyMuPDF
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -172,12 +173,74 @@ def _crop(p: Path, page: int, scale: float, clip: str, pad: float):
 
 
 @app.get("/api/ifc")
-def ifc(path: str):
+def ifc(path: str, request: Request):
     """Raw IFC bytes for the in-browser 3D viewer."""
     p = _safe(path)
     if p.suffix.lower() != ".ifc":
         raise HTTPException(400, "not an IFC file")
-    return FileResponse(p, media_type="application/octet-stream")
+    content = p.read_bytes()
+    etag = f'"{sha256(content).hexdigest()}"'
+    headers = {"Cache-Control": "private, no-cache", "ETag": etag}
+    validators = {value.strip().removeprefix("W/") for value in request.headers.get("if-none-match", "").split(",")}
+    if etag in validators or "*" in validators:
+        return Response(status_code=304, headers=headers)
+    return Response(content, media_type="application/octet-stream", headers=headers)
+
+
+VITORIA = "data/ifc_models/bimspeed-vitoria_ald26-"
+
+
+@app.get("/api/demo/revisions")
+def demo_revisions():
+    """Compare element IDs in the Vitoria baseline and renovation proposal."""
+    import ifcopenshell
+    import ifcopenshell.geom
+    from ifcopenshell.util.element import get_container
+
+    try:
+        paths = [_safe(VITORIA + state + ".ifc") for state in ("before", "project")]
+    except (HTTPException, RuntimeError) as error:
+        raise HTTPException(404, "Point STOA_DATA at the full Junction dataset to load Vitoria.") from error
+
+    revisions = []
+    for path in paths:
+        model = ifcopenshell.open(path)
+        elements = {}
+        for element in model.by_type("IfcElement"):
+            if not element.Representation or element.is_a("IfcFeatureElement"):
+                continue
+            level = get_container(element, ifc_class="IfcBuildingStorey")
+            kind = element.is_a()
+            if element.is_a("IfcWall"):
+                kind = "Insulation walls" if "LKS_ETICS" in (element.Name or "") else "Walls"
+            else:
+                kind = {
+                    "IfcFlowSegment": "MEP segments", "IfcFlowFitting": "MEP fittings",
+                    "IfcBuildingElementProxy": "Other modeled components",
+                    "IfcDoor": "Doors", "IfcWindow": "Windows", "IfcRoof": "Roofs",
+                }.get(kind, kind.removeprefix("Ifc"))
+            elements[element.GlobalId] = (element, {
+                "guid": element.GlobalId, "kind": kind, "name": element.Name or kind,
+                "level": level.Name if level else None,
+            })
+        revisions.append((model, elements))
+    (_, before), (_, after) = revisions
+    settings = ifcopenshell.geom.settings()
+    changes = []
+    for change, current, other in (("added", after, before), ("removed", before, after)):
+        for guid in current.keys() - other.keys():
+            element, data = current[guid]
+            dimensions = None
+            try:
+                shape = ifcopenshell.geom.create_shape(settings, element)
+                xyz = shape.geometry.verts
+                if xyz:
+                    dimensions = [round(max(xyz[i::3]) - min(xyz[i::3]), 3) for i in range(3)]
+            except RuntimeError:
+                pass
+            changes.append({**data, "change": change, "dimensions": dimensions})
+    return sorted(changes, key=lambda row: (row["kind"], row["name"], row["guid"]))
+
 
 
 @app.get("/api/takeoff")

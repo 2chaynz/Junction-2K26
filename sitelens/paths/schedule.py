@@ -156,9 +156,13 @@ def _norm(s: str) -> str:
     return re.sub(r"\s+", "", s.replace("’", "'").replace("”", '"').replace("″", '"')).upper()
 
 
-def _pick(tables: list[Table], q: str) -> Table | None:
-    want = ("door" if re.search(r"(?i)\bdoor", q) else "finish" if re.search(r"(?i)finish|room schedule|area", q)
+def _pick_kind(q: str) -> str:
+    return ("door" if re.search(r"(?i)\bdoor", q) else "finish" if re.search(r"(?i)finish|room schedule|area", q)
             else "window" if re.search(r"(?i)window", q) else "")
+
+
+def _pick(tables: list[Table], q: str) -> Table | None:
+    want = _pick_kind(q)
     cand = [t for t in tables if want and want in t.title.lower()] or tables
     return max(cand, key=lambda t: len(t.rows)) if cand else None
 
@@ -241,14 +245,30 @@ def answer(path: str, question: str) -> Answer | None:
     return _rules(path, question, tables)
 
 
+def _qty(t: Table) -> int | None:
+    """Column holding a per-row quantity (type schedules list one row per type with a count)."""
+    # header alone decides: unreadable cells must not turn it back into a row count
+    return t.col(r"^(count|qty|quantity)$")
+
+
+def _int(s: str) -> int | None:
+    return int(s.replace(",", "")) if re.fullmatch(r"\d{1,3}(,\d{3})*|\d+", s.strip()) else None
+
+
+def _matches(t: Table, target: str) -> list[int]:
+    return [i for i, r in enumerate(t.rows) if any(target == _norm(c) or target in _norm(c).split("/")
+                                                   or re.fullmatch(rf"(.*\W)?{re.escape(target)}(\W.*)?", _norm(c))
+                                                   for c in r)]
+
+
 def _rules(path: str, question: str, tables: list[Table]) -> Answer | None:
     t = _pick(tables, question)
     if t is None or not t.rows:
         return None
     q = question
 
-    def ev(idx, label):
-        return [Evidence(file=path, bbox=t.boxes[i], label=label) for i in idx]
+    def ev(tb, idx, label):
+        return [Evidence(file=path, bbox=tb.boxes[i], label=label) for i in idx]
 
     # lookup: a specific door / room
     ref = re.search(r"\b(?:door|room)\s+(\d{2,4}(?:\.[A-Z0-9]+)?)\b", q, re.I)
@@ -260,17 +280,32 @@ def _rules(path: str, question: str, tables: list[Table]) -> Answer | None:
             label = f"rows for {ref.group(1)}"
         elif codes:
             target = _norm(codes[0])
-            idx = [i for i, r in enumerate(t.rows) if any(target == _norm(c) or target in _norm(c).split("/")
-                                                          or re.fullmatch(rf"(.*\W)?{re.escape(target)}(\W.*)?", _norm(c))
-                                                          for c in r)]
+            # prefer a type table with a count column: its row holds the total for that code
+            same = [x for x in tables if not _pick_kind(q) or _pick_kind(q) in x.title.lower()] or tables
+            order = sorted(same, key=lambda x: (_qty(x) is None, x is not t))
+            t = next((x for x in order if _matches(x, target)), t)
+            idx = _matches(t, target)
             label = f"rows with {codes[0]}"
         elif re.search(r"(?i)listed|in total|how many (doors|rooms|windows)\b.*schedule\?", q):
             idx = list(range(len(t.rows)))
             label = "all rows"
         else:
             return None
-        return Answer(value=len(idx), unit="count", method="vector", confidence=0.6, evidence=ev(idx, label),
-                      trace=[f"table '{t.title}' ({len(t.rows)} rows)", f"{label}: {len(idx)}"])
+        if not idx:
+            return None   # no matching row: say nothing rather than a confident 0
+        # "how many types / marks" counts rows, not the instances in the count column
+        k = None if re.search(r"(?i)(how many|number of)\s+(?:(?!of\b)\w+\s+){0,3}(types|type marks|kinds)\b", q) else _qty(t)
+        if k is not None:
+            vals = [_int(t.rows[i][k]) for i in idx]
+            if None in vals:
+                return None   # a matched row has no readable quantity: don't guess
+            n = sum(vals)
+            how = f"sum of '{t.header[k]}' over {len(idx)} {label}: {n}"
+        else:
+            n = len(idx)
+            how = f"{label}: {n}"
+        return Answer(value=n, unit="count", method="vector", confidence=0.4, evidence=ev(t, idx, label),
+                      trace=[f"table '{t.title}' ({len(t.rows)} rows)", how])
     if ref:
         i = next((i for i, r in enumerate(t.rows) if _norm(r[0]) == _norm(ref.group(1))
                   or (len(r) > 1 and _norm(r[1]) == _norm(ref.group(1)))), None)
@@ -287,6 +322,6 @@ def _rules(path: str, question: str, tables: list[Table]) -> Answer | None:
         if re.search(r"(?i)\barea\b", q):
             m = re.search(r"[\d,]+", v)
             v = float(m.group().replace(",", "")) if m else v
-        return Answer(value=v, unit=None, method="vector", confidence=0.6, evidence=ev([i], f"{t.header[k]}: {r[k]}"),
+        return Answer(value=v, unit=None, method="vector", confidence=0.6, evidence=ev(t, [i], f"{t.header[k]}: {r[k]}"),
                       trace=[f"table '{t.title}', row {r[0]}", f"column '{t.header[k]}' = {r[k]}"])
     return None

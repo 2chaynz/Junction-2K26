@@ -11,6 +11,7 @@ import {
 import wasmUrl from "web-ifc/web-ifc.wasm?url";
 import "./model3d.css";
 import type { Answer } from "./types";
+import { levelLabel } from "./Takeoff";
 
 type Props = {
   path: string;
@@ -20,6 +21,8 @@ type Props = {
   onHover: (i: number | null) => void;
   onFocus: (i: number | null) => void;
   busy: boolean;
+  language?: string;
+  demo?: { url: string; baseline: string; overview: boolean; removedIds: ReadonlySet<string>; onReady: (ready: boolean) => void };
 };
 
 type Cat = "walls" | "doors" | "windows" | "slabs" | "spaces" | "other";
@@ -50,15 +53,6 @@ const FLOOR_LABELS = {
   uk: { floors: "Поверхи", all: "Усі", level: "Поверх", roof: "Дах", foundation: "Фундамент" },
 };
 
-function floorName(name: string, labels: typeof FLOOR_LABELS.en): string {
-  const original = name.trim().toLowerCase();
-  const level = /^(\d+)\.\s*korrus$/i.exec(original);
-  if (level) return `${labels.level} ${level[1]}`;
-  if (original === "katus" || original === "roof") return labels.roof;
-  if (original === "vundament" || original === "foundation") return labels.foundation;
-  return name;
-}
-
 let api: Promise<IfcAPI> | null = null;
 function ifcApi() {
   api ??= (async () => {
@@ -85,6 +79,8 @@ const mats = {
   planFloor: new THREE.MeshBasicMaterial({ color: "#ffffff", ...ds, ...back }),
   planThin: new THREE.MeshBasicMaterial({ color: "#9a9a9a", ...ds }),
   mark: new THREE.MeshLambertMaterial({ color: RED, emissive: RED, emissiveIntensity: 0.25, ...ds, ...front }),
+  added: new THREE.MeshLambertMaterial({ color: "#24d6aa", emissive: "#07906e", emissiveIntensity: 0.38, ...ds, ...front }),
+  removed: new THREE.MeshLambertMaterial({ color: "#ff736a", emissive: "#e24e43", emissiveIntensity: 0.32, ...ds, ...front, transparent: true, opacity: 0.7, depthWrite: false }),
   hot: new THREE.MeshLambertMaterial({ color: RED, emissive: RED, emissiveIntensity: 0.8, ...ds, ...front }),
   room: new THREE.MeshLambertMaterial({ color: RED, emissive: RED, emissiveIntensity: 0.2, ...ds, ...front, transparent: true, opacity: 0.3, depthWrite: false }),
   roomHot: new THREE.MeshLambertMaterial({ color: RED, emissive: RED, emissiveIntensity: 0.6, ...ds, ...front, transparent: true, opacity: 0.55, depthWrite: false }),
@@ -139,18 +135,42 @@ const quantile = (xs: number[], q: number) => {
   return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : 0;
 };
 
-async function load(path: string, root: THREE.Group, alive: () => boolean): Promise<Model | null> {
-  const [a, buf] = await Promise.all([ifcApi(), fetch(`/api/ifc?path=${encodeURIComponent(path)}`).then((r) => {
-    if (!r.ok) throw new Error(`ifc: ${r.status}`);
-    return r.arrayBuffer();
-  })]);
+const ifcBytes = new Map<string, { until: number; data: Promise<ArrayBuffer> }>();
+async function readIfc(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`ifc: ${response.status}`);
+  return response.arrayBuffer();
+}
+
+function fetchSampleIfc(url: string) {
+  const hit = ifcBytes.get(url);
+  if (hit && hit.until > Date.now()) {
+    ifcBytes.delete(url);
+    ifcBytes.set(url, hit);
+    return hit.data;
+  }
+  const data = readIfc(url).catch((error) => {
+    if (ifcBytes.get(url)?.data === data) ifcBytes.delete(url);
+    throw error;
+  });
+  ifcBytes.delete(url);
+  ifcBytes.set(url, { data, until: Date.now() + 300_000 });
+  if (ifcBytes.size > 2) ifcBytes.delete(ifcBytes.keys().next().value!);
+  return data;
+}
+
+async function load(url: string, root: THREE.Group, alive: () => boolean, sample: boolean, only?: ReadonlySet<string>): Promise<Model | null> {
+  const [a, buf] = await Promise.all([ifcApi(), sample ? fetchSampleIfc(url) : readIfc(url)]);
   await new Promise((r) => setTimeout(r, 30)); // let "Loading" paint: streaming blocks the thread
   if (!alive()) return null;
-  const id = a.OpenModel(new Uint8Array(buf), { COORDINATE_TO_ORIGIN: true });
+  const id = a.OpenModel(new Uint8Array(buf), { COORDINATE_TO_ORIGIN: !sample });
   const storeyIds = ids(a.GetLineIDsWithType(id, IFCBUILDINGSTOREY));
   const storeyOf = storeyMap(a, id, new Set(storeyIds));
   const elems = new Map<string, Elem>();
   const onMesh = (fm: FlatMesh) => {
+    const line = a.GetLine(id, fm.expressID);
+    const guid: string | undefined = line?.GlobalId?.value;
+    if (!guid || elems.has(guid) || (only && !only.has(guid))) return;
     const solid: THREE.BufferGeometry[] = [], glass: THREE.BufferGeometry[] = [];
     for (let k = 0; k < fm.geometries.size(); k++) {
       const pg = fm.geometries.get(k);
@@ -160,9 +180,7 @@ async function load(path: string, root: THREE.Group, alive: () => boolean): Prom
       if (idx.length) (pg.color.w < 0.99 ? glass : solid).push(toGeometry(v, idx, pg.flatTransformation, pg.color));
       geo.delete();
     }
-    const line = a.GetLine(id, fm.expressID);
-    const guid: string | undefined = line?.GlobalId?.value;
-    if (!guid || elems.has(guid) || !(solid.length || glass.length)) return;
+    if (!(solid.length || glass.length)) return;
     const cat = CAT_OF[line.type] ?? "other";
     const e: Elem = {
       id: fm.expressID, guid, type: line.type, cat, storey: storeyOf.get(fm.expressID) ?? null,
@@ -242,8 +260,8 @@ async function info(a: IfcAPI, m: Model, e: Elem): Promise<Info | null> {
 }
 const fmt = (v: unknown) => (typeof v === "number" ? String(Math.round(v * 1000) / 1000) : String(v));
 
-export default function Model3D({ path, answer, hover, focus, onHover, onFocus, busy }: Props) {
-  const locale = navigator.language.split("-")[0] as keyof typeof FLOOR_LABELS;
+export default function Model3D({ path, answer, hover, focus, onHover, onFocus, busy, demo, language }: Props) {
+  const locale = (language ?? navigator.language).split("-")[0] as keyof typeof FLOOR_LABELS;
   const floorLabels = FLOOR_LABELS[locale] ?? FLOOR_LABELS.en;
   const host = useRef<HTMLDivElement>(null);
   const tags = useRef<HTMLDivElement>(null);
@@ -258,6 +276,10 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
   const [flat, setFlat] = useState(false); // 2D plan of the floor
   const [off, setOff] = useState<Set<Cat>>(new Set(["spaces"]));
   const [picked, setPicked] = useState<Info | null>(null);
+  const modelUrl = demo?.url ?? `/api/ifc?path=${encodeURIComponent(path)}`;
+  const onReady = demo?.onReady;
+  const baseline = demo?.baseline;
+  const removedIds = demo?.removedIds;
   const busyRef = useRef(busy);
   busyRef.current = busy;
   const elems = model?.elems ?? null;
@@ -278,7 +300,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
     const n = new Map<number, number>();
     cited.forEach((e) => e.storey !== null && n.set(e.storey, (n.get(e.storey) ?? 0) + 1));
     return n;
-  }, [cited]);
+  }, [cited, demo?.overview]);
   const storey = model?.storeys.find((s) => s.id === floor) ?? null;
 
   // Scene, renderer and loop live as long as the component.
@@ -411,7 +433,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
   useEffect(() => {
     const s = three.current!;
     let dead = false;
-    let opened: Model | null = null;
+    const opened: Model[] = [];
     setModel(null);
     setFloor(null);
     setFlat(false);
@@ -420,11 +442,25 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
     setStatus("Loading model…");
     for (const m of [...s.root.children] as THREE.Mesh[]) m.geometry.dispose();
     s.root.clear();
-    load(path, s.root, () => !dead)
+    s.fly = null;
+    load(modelUrl, s.root, () => !dead, !!demo)
       .then(async (m) => {
         if (!m) return;
-        opened = m;
         if (dead) return (await ifcApi()).CloseModel(m.id);
+        opened.push(m);
+        if (baseline && removedIds) {
+          const older = await load(baseline, s.root, () => !dead, true, removedIds);
+          if (!older) return;
+          if (dead) return (await ifcApi()).CloseModel(older.id);
+          opened.push(older);
+          for (const element of older.elems.values()) {
+            const storey = older.storeys.find((level) => level.id === element.storey);
+            element.storey = m.storeys.find((level) => level.name === storey?.name)?.id ?? null;
+            element.meshes.forEach((mesh) => { mesh.visible = false; });
+            m.elems.set(element.guid, element);
+          }
+        }
+        if (m.box.isEmpty()) throw new Error("No visible geometry");
         s.root.userData.box = m.box;
         const c = m.box.getCenter(new THREE.Vector3());
         const r = m.box.getBoundingSphere(new THREE.Sphere()).radius;
@@ -443,14 +479,40 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
       .catch((e) => !dead && setStatus(`Could not load the model: ${String(e)}`));
     return () => {
       dead = true;
-      if (opened) ifcApi().then((a) => a.CloseModel(opened!.id));
+      if (opened.length) void ifcApi().then((a) => opened.forEach((m) => a.CloseModel(m.id)));
       for (const m of [...s.root.children] as THREE.Mesh[]) m.geometry.dispose();
       s.root.clear();
     };
-  }, [path]);
+  }, [modelUrl, baseline, removedIds]);
+
+  useEffect(() => {
+    const s = three.current;
+    if (!s || !model || !onReady) return;
+    const center = model.box.getCenter(new THREE.Vector3());
+    const radius = model.box.getBoundingSphere(new THREE.Sphere()).radius;
+    const wide = radius * Math.max(2.75, 2.45 / Math.max(s.persp.aspect, 0.5));
+    const end = center.clone().add(new THREE.Vector3(1, 0.78, -1).normalize().multiplyScalar(wide));
+    const start = center.clone().add(new THREE.Vector3(1, 0.25, -0.3).normalize().multiplyScalar(radius * 0.92));
+    const detail = center.clone().add(new THREE.Vector3(radius * 0.42, radius * 0.12, 0));
+    let first = -1;
+    const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 1800;
+    s.fly = (t) => {
+      if (first < 0) first = t;
+      const progress = duration ? Math.min((t - first) / duration, 1) : 1;
+      const ease = 1 - (1 - progress) ** 3;
+      s.orbit.target.lerpVectors(detail, center, ease);
+      s.persp.position.lerpVectors(start, end, ease);
+      if (progress === 1) {
+        s.fly = null;
+        onReady(true);
+      }
+    };
+    return () => { s.fly = null; };
+  }, [model, onReady]);
 
   // A new answer opens the floor its elements are on (one floor → that floor; spread → whole building).
   useEffect(() => {
+    if (demo?.overview) { setFloor(null); setFlat(false); return; }
     if (!cited.size) return;
     const fl = new Set([...cited.values()].map((e) => e.storey));
     const only = fl.size === 1 ? [...fl][0] : null;
@@ -487,29 +549,31 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
       s.ortho.zoom = 1;
       s.ortho.updateProjectionMatrix();
     }
+    if (demo && !cited.size) return;
+    if (demo?.overview) return flyTo(model.box, 1.05);
     const f = focus !== null ? cited.get(focus) : undefined;
     if (f && (floor === null || f.storey === floor)) return flyTo(f.box, twoD ? 4 : 2.2);
     const marks = new THREE.Box3();
     cited.forEach((e) => (floor === null || e.storey === floor) && marks.union(e.box));
-    flyTo(marks.isEmpty() ? box : marks, marks.isEmpty() ? 1.05 : 1.3);
-  }, [model, floor, flat, cited]); // eslint-disable-line react-hooks/exhaustive-deps
+    flyTo(marks.isEmpty() ? box : marks, marks.isEmpty() ? 1.05 : demo ? 1.85 : 1.3);
+  }, [model, floor, flat, cited, demo?.overview]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Materials + visibility: cited red, the rest normal (2D) or ghosted (3D); floor and category filters.
   useEffect(() => {
     if (!elems) return;
-    const marked = new Set(cited.values());
+    const marked = new Map([...cited].map(([i, e]) => [e, answer?.evidence[i].label]));
     const any = marked.size > 0;
     const twoD = flat && floor !== null;
     const hotEl = hover !== null ? cited.get(hover) : focus !== null ? cited.get(focus) : undefined;
     elems.forEach((e) => {
       const onFloor = floor === null || e.storey === floor;
       const isMark = marked.has(e);
-      const shown = onFloor && (isMark || !off.has(e.cat));
+      const shown = onFloor && (isMark || (!off.has(e.cat) && !removedIds?.has(e.guid)));
       e.meshes.forEach((m, k) => {
         m.visible = shown;
         if (isMark) {
           const hot = e === hotEl;
-          m.material = e.cat === "spaces" ? (hot ? mats.roomHot : mats.room) : hot ? mats.hot : mats.mark;
+          m.material = demo ? (marked.get(e)?.startsWith("Removed") ? mats.removed : mats.added) : e.cat === "spaces" ? (hot ? mats.roomHot : mats.room) : hot ? mats.hot : mats.mark;
           m.renderOrder = 2;
         } else if (twoD) {
           m.material = e.cat === "walls" ? mats.planWall : e.cat === "slabs" ? mats.planFloor
@@ -521,7 +585,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
         }
       });
     });
-  }, [elems, cited, hover, focus, floor, flat, off]);
+  }, [elems, cited, answer, hover, focus, floor, flat, off, removedIds]);
 
   // Focus from chat → fly to that element (and its floor).
   useEffect(() => {
@@ -530,11 +594,22 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
     if (!f) return;
     if (floor !== null && f.storey !== floor) return setFloor(f.storey); // the floor effect then flies to it
     flyTo(f.box, flat ? 4 : 2.2);
-  }, [focus]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [focus, cited]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Picking: hover reacts to cited elements only (like the 2D marks); click on anything shows its properties.
   const down = useRef<[number, number] | null>(null);
   const clicks = useRef(0);
+
+  useEffect(() => {
+    if (answer?.method !== "takeoff" || answer.evidence.length !== 1 || focus === null || !model) return;
+    const element = cited.get(focus);
+    if (!element) return;
+    const seq = ++clicks.current;
+    void ifcApi().then((api) => info(api, model, element)).then((properties) => {
+      if (seq === clicks.current) setPicked(properties);
+    });
+    return () => { if (seq === clicks.current) clicks.current++; };
+  }, [answer, cited, focus, model]);
   function ray(e: React.PointerEvent, meshes: THREE.Object3D[]) {
     const s = three.current;
     if (!s) return null;
@@ -596,13 +671,13 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
           if (!d || Math.hypot(e.clientX - d[0], e.clientY - d[1]) > 4) return;
           const i = pickCited(e);
           if (i !== null) onFocus(focus === i ? null : i);
-          pickAny(e);
+          if (!demo) pickAny(e);
         }}
         onPointerLeave={() => hover !== null && onHover(null)}
         onDoubleClick={fitAll}
       />
       <div ref={tags} className="tags">
-        {[...cited.keys()]
+        {!demo && [...cited.keys()]
           .filter((i) => cited.size <= 25 || i === hover || i === focus)
           .map((i) => (
             <span key={`${answer?.trace.join()}-${i}`} data-i={i} className={`tag ${hover === i || focus === i ? "hot" : ""}`}>
@@ -633,8 +708,8 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
             </button>
           )}
           {model.storeys.map((s) => (
-            <button key={s.id} className={floor === s.id ? "on" : ""} onClick={() => setFloor(s.id)} title={s.name}>
-              <span className="ellipsis">{floorName(s.name, floorLabels)}</span>
+            <button key={s.id} className={floor === s.id ? "on" : ""} onClick={() => setFloor(s.id)} title={levelLabel(s.name, locale)}>
+              <span className="ellipsis">{levelLabel(s.name, locale)}</span>
               {marksOn.get(s.id) ? <i>{marksOn.get(s.id)}</i> : null}
             </button>
           ))}
@@ -684,7 +759,7 @@ export default function Model3D({ path, answer, hover, focus, onHover, onFocus, 
       )}
       <div className="viewer-hint mono">
         {flat && floor !== null
-          ? `plan cut 1.2 m above ${storey?.name ?? "floor"} · drag to pan · scroll to zoom · click for properties`
+          ? `plan cut 1.2 m above ${storey ? levelLabel(storey.name, locale) : floorLabels.level.toLowerCase()} · drag to pan · scroll to zoom · click for properties`
           : "drag to orbit · right-drag to pan · scroll to zoom · click for properties"}
       </div>
     </div>

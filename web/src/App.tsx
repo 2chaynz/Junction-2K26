@@ -4,6 +4,7 @@ import Benchmark from "./Benchmark";
 import Changes, { CHANGE_Q, PAIRS, onNewSheet } from "./Changes";
 import Chat from "./Chat";
 import Explorer from "./Explorer";
+import { baselinePath, demoName, demoPath, ifcUrl, TakeoffPreview, useRevisionDemo } from "./FinalDemo";
 import { Splitter, usePanels } from "./Splitter";
 import { SOURCE_LABEL, TYPE, floorsOf, fmtAnswer, fmtSize, pickChips, sheetCode, shortName } from "./format";
 import ProjectMenu from "./ProjectMenu";
@@ -16,7 +17,7 @@ import {
   newSessionId, projectKeyOf, saveSession, sessionsOverview, sheetName, touchRecent,
 } from "./workspace";
 import "./shell.css";
-import Takeoff, { type Row } from "./Takeoff";
+import Takeoff, { levelLabel, projectLanguage, type Row } from "./Takeoff";
 import Stack from "./Stack";
 import type { Answer, Drawing, Mark, Msg, Shape, Step, Tool, Turn } from "./types";
 import Viewer from "./Viewer";
@@ -113,8 +114,13 @@ function SheetBar({ folder, items, path, code, onPick, onFolder }: {
   );
 }
 
-export default function App() {
+export default function App({ revisionDemo = false }: { revisionDemo?: boolean }) {
   const [tab, setTab] = useState<Tab>("Projects");
+  const demoEntered = revisionDemo && tab === "Drawings";
+  const demo = useRevisionDemo(revisionDemo, demoEntered, () => setTab("Drawings"));
+  const removedIds = useMemo(() => new Set(demo.changes?.filter((row) => row.change === "removed").map((row) => row.guid)), [demo.changes]);
+  const demoMessage = demo.active === null ? undefined : demo.messages[demo.active];
+  const demoAnswer = demoMessage?.kind === "answer" ? demoMessage.answer : null;
   const [drawings, setDrawings] = useState<SheetDrawing[]>([]);
   const [path, setPath] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -148,6 +154,7 @@ export default function App() {
   const loaded = useRef<Msg[] | null>(null); // msgs as reopened from the server: unchanged → no re-save
 
   useEffect(() => {
+    if (revisionDemo) return;
     getDrawings()
       .then((d) => {
         setDrawings(d);
@@ -173,12 +180,13 @@ export default function App() {
         if (!curProj.current) return;
         e.preventDefault();
         setTab("Drawings");
+        if (!panels.w.explorer) panels.set("explorer", 288);
         setTimeout(() => search.current?.focus());
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [panels.w.explorer, panels.set]);
 
   const drawing = useMemo(() => drawings.find((d) => d.path === path), [drawings, path]);
   const allPaths = useMemo(() => drawings.map((d) => d.path), [drawings]);
@@ -197,6 +205,7 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (revisionDemo) return;
     sessionsOverview().then(setOverview).catch(() => {});
   }, [tab === "Projects"]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -389,21 +398,26 @@ export default function App() {
   }
 
   // A takeoff row becomes a chat answer, so the drawing / 3D view marks every element in it.
-  function showRow(r: Row) {
+  function showRow(r: Row, instance?: number) {
+    const target = tkPath ?? modelPath ?? path;
+    select(target);
+    const d = drawings.find((item) => item.path === target);
+    const evidence = instance === undefined ? r.evidence : [r.evidence[instance]];
     const label = `${r.category}: ${r.type}${r.size ? ` · ${r.size}` : ""}`;
     const a: Answer = {
-      value: r.count, unit: "count", method: "takeoff", confidence: 1, cost_eur: 0, evidence: r.evidence,
-      trace: [`takeoff row: ${label}`, `${r.count} element(s)${r.levels.length ? ` on ${r.levels.join(", ")}` : ""}`],
-      time_s: 0, view: drawing?.view ?? path,
+      value: instance === undefined ? r.count : 1, unit: "count", method: "takeoff", confidence: 1, cost_eur: 0, evidence,
+      trace: [`takeoff row: ${label}`, `${r.count} element(s)${r.levels.length ? ` on ${r.levels.map((level) => levelLabel(level, projectLanguage(target))).join(", ")}` : ""}`],
+      time_s: 0, view: d?.view ?? target,
     };
     setTab("Drawings");
     setChOn(false);
     setHover(null);
-    setFocus(null);
-    if (r.evidence.some((e) => e.ifc_guid)) setMode("3d");
+    setFocus(instance === undefined ? null : 0);
+    setMsOn(false);
+    setMode(evidence.some((e) => e.ifc_guid) ? "3d" : "plan");
     setMsgs((m) => {
       setActive(m.length + 1);
-      return [...m, { kind: "user", path, text: `Takeoff: ${label}` }, { kind: "answer", path, question: label, answer: a, steps: [] }];
+      return [...m, { kind: "user", path: target, text: `Takeoff: ${label}` }, { kind: "answer", path: target, question: label, answer: a, steps: [] }];
     });
   }
 
@@ -438,20 +452,22 @@ export default function App() {
     setMsOn(false);
     setMode("3d");
   };
-  const modelPath = drawing?.model ?? (isIfc ? path : null);
+  const modelPath = demoEntered ? demoPath : drawing?.model ?? (isIfc ? path : null);
   const hasPlan = !!modelPath && !!view && !view.endsWith(".ifc");
-  const show3d = !!modelPath && ((mode === "3d" && !msOn) || (isIfc && !hasPlan));
+  const show3d = !!modelPath && (demoEntered || (mode === "3d" && !msOn) || (isIfc && !hasPlan));
   const floors = useMemo(() => floorsOf(drawings, path), [drawings, path]);
   const showStack = floors.length > 1 && mode === "stack" && !showCh && !msOn;
   const ch = chData[path];
   const chAnswer = useMemo(() => (ch?.answer ? onNewSheet(ch.answer, view) : null), [ch, view]);
 
   return (
-    <div className={`app ${tab === "Drawings" ? "" : "paged"}`}>
+    <div className={`app ${tab === "Drawings" ? "" : "paged"} ${revisionDemo ? "revision-demo" : ""}`}>
       <header className="shell">
         <div className="top">
           <nav className="crumbbar" aria-label="Breadcrumb">
-            <button className="brand" onClick={() => setTab("Projects")} title="Home: all projects">SiteLens</button>
+            {revisionDemo ? <span className="brand">SiteLens</span> :
+              <button className="brand" onClick={() => setTab("Projects")} title="Home: all projects">SiteLens</button>}
+            {demoEntered && <><span className="sep">/</span><strong>{demoName}</strong></>}
             {inProject && project && (
               <>
                 <span className="sep">/</span>
@@ -471,10 +487,11 @@ export default function App() {
               Back to <span className="ellipsis">{project.name}</span> ›
             </button>
           )}
-          <VlmBadge />
+          {revisionDemo ? <><a className="btn" href="?demo">Replay</a><a className="btn" href={location.pathname}>All projects</a></> :
+            <><a className="btn" href="?demo">Final demo</a><VlmBadge /></>}
         </div>
         <nav className="tabs subnav">
-          {(inProject ? PROJECT_TABS : HOME_TABS).map((t) => (
+          {(revisionDemo ? [demoEntered ? "Drawings" : "Projects"] as const : inProject ? PROJECT_TABS : HOME_TABS).map((t) => (
             <button key={t} className={t === tab ? "on" : ""} onClick={() => setTab(t)}>
               {t}
             </button>
@@ -499,19 +516,26 @@ export default function App() {
       )}
       {tab === "Takeoff" && (
         <main className="pagewrap">
-          <Takeoff path={tkPath ?? modelPath ?? path} name={(tkPath ?? modelPath ?? path).split("/").pop() ?? ""} onShow={showRow} />
+          <Takeoff path={tkPath ?? modelPath ?? path} name={(tkPath ?? modelPath ?? path).split("/").pop() ?? ""} onShow={showRow} language={projectLanguage(tkPath ?? modelPath ?? path)} />
         </main>
       )}
       {tab === "How it works" && <main className="pagewrap"><HowItWorks /></main>}
       {tab === "Benchmark" && <main className="pagewrap"><Benchmark /></main>}
       {tab === "Projects" && (
         <main className="pagewrap">
-          <Projects projects={projects} overview={overview} recent={recent} current={projKey} onOpen={openProject} />
+          {revisionDemo ? <div className="page projects">
+            <h1>Projects</h1>
+            <button className="pcard project-entry" disabled={!demo.changes} onClick={() => setTab("Drawings")}>
+              <strong>{demoName}</strong>
+              <span className="dim"> Baseline and proposed renovation</span>
+            </button>
+            {demo.error && <p role="alert">{demo.error}</p>}
+          </div> : <Projects projects={projects} overview={overview} recent={recent} current={projKey} onOpen={openProject} />}
         </main>
       )}
 
-      <div className="askview" hidden={tab !== "Drawings"} {...panels.props}>
-        <Explorer
+      <div className="askview" hidden={tab !== "Drawings"} {...(revisionDemo ? {} : panels.props)}>
+        {!revisionDemo && <Explorer
           ref={search}
           drawings={drawings}
           projects={projects}
@@ -523,8 +547,14 @@ export default function App() {
           onSession={openSession}
           onNewSession={newSession}
           onDeleteSession={removeSession}
-        />
+        />}
         <main className="stage">
+          {demoEntered && <div className="demo-modelbar">
+            <strong>Renovation comparison</strong>
+            <span className="dim">BIM-SPEED</span>
+            {demoAnswer && <span className="demo-key"><span>Added</span><span>Removed</span></span>}
+            <details><summary>Source files</summary><a href={ifcUrl(baselinePath)} download>Baseline</a>{" · "}<a href={ifcUrl(demoPath)} download>Proposal</a></details>
+          </div>}
           {drawing && folder && (
             <SheetBar
               folder={folder.label}
@@ -555,7 +585,9 @@ export default function App() {
               <Suspense fallback={<div className="empty">Loading 3D viewer…</div>}>
               <Model3D
                 path={modelPath}
-                answer={answer}
+                answer={demoEntered ? demoAnswer : answer}
+                language={demoEntered ? "en" : projectLanguage(modelPath)}
+                demo={demoEntered ? { url: ifcUrl(demoPath), baseline: ifcUrl(baselinePath), overview: !String(demoAnswer?.value).startsWith("P2"), removedIds, onReady: demo.onReady } : undefined}
                 hover={hover}
                 focus={focus}
                 onHover={setHover}
@@ -633,26 +665,28 @@ export default function App() {
           {drawing && <SheetInfo d={drawing} all={allPaths} view={view} size={size} onModel={openModel} />}
         </main>
         <Chat
-          msgs={msgs}
-          path={path}
-          chips={chips}
-          active={active}
+          msgs={revisionDemo ? demo.messages : msgs}
+          path={revisionDemo ? demoPath : path}
+          chips={revisionDemo ? [] : chips}
+          active={revisionDemo ? demo.active : active}
+          artifact={demo.image ? <TakeoffPreview key={demo.active} image={demo.image} /> : undefined}
           hover={hover}
           focus={focus}
-          draft={draft}
+          draft={revisionDemo ? demo.draft : draft}
           busy={busy}
-          setDraft={setDraft}
+          setDraft={revisionDemo ? demo.type : setDraft}
           mark={mark}
           onClearMark={() => setMark(null)}
-          onAsk={(q) => run(path, q)}
+          onAsk={revisionDemo ? demo.ask : (q) => run(path, q)}
           onActivate={(i) => {
+            if (revisionDemo) { setHover(null); setFocus(null); demo.activate(i); return; }
             const m = msgs[i];
             if (m.path !== path) (setPath(m.path), setSize(null));
             activate(i);
           }}
           onHover={setHover}
           onFocus={setFocus}
-          head={
+          head={revisionDemo ? undefined :
             <div className="chathead">
               <span className="k">Session</span>
               <span className="ellipsis" title={sessionTitle}>{sessionTitle}</span>
@@ -665,8 +699,8 @@ export default function App() {
             </div>
           }
         />
-        <Splitter side="explorer" w={panels.w} onChange={panels.set} />
-        <Splitter side="chat" w={panels.w} onChange={panels.set} />
+        {!revisionDemo && <><Splitter side="explorer" w={panels.w} onChange={panels.set} />
+        <Splitter side="chat" w={panels.w} onChange={panels.set} /></>}
       </div>
     </div>
   );

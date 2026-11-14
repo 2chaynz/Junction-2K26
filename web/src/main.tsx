@@ -9,9 +9,11 @@ import "./styles.css";
 import App from "./App";
 import Intro from "./Intro";
 
+const demo = new URLSearchParams(location.search).has("demo");
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
-    <Intro />
+    <App revisionDemo={demo} />
+    {!demo && <Intro />}
   </React.StrictMode>,
 );

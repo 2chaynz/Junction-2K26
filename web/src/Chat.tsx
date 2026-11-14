@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { METHOD_NAME, fmtAnswer, fmtEur, fmtTime, fmtValue, shortName } from "./format";
 import type { Answer, Mark, Msg, Reason, Source, Step, Table } from "./types";
 
@@ -18,6 +18,7 @@ type Props = {
   onActivate: (msg: number) => void;
   onHover: (i: number | null) => void;
   onFocus: (i: number | null) => void;
+  artifact?: ReactNode;
   head?: ReactNode; // T61: which session this conversation is saved in
 };
 
@@ -35,18 +36,18 @@ function lines(steps: Step[]) {
 }
 
 function Thinking({ steps, live, time }: { steps: Step[]; live: boolean; time?: number }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(live);
   const ls = lines(steps);
   return (
     <div className={`think ${live ? "live" : ""}`}>
       <button
         className="think-head"
-        disabled={live}
+        aria-expanded={open}
         onClick={(e) => (e.stopPropagation(), setOpen(!open))}
       >
         {live ? "Thinking…" : `${open ? "▾" : "▸"} Reasoned for ${fmtTime(time ?? 0)} · ${ls.length} steps`}
       </button>
-      {(live || open) && (
+      {open && (
         <ol className="think-body">
           {ls.length === 0 && <li className="try">Reading the question…</li>}
           {ls.map((l, i) => (
@@ -300,6 +301,16 @@ function AnswerMsg(props: {
       </>
     );
 
+  if (a.method === "revision") return (
+    <>
+      <p className="demo-answer">{fmtAnswer(a)}</p>
+      <ul>{notes.slice(0, 4).map((line) => <li key={line}>{line}</li>)}</ul>
+      <details><summary>All quantities and method</summary>
+        <ul>{notes.map((line) => <li key={line}>{line}</li>)}</ul>
+      </details>
+    </>
+  );
+
   const c = a.check;
   return (
     <>
@@ -340,7 +351,19 @@ function AnswerMsg(props: {
 
 export default function Chat(p: Props) {
   const log = useRef<HTMLDivElement>(null);
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const box = input.current;
+    if (!box) return;
+    const resize = () => {
+      box.style.height = "auto";
+      box.style.height = `${box.scrollHeight + box.offsetHeight - box.clientHeight}px`;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, [p.draft]);
 
   useEffect(() => {
     if (p.mark) input.current?.focus();
@@ -348,7 +371,7 @@ export default function Chat(p: Props) {
 
   useEffect(() => {
     log.current?.scrollTo({ top: log.current.scrollHeight, behavior: "smooth" });
-  }, [p.msgs]);
+  }, [p.msgs, p.artifact]);
 
   const empty = !p.msgs.some((m) => m.path === p.path && m.kind !== "switch");
 
@@ -370,19 +393,20 @@ export default function Chat(p: Props) {
             return <div key={i} className="msg sl pending"><Thinking steps={m.steps} live /></div>;
           if (m.kind === "error") return <div key={i} className="msg sl error">{m.text}</div>;
           const on = i === p.active;
-          const marks = m.answer.evidence.some((e) => e.bbox.length === 4);
+          const marks = m.answer.evidence.some((e) => e.ifc_guid || e.bbox.length === 4);
           return (
             <div
               key={i}
               className={`msg sl ${on ? "on" : ""} ${marks && !on ? "clickable" : ""}`}
               onClick={() => !on && marks && p.onActivate(i)}
-              title={marks && !on ? "Show on the plan" : undefined}
+              title={marks && !on ? "Show evidence" : undefined}
             >
               {m.steps.length > 0 && <Thinking steps={m.steps} live={false} time={m.answer.time_s} />}
               <AnswerMsg a={m.answer} question={m.question} steps={m.steps} on={on} busy={p.busy} onAsk={p.onAsk} hover={p.hover} focus={p.focus} onHover={p.onHover} onFocus={p.onFocus} onActivate={() => p.onActivate(i)} />
             </div>
           );
         })}
+        {p.artifact}
         {empty && <p className="hello">Ask anything about this drawing.</p>}
       </div>
 
@@ -409,11 +433,19 @@ export default function Chat(p: Props) {
             if (p.draft.trim() && !p.busy) p.onAsk(p.draft.trim());
           }}
         >
-          <input
+          <textarea
             ref={input}
+            rows={1}
+            aria-label="Question"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
             value={p.draft}
             onChange={(e) => p.setDraft(e.target.value)}
-            placeholder={p.mark ? "What is this? Area of this room? How many doors here?" : "Ask about this drawing, any language"}
+            placeholder={p.mark ? "Ask about the highlighted spot" : "Ask a question"}
           />
           <button className="send" disabled={p.busy || !p.draft.trim()} aria-label="Ask">
             Ask

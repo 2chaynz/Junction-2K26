@@ -55,6 +55,7 @@ GET  /api/file?path=data/…&page=0                     → PNG render of the dr
 GET  /api/file?path=…&clip=x0,y0,x1,y1&pad=0.5&scale=2 → PNG crop around one evidence bbox (same coords as bbox; pad × box size of margin). For the proof strip (T43)
 GET  /api/drawings                                    → [{"path", "source", "view", "questions": [...]}]
 GET  /api/ifc?path=data/…ifc                          → raw IFC bytes (3D viewer)
+GET  /api/demo/revisions                               -> Vitoria IFC revision changes, described below
 GET  /api/random                                      → {"path", "question"} from questions.jsonl
 GET  /api/measure?path=…&page=0                       → {scale, candidates, ask, options, known, project, calibrations, measurements, auto}
 POST /api/measure {"path","kind":length|area|count,"points":[[x,y]…],"label"} → stored takeoff (uses the scale nearest the shape)
@@ -70,6 +71,11 @@ GET  /api/session?project=…&id=…                      → {id, project, titl
 PUT  /api/session {"project", "id", "msgs", "title"?} → summary; saves the Ask conversation (pending msgs dropped)
 DELETE /api/session?project=…&id=…                    → {"deleted"}
 ```
+- `/api/ifc` sends a content ETag. Matching `If-None-Match` returns 304.
+- `/api/demo/revisions` requires the full Vitoria dataset and returns `[{guid, kind, name, level, change, dimensions}]`.
+  - `change` is `added` or `removed` based on IFC GlobalId presence.
+  - `dimensions` is the local geometry bounding box size `[x, y, z]` in metres, or `null` when unavailable.
+  - Edits to shared IDs are outside the comparison.
 - `/api/ask` and `/api/ask/stream` take an optional `region: {"page", "bbox", "points": [[x, y]...], "r"}` (T49): a highlighter stroke on the shown sheet (`view`), same units as `bbox`, `r` = brush radius. The answer is about that spot only (`sitelens/region.py`): `method` `region`, `<path>+region` (counts kept inside the mark), `ocr` (scans: room/area label read in the marked crop at every rotation, €0) or `vlm` (crop). First evidence is the mark itself, label `your mark`. No clarify, no `check`.
 - `/api/ask` adds `time_s`, `view` (file the UI shows; IFC → its rendered plan) and, when the question is Stoa's, `check: {expected, unit, match}`.
 - No path answers → `/api/ask` adds `tried: [path names]`. With `GEMINI_API_KEY` set, a question that isn't about the drawing gets `method: "general"`, text `value`, no evidence, no `check`.
