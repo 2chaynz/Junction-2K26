@@ -162,6 +162,12 @@ input:focus { border-color: #ffffff4d; }
 .about { padding-bottom: 12px; }
 .card-in { animation: rise .35s ease-out; }
 .pitch { margin: 0; padding: 0 12px; line-height: 1.5; color: var(--text-2); }
+.ai-note { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 8px 12px 0; font-size: 11px; color: var(--muted); }
+.ai-note svg { color: var(--gold); }
+.ai-note a { color: var(--muted); }
+.ai-note a:hover { color: var(--gold); }
+.cala-line { margin: 8px 12px 0; font-size: 12px; line-height: 1.4; color: var(--muted); }
+.cala-line span { color: var(--text-2); margin-right: 4px; }
 dl { display: grid; grid-template-columns: 70px 1fr; gap: 4px 8px; margin: 10px 12px 0; font-size: 13px; }
 dt { color: var(--muted); }
 dd { margin: 0; }

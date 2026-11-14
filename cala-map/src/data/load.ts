@@ -30,5 +30,8 @@ export const IS_MOCK = !raw
 
 const posFiles = import.meta.glob<Record<string, [number, number]>>('./positions.json', { eager: true, import: 'default' })
 export const POSITIONS = posFiles['./positions.json'] ?? {}
+export interface Summary { summary: string; sources: { title: string; uri: string }[]; model: string }
+const sumFiles = import.meta.glob<Record<string, Summary>>('./summaries.json', { eager: true, import: 'default' })
+export const SUMMARIES = sumFiles['./summaries.json'] ?? {}
 export const SECTORS = [...new Set(STARTUPS.map((s) => s.sector))].sort()
 export { STAGES }

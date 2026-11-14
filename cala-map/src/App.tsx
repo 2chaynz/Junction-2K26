@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { IS_MOCK, SECTORS, STAGES, STARTUPS } from './data/load'
+import { IS_MOCK, SECTORS, STAGES, STARTUPS, SUMMARIES } from './data/load'
 import type { Startup } from './data/types'
 import type { Tile } from './layout'
 import { useStored } from './useStored'
@@ -382,7 +382,16 @@ export default function App() {
 
         <section className="block about card-in" key={`about-${selected.id}`}>
           <div className="section-title">About</div>
-          <p className="pitch">{selected.description || 'No description yet.'}</p>
+          {SUMMARIES[selected.id] ? (
+            <>
+              <p className="pitch">{SUMMARIES[selected.id].summary}</p>
+              <p className="ai-note">
+                <Icon name="spark" size={11} /> Gemini, from the web
+                {SUMMARIES[selected.id].sources.map((s) => <a key={s.uri} href={s.uri} target="_blank" rel="noreferrer">{s.title}</a>)}
+              </p>
+              {selected.description && <p className="cala-line"><span>Cala</span> {selected.description}</p>}
+            </>
+          ) : <p className="pitch">{selected.description || 'No description yet.'}</p>}
           <dl>
             {selected.funding && <><dt>raised</dt><dd>{selected.funding}</dd></>}
             {HAS_STAGES && <><dt>stage</dt><dd>{selected.stage}</dd></>}
