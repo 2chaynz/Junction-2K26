@@ -30,7 +30,7 @@ SPACES = {
     "Outdoor": "room_outdoor", "Toilet": "room_wc", "LivingRoom": "room_living", "Entry": "room_entry",
     "Storage": "room_storage", "Utility": "room_utility", "DraughtLobby": "room_entry", "Garage": "room_garage",
 }
-NAMES = list(dict.fromkeys(list(OBJECTS.values()) + list(SPACES.values())))
+NAMES = list(dict.fromkeys(list(OBJECTS.values()) + list(SPACES.values()) + ["floor"]))
 MIN_PX = 8
 NUM = re.compile(r"-?\d*\.?\d+(?:e-?\d+)?")
 
@@ -118,6 +118,13 @@ def boxes(svg: Path) -> list[tuple[str, np.ndarray]]:
 
     def walk(el, parent_m):
         m = parent_m @ _matrix(el.get("transform"))
+        if el.get("class", "").startswith("Floorplan"):  # one storey: box around its walls
+            pts = []
+            for w in [e for e in el.iter() if e.get("class", "").startswith("Wall")]:
+                _collect(w, m, pts)
+            if pts:
+                q = np.vstack(pts)
+                out.append(("floor", np.array([q[:, 0].min(), q[:, 1].min(), q[:, 0].max(), q[:, 1].max()])))
         cls = _class_of(el)
         if cls:
             pts = []
