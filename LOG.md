@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 17:52 · ccolver · T33 PR #48: door schedule vs plan cross-check. Vacation_Rental 20170727 permit set: door 208.J scheduled but never drawn, numbered for room 208 but in room 109 (renumbered 109.A next issue). Partial sets say so instead of listing every door
 - 2026-11-14 17:52 · Asif · T35 PR #47: scripts/xreview.sh finds Codex from the ChatGPT app (not on PATH) and sends prompt+diff on stdin; AGENTS.md step 4 uses it
 - 2026-11-14 17:47 · Asif · T20 PR #46: VLM by name (gemini|gemma|gemma-api|nemotron|nemotron-verda|vllm). 40 dev Qs: gemini-3.8-flash cubi 85% EUR0.0045, swiss 60% EUR0.021; nemotron-verda cubi 52.5% EUR0.0002, swiss 30% EUR0.0005; gemma pending
 - 2026-11-14 17:28 · ccolver · plan: industry feedback -> T31 What changed UI, T32 takeoff list (IFC + schedules, CSV), T33 plan vs schedule cross-check
