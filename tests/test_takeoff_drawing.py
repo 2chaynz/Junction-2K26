@@ -314,7 +314,8 @@ class DrawingTakeoff(unittest.TestCase):
                 Image.new("L", (200, 200), 255).save(image, "PNG")
                 with pymupdf.open() as doc:
                     page = doc.new_page()
-                    page.insert_image(pymupdf.Rect(20, 20, 500, 500), stream=image.getvalue())
+                    for x, y in ((20, 20), (260, 20), (20, 260), (260, 260)):
+                        page.insert_image(pymupdf.Rect(x, y, x + 240, y + 240), stream=image.getvalue())
                     page.insert_text((30, 530), "NORTH ELEVATION" if native_title else "A-201")
                     doc.save(Path(d) / path)
                 with patch("sitelens.ocr._engine") as engine, patch.object(takeoff_2d, "_detected") as detect:

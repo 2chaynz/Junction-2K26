@@ -501,8 +501,9 @@ def _sheet(path, root, mtime, weights_mtime):
             if bounded_schedule:
                 regions.extend(schedule_frames)
             image_info = page.get_image_info()
-            raster_view = any(pymupdf.Rect(image["bbox"]).get_area() >= .2 * page.rect.get_area()
+            raster_area = sum((pymupdf.Rect(image["bbox"]) * page.rotation_matrix & page.rect).get_area()
                               for image in image_info)
+            raster_view = raster_area >= .2 * page.rect.get_area()
             if image_info and (not words or raster_view):
                 labels, scan_regions, skip, scale_issue = _pdf_scan_words(page, page.get_text(), bool(tables), bounded_schedule)
                 labels = [(token, box) for token, box in labels if not any(
