@@ -52,11 +52,13 @@ export const DEMO = [
 
 export const shortName = (path: string) => (path.split("/").pop() ?? path).replace(/\.(pdf|png|jpe?g|ifc)$/i, "");
 
-/** Three varied Stoa questions, English first. */
+// Stoa has no language field. Match the English openings used in its question sets.
+export const isEnglishQuestion = (question: string): boolean =>
+  /^(?:how|what|which|who|where|when|why|is|are|does|do|can|could|would|on sheet)\b/i.test(question.trimStart());
+
 export function pickChips(d: Drawing | undefined, n = 3): string[] {
   if (!d) return [];
-  const en = d.questions.filter((q) => /^(how|what|which|is|are|does|do)\b/i.test(q.question));
-  const pool = en.length >= n ? en : d.questions;
+  const pool = d.questions.filter((q) => isEnglishQuestion(q.question));
   const out: string[] = [];
   const types = new Set<string>();
   for (const q of pool) if (!types.has(q.type) && out.length < n) (types.add(q.type), out.push(q.question));
