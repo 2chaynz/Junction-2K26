@@ -148,9 +148,13 @@ function pushBeat(id, text, { tries = 4, timeout = 20000 } = {}) {
   return false;
 }
 
+// A follow-up PR on the same branch keeps the ticket open until it merges too.
 const mergedPr = (branch) => {
-  try { return sh("gh", ["pr", "list", "--head", branch, "--state", "merged", "--json", "number", "--jq", ".[0].number"], { cwd: root, timeout: 15000 }); }
-  catch { return ""; }
+  try {
+    const prs = JSON.parse(sh("gh", ["pr", "list", "--head", branch, "--state", "all", "--json", "number,state"], { cwd: root, timeout: 15000 }));
+    if (prs.some((p) => p.state === "OPEN")) return "";
+    return String(prs.find((p) => p.state === "MERGED")?.number || "");
+  } catch { return ""; }
 };
 
 // --- Commands -----------------------------------------------------------------
@@ -162,14 +166,13 @@ const commands = {
       .map((r) => ({ id: idOf(r), branch: r.branch, pr: mergedPr(r.branch) }))
       .filter((h) => h.pr);
     if (!hits.length) return console.log("No merged review tickets.");
+    let closed = [];
     onMain(`chore: set ${hits.map((h) => h.id).join(", ")} to done (merged)`, (dir) => editTasks(dir, (t) => {
-      for (const h of hits) {
-        const r = findRow(t, h.id);
-        // Re-check on the fresh table: someone may have reopened or moved the ticket meanwhile.
-        if (r.status === "review" && r.branch === h.branch) { r.status = "done"; r.question = ""; }
-      }
+      // Re-check on the fresh table: someone may have reopened or moved the ticket meanwhile.
+      closed = hits.filter((h) => { const r = findRow(t, h.id); return r.status === "review" && r.branch === h.branch; });
+      for (const h of closed) Object.assign(findRow(t, h.id), { status: "done", question: "" });
     }));
-    console.log(hits.map((h) => `${h.id} done (PR #${h.pr} merged)`).join("\n"));
+    if (closed.length) console.log(closed.map((h) => `${h.id} done (PR #${h.pr} merged)`).join("\n"));
   },
 
   show() {
