@@ -12,13 +12,16 @@ export type Row = {
   area_m2: number;
   volume_m3: number;
   evidence: Evidence[];
+  dimension_evidence?: Evidence[];
+  specifications?: string[];
+  reason?: string[];
 };
-type Data = { path: string; source: "ifc" | "schedule" | "detector" | "none"; rows: Row[]; notes: string[] };
+type Data = { path: string; source: "ifc" | "schedule" | "drawing" | "none"; rows: Row[]; notes: string[] };
 
 const SOURCE: Record<Data["source"], string> = {
   ifc: "BIM model (IFC)",
   schedule: "door / window schedule on the sheet",
-  detector: "symbol detector on the scan",
+  drawing: "drawing and matching schedules",
   none: "",
 };
 
@@ -42,10 +45,16 @@ const CSS = `
 .tk-row:hover { background: var(--canvas); }
 .tk-go { color: var(--red); font-size: 12px; text-align: right; opacity: 0; width: 64px; }
 .tk-row:hover .tk-go { opacity: 1; }
+.tk-basis { display: block; white-space: normal; overflow-wrap: anywhere; margin-top: 4px; }
+.tk-basis a { display: block; margin-top: 4px; }
+.tk-basis summary { cursor: pointer; }
 .tk-notes { margin-top: 18px; font-size: 12px; padding-left: 18px; }
 `;
 
 const url = (path: string, csv = false) => `/api/takeoff?path=${encodeURIComponent(path)}${csv ? "&format=csv" : ""}`;
+const evidenceUrl = (e: Evidence) => "/api/file?" + new URLSearchParams({
+  path: e.file, page: String(e.page), clip: e.bbox.join(","), pad: ".5", scale: "2",
+});
 const num = (v: number, d = 1) => (v ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : "");
 
 export default function Takeoff({ path, name, onShow }: { path: string; name: string; onShow: (r: Row) => void }) {
@@ -54,12 +63,14 @@ export default function Takeoff({ path, name, onShow }: { path: string; name: st
 
   useEffect(() => {
     if (!path) return;
+    const request = new AbortController();
     setData(null);
     setError("");
-    fetch(url(path))
+    fetch(url(path), { signal: request.signal })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`takeoff: ${r.status}`))))
-      .then(setData)
-      .catch((e) => setError(String(e)));
+      .then((result) => { if (!request.signal.aborted) setData(result); })
+      .catch((e) => { if (!request.signal.aborted) setError(String(e)); });
+    return () => request.abort();
   }, [path]);
 
   const cats = data ? [...new Set(data.rows.map((r) => r.category))] : [];
@@ -119,7 +130,22 @@ export default function Takeoff({ path, name, onShow }: { path: string; name: st
                   .map((r, k) => (
                     <tr key={k} className="tk-row" onClick={() => onShow(r)} title="Show these on the drawing">
                       <td className="ellipsis" title={r.type}>{r.type}</td>
-                      <td className="mono">{r.size || <span className="dim">–</span>}</td>
+                      <td>
+                        <span className="mono">{r.size || <span className="dim">Unknown</span>}</span>
+                        {!!r.reason?.length && (
+                          <details className="tk-basis" onClick={(event) => event.stopPropagation()}>
+                            <summary>Why this size?</summary>
+                            {r.reason.map((line) => <p key={line}>{line}</p>)}
+                            {r.specifications?.map((spec) => <p key={spec}>{spec}</p>)}
+                            {r.dimension_evidence?.filter((e) => e.bbox.length === 4).map((e, i) => (
+                              <a key={i} target="_blank" rel="noreferrer" href={evidenceUrl(e)}
+                                title={`${e.file}, page ${e.page + 1}`}>
+                                {e.label} &middot; {e.file.split("/").pop()} p.{e.page + 1}
+                              </a>
+                            ))}
+                          </details>
+                        )}
+                      </td>
                       <td className="r mono">{r.count}</td>
                       <td className="dim ellipsis" title={r.levels.join(", ")}>
                         {Object.keys(r.by_level ?? {}).length > 1
