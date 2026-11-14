@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useMemo, useState } from "react";
 import { fileUrl, isImage } from "./api";
 import { TYPE, fmtValue } from "./format";
-import { KIND_LABEL, type Proj, type SessionSummary, ago, bucket, projectKeyOf, sheetName } from "./workspace";
+import { type Proj, type SessionSummary, ago, bucket, projectKeyOf, sheetName } from "./workspace";
 import type { Drawing } from "./types";
 import "./projects.css";
 
@@ -11,7 +11,6 @@ type Props = {
   project: Proj | null;
   selected: string;
   onSelect: (path: string) => void;
-  onProjects: () => void;
   sessions: SessionSummary[];
   session: string; // id of the session open in the chat
   onSession: (id: string) => void;
@@ -168,25 +167,9 @@ const Explorer = forwardRef<HTMLInputElement, Props>(function Explorer(p, ref) {
   // Nothing here: point at other projects that have it, the way a document system searches the hub.
   const elsewhere = hits && !hits.length ? p.drawings.filter(match).slice(0, 40) : [];
   const names = useMemo(() => new Map(p.projects.map((x) => [x.key, x.name])), [p.projects]);
-  const folder = project?.folders.find((f) => f.items.some((d) => d.path === selected));
 
   return (
     <nav className="explorer">
-      <div className="crumbs">
-        <button className="crumb" onClick={p.onProjects}>Projects</button>
-        {project && <span className="sep">›</span>}
-        {project && <span className="ellipsis">{project.name}</span>}
-        {folder && <span className="sep">›</span>}
-        {folder && <span className="ellipsis">{folder.label}</span>}
-      </div>
-      {project && (
-        <div className="phead">
-          <div className="ptitle ellipsis" title={project.name}>{project.name}</div>
-          <div className="psub dim ellipsis">
-            {KIND_LABEL[project.kind]} · {project.org}
-          </div>
-        </div>
-      )}
       <div className="seg" role="tablist">
         <button role="tab" aria-selected={pane === "sheets"} className={pane === "sheets" ? "on" : ""} onClick={() => setPane("sheets")}>
           Sheets <span className="mono dim">{project?.items.length ?? 0}</span>

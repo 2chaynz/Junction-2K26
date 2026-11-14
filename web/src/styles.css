@@ -26,7 +26,7 @@ input { font: inherit; color: inherit; }
 .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .spacer { flex: 1; }
 
-.app { height: 100%; display: grid; grid-template-rows: 52px 1fr; }
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
 .askview {
   min-height: 0; display: grid;
   grid-template-columns: 288px 1fr var(--chat); grid-template-areas: "explorer stage chat";
