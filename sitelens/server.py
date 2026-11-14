@@ -269,6 +269,8 @@ def _related(path: str, related: list[str] | None) -> list[str]:
     """Project sheets the UI sent, limited to drawings the dataset lists. The sheet's own model goes first."""
     qs = _questions()
     out = [m for m in [_model_of(path)] if m and m != path]
+    if path.split("/")[1] in ("swiss_dwellings", "cubicasa5k"):   # one building per file: no shared project
+        return out
     out += [r for r in related or [] if r in qs and r != path]
     return list(dict.fromkeys(out))
 

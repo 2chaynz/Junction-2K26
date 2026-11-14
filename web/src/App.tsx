@@ -361,8 +361,10 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
       .filter((m): m is Extract<Msg, { kind: "answer" }> => m.kind === "answer" && m.answer.method !== "clarify")
       .slice(-4)
       .map((m) => ({ question: m.answer.followup?.standalone ?? m.question, answer: m.answer.value == null ? "unknown" : fmtAnswer(m.answer) }));
+    // Only real projects share facts across sheets; the Swiss portfolio and CubiCasa archive are unrelated buildings.
+    const linked = project?.kind === "BIM" || project?.kind === "Sheet set";
     const folderItems = project?.folders.find((f) => f.items.some((d) => d.path === p))?.items ?? [];
-    const related = [...folderItems, ...(project?.items ?? [])].map((d) => d.path).filter((x) => x !== p);
+    const related = linked ? [...folderItems, ...(project?.items ?? [])].map((d) => d.path).filter((x) => x !== p) : [];
     let next: Msg;
     try {
       const answer = await askStream(p, q, (s) => {
