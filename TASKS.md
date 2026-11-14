@@ -80,7 +80,7 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T73 Benchmark page: interactive, model logos, honest numbers | app |  | 2chaynz | done | 2chaynz/T73-benchmark |  |  |
 | T74 Keep repeated marks in takeoff ambiguity checks | app |  | ccolver | done | ccolver/T74-takeoff-marks |  |  |
 | T75 Chat follow-ups + cited reasoning: drawing, project, web | app |  | ccolver | review | ccolver/T75-cited-reasoning |  |  |
-| T76 Fix opening_design schedule counts (regression) | ai |  | Asif | doing | asif/T76-schedule-fix |  |  |
+| T76 Fix opening_design schedule counts (regression) | ai |  | Asif | blocked | asif/T76-schedule-fix |  | @Asif PR #96: xreview BLOCKING 5 rounds, each a new edge case (all fixed + tested; last fix pushed, not yet re-reviewed). Run xreview once more or accept? |
 | T77 IFC count fixes: curtain walls, bsc-duplex, gymzaal | ai |  |  | todo |  |  |  |
 | T78 Honest CubiCasa numbers: 83.6% held-out headline | pitch |  |  | todo |  |  |  |
 | T79 Home: BIM project cards spin in 3D (PyVista turntables) | app |  | 2chaynz | doing | 2chaynz/T79-turntables |  |  |
