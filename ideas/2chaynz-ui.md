@@ -1,55 +1,53 @@
-# SiteLens UI: decisions (2chaynz, grill session, Sat 14 Nov)
+# SiteLens UI v2: decisions (2chaynz, grill, Sat 14 Nov)
 
-Proposal for T8. Team to confirm the ticket split.
+Replaces the blueprint/3-column v1 (PR #22/#25). Simple, clean, practical. No AI slop.
 
-## Goal
-- Must-win moment: judge asks → drawing auto-zooms to numbered red-pen evidence → verified in seconds.
-- UI carries 2 of Stoa's 4 criteria (verifiable reasoning, creativity).
+## Banned
+- Gradients, sparkle icons, glassmorphism, emojis, big rounded cards, "AI-powered" badges, shadows.
 
-## Style: Blueprint + redline
-- Cyanotype blue, white line art, grid paper. Every panel framed as a drawing title block (sheet no., scale, rev).
-- Evidence = hand-drawn red-pen circles, animated, numbered, margin notes ("2 WC").
-- Structure inspired by VLM Run: document panels with header (file · `p.1 / 3` · status tag), numbered cards, dark code block with the real `Answer` JSON.
-- Path colours as in `docs/architecture.svg`: BIM violet, vector orange, detector red, VLM grey.
+## Layout (laptop first: 1440x900, 1920x1080)
+- Top bar: `SiteLens` · drawing search · `Random` · right: `How it works` `Benchmark` links.
+- Drawing zone ~70%: drawing full size, pan/zoom.
+- Chat zone ~30%: messages, 3 Stoa question chips above input, input.
+- Phone layout: later, only if time.
 
-## Stack
-- Vite + React + TypeScript in `web/`; three.js + web-ifc for 3D.
-- FastAPI `sitelens/server.py` serves the built app + API (`CONTRACT.md`). One command: `python -m sitelens.server` → :8000.
-- All assets bundled locally (venue Wi-Fi may fail).
+## Style
+- bg `#fff`, lines `#e5e5e5`, 1px, no shadows, 4px radius.
+- One accent: redline red `#d92d20` (marks, citations, active, errors).
+- Inter for UI, mono for numbers. Caveat only for marks on the plan.
+- Blueprint look only in pitch/3D.
 
-## Home: 3D build-up (wow)
-- Model: `ifc_models/bsc-esplanades_1807-ep-ar-v18.ifc` (12 MB, 7 storeys, 846 walls, 285 spaces, has a 2D plan + et/en questions).
-- ~4 s: storeys rise as white wireframe → solidify → slow orbit → question box "Ask your drawings anything."
-- Real data, not generated video. Higgsfield only for the pitch video intro.
+## First run
+- Best Swiss vector demo drawing open.
+- Chat: "Ask anything about this drawing." + 3 Stoa chips. No splash.
 
-## Tabs
-1. **Ask**
-   - Thumbnail picker grouped by source.
-   - 3–5 suggested question chips per drawing from `questions.jsonl` → answer card shows "Stoa's answer: 13 · ✓ match".
-   - Free text (any language). "Surprise me" = random drawing + question.
-   - Auto-zoom to evidence; red circles; hover list ↔ circle; trace as numbered engineer's notes.
-   - Title-block footer: PATH · COST · CONF · TIME · CHECKED ✓ STOA stamp.
-   - IFC answers: elements glow in 3D + same elements on the 2D plan.
-2. **How it works**
-   - Interactive architecture diagram: click a path → real example step by step (drawing → extraction → tool → answer) with cost/time.
-   - 4 criterion cards (01 Accuracy, 02 Verifiable, 03 Creativity, 04 Cost), each with proof + link.
-   - "Why not just ask a big model?": whole-sheet guessing vs reading the drawing like a database; next year's model only replaces the last-resort crop reader.
-3. **Benchmark**
-   - Accuracy vs €/answer (log) chart: ours top-left vs Gemma/Gemini whole-sheet.
-   - Table by source × type: accuracy, €/answer, time, from `eval/results`.
-   - Bars grow on scroll/hover (CSS only, no live run).
-   - "Where we fail" list → opens the case in Ask. Label: "dev split, drawings never seen in training".
+## Picker
+- Search combobox, `/` focuses. Filters by name.
+- Groups: Demo (5-6 hand-picked, one per type) first, then Scanned plans · Vector plans · BIM models · Schedules (with counts).
+- Row: small thumb, name, type, Q count.
+- `Random`: loads drawing + pre-fills a Stoa question.
 
-## Proposed split (to confirm with the team)
-| Ticket | Content |
-|---|---|
-| UI-1 (T8) | Server + app shell (theme, tabs) + Ask tab |
-| UI-2 | 3D build-up + IFC highlight |
-| UI-3 | How it works |
-| UI-4 | Benchmark tab |
+## Chat
+- Every message → `/api/ask` with the open drawing.
+- No path answers → Gemini text with a short SiteLens prompt. Tagged "general · not from the drawing", no citations, no Stoa stamp, cost/time shown.
 
-Human (2chaynz): art direction every 1–2 h, headline copy, pick demo examples for the video, merge PRs.
+## Answer message
+```
+4 WCs  [1][2][3][4]
+vector · €0.000 · 0.1s · ✓ Stoa
+> Steps (3)
+```
+- Wrong vs Stoa: red `✗ Stoa: 12.9`. Shown honestly.
+- confidence < 0.6: red "please check".
+- No answer: "Couldn't read this from the drawing. Tried: vector, detector, VLM".
 
-## API additions needed (CONTRACT PR)
-- `GET /api/ifc?path=` raw IFC bytes for web-ifc.
-- `GET /api/benchmark` summary from `eval/results`.
+## Citations
+- Latest answer: all marks on, numbered; view fits them.
+- Click `[n]` or a mark → zoom + pulse, others dim. Hover is two-way (mark ↔ chip).
+- Older answers' marks hidden; click the message to bring them back.
+- More than 9 hits: `[1]…[14]` + "show all".
+
+## Extras (stretch, each ships alone, dropped if not done by 22:00)
+- `How it works`, `Benchmark`: own pages, same style, back arrow.
+- 3D: IFC only, `2D | 3D` toggle in the drawing corner; citations highlight the IFC element.
+- Voice: hidden mic slot in the input (right). Later ElevenLabs STT; optional speaker icon per answer.
