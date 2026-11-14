@@ -49,4 +49,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T42 Review mode: tick/cross uncertain marks, live count | app |  | johanseneuson | doing | johanseneuson/T42-review |  |  |
 | T43 Proof strip + arithmetic receipt under answers | app |  |  | todo |  |  |  |
 | T44 Us vs frontier model side by side (Benchmark) | app |  |  | todo |  |  |  |
-| T45 Gitignore dataset and zips | setup |  |  | todo |  |  |  |
+| T45 Gitignore dataset and zips | setup |  | Asif | doing | asif/T45-gitignore-dataset |  |  |
