@@ -457,13 +457,13 @@ def vlm_use(req: VlmModel):
     try:
         out = latest.use_backend(req.backend) if req.backend is not None else latest.status()
         return latest.use(req.model) if req.model else out
-    except ValueError as e:
-        # a bad model must not leave the backend half-switched
+    except Exception as e:
+        # any failure (bad model, provider down) must not leave the backend half-switched
         if prev is None:
             os.environ.pop("SITELENS_VLM", None)
         else:
             os.environ["SITELENS_VLM"] = prev
-        raise HTTPException(400, str(e))
+        raise HTTPException(400 if isinstance(e, ValueError) else 502, str(e))
 
 
 @app.get("/api/random")
