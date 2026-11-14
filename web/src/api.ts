@@ -1,5 +1,7 @@
 import type { Answer, Drawing, Mark, MeasureState, Step } from "./types";
 
+export const originalUrl = (path: string) => `/api/original?path=${encodeURIComponent(path)}`;
+
 export const fileUrl = (path: string, scale = 1, page = 0) =>
   `/api/file?path=${encodeURIComponent(path)}&page=${page}&scale=${scale}`;
 

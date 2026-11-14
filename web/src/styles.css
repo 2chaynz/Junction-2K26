@@ -42,6 +42,13 @@ input { font: inherit; color: inherit; }
 .tabs button.on { color: var(--ink); border-bottom-color: var(--red); }
 .btn { border: 1px solid var(--line); border-radius: var(--r); padding: 6px 12px; font-size: 14px; }
 .btn:hover { border-color: var(--line-strong); }
+.tools-menu { position: relative; z-index: 5; }
+.tools-menu summary { cursor: pointer; }
+.tools-menu summary.on { border-color: var(--ink); }
+.tools-options { position: absolute; top: calc(100% + 4px); right: 0; min-width: 132px; padding: 4px;
+  border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); box-shadow: 0 3px 12px #0002; }
+.tools-options button { display: block; width: 100%; padding: 6px 8px; text-align: left; white-space: nowrap; }
+.tools-options button:hover, .tools-options button:focus-visible { background: var(--canvas); }
 
 /* Explorer */
 .explorer { grid-area: explorer; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); background: #fbfbfa; }
@@ -81,6 +88,8 @@ input { font: inherit; color: inherit; }
 .sheetinfo .cell:not(.grow) { flex-shrink: 2; }
 .sheetinfo .k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
 .sheetinfo .v { white-space: nowrap; }
+.sheetinfo .sheetlink { text-align: left; }
+.sheetinfo .sheetlink:hover .v, .sheetinfo .v.sheetlink:hover { text-decoration: underline; }
 .empty { margin: auto; color: var(--dim); }
 .viewer { position: relative; flex: 1; overflow: hidden; cursor: grab; }
 .viewer:active { cursor: grabbing; }

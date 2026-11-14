@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { ask, askStream, getDrawings, surprise } from "./api";
+import { ask, askStream, getDrawings, originalUrl, surprise } from "./api";
 import Benchmark from "./Benchmark";
 import Changes, { CHANGE_Q, PAIRS, onNewSheet } from "./Changes";
 import Chat from "./Chat";
@@ -17,10 +17,18 @@ import VlmBadge from "./VlmBadge";
 // three.js + web-ifc are ~4 MB: only fetch them when a model is opened in 3D.
 const Model3D = lazy(() => import("./Model3D"));
 
-const TABS = ["Ask", "Takeoff", "How it works", "Benchmark"] as const;
-type Tab = (typeof TABS)[number];
+const TABS = ["Ask", "How it works", "Benchmark"] as const;
+type Tab = (typeof TABS)[number] | "Takeoff";
+type SheetDrawing = Drawing & { model?: string | null };
 
-function SheetInfo({ d, all, view, size }: { d: Drawing; all: string[]; view: string; size: [number, number] | null }) {
+function SheetInfo({ d, all, view, size, onModel }: {
+  d: SheetDrawing;
+  all: string[];
+  view: string;
+  size: [number, number] | null;
+  onModel: () => void;
+}) {
+  const openFile = () => window.open(originalUrl(d.path), "_blank", "noopener");
   const folder = d.path.split("/").slice(1, -1).join("/");
   const plan = d.view !== d.path ? shortName(d.view) : null;
   return (
@@ -31,16 +39,31 @@ function SheetInfo({ d, all, view, size }: { d: Drawing; all: string[]; view: st
       </div>
       <div className="cell grow">
         <span className="k">File</span>
-        <span className="v ellipsis" title={d.path}>{d.path.split("/").pop()}</span>
+        <button
+          type="button"
+          className="v ellipsis sheetlink"
+          title={`Double-click to open ${d.path}`}
+          onDoubleClick={openFile}
+          onClick={(event) => { if (event.detail === 0) openFile(); }}
+        >
+          {d.path.split("/").pop()}
+        </button>
       </div>
       <div className="cell">
         <span className="k">Folder</span>
         <span className="v ellipsis mono" title={folder}>{folder}</span>
       </div>
-      <div className="cell">
-        <span className="k">Source</span>
-        <span className="v">{SOURCE_LABEL[d.source] ?? d.source}</span>
-      </div>
+      {d.model || d.path.endsWith(".ifc") ? (
+        <button type="button" className="cell sheetlink" onClick={onModel} title="Open source BIM model">
+          <span className="k">Source</span>
+          <span className="v">{SOURCE_LABEL[d.source] ?? d.source}</span>
+        </button>
+      ) : (
+        <div className="cell">
+          <span className="k">Source</span>
+          <span className="v">{SOURCE_LABEL[d.source] ?? d.source}</span>
+        </div>
+      )}
       {plan && (
         <div className="cell">
           <span className="k">Shown</span>
@@ -61,7 +84,7 @@ function SheetInfo({ d, all, view, size }: { d: Drawing; all: string[]; view: st
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("Ask");
-  const [drawings, setDrawings] = useState<Drawing[]>([]);
+  const [drawings, setDrawings] = useState<SheetDrawing[]>([]);
   const [path, setPath] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [active, setActive] = useState<number | null>(null);
@@ -96,6 +119,7 @@ export default function App() {
         const p = u.get("path"), q = u.get("q");
         if (p && d.some((x) => x.path === p)) {
           setPath(p);
+    setMode("plan");
           if (q) run(p, q);
           return;
         }
@@ -229,8 +253,14 @@ export default function App() {
   const answer = act?.kind === "answer" && act.path === path ? act.answer : null;
   const view = showCh || msOn ? drawing?.view ?? "" : answer?.view ?? drawing?.view ?? "";
   const isIfc = path.endsWith(".ifc");
-  const hasPlan = isIfc && !view.endsWith(".ifc");
-  const show3d = isIfc && ((mode === "3d" && !msOn) || !hasPlan);
+  const openModel = () => {
+    setChOn(false);
+    setMsOn(false);
+    setMode("3d");
+  };
+  const modelPath = drawing?.model ?? (isIfc ? path : null);
+  const hasPlan = !!modelPath && !!view && !view.endsWith(".ifc");
+  const show3d = !!modelPath && ((mode === "3d" && !msOn) || (isIfc && !hasPlan));
   const floors = useMemo(() => floorsOf(drawings, path), [drawings, path]);
   const showStack = floors.length > 1 && mode === "stack" && !showCh && !msOn;
   const ch = chData[path];
@@ -249,20 +279,39 @@ export default function App() {
         </nav>
         <span className="spacer" />
         <VlmBadge />
-        {tab === "Ask" && (
-          <button
-            className={`btn ${msOn ? "on" : ""}`}
-            title="Area and length takeoffs with the scale and where it came from"
-            onClick={() => {
-              setMsOn((v) => !v);
+        <details className="tools-menu" onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.currentTarget.open = false;
+            event.currentTarget.querySelector("summary")?.focus();
+          }
+        }} onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+        }}>
+          <summary className={`btn ${msOn || tab === "Takeoff" ? "on" : ""}`}>Tools</summary>
+          <div className="tools-options">
+            <button type="button" disabled={!path} onClick={(event) => {
+              const menu = event.currentTarget.closest("details");
+              if (menu) {
+                menu.open = false;
+                menu.querySelector("summary")?.focus();
+              }
+              setTab("Ask");
+              setMsOn(tab !== "Ask" || !msOn);
               setChOn(false);
               setTool(null);
               setShapes([]);
-            }}
-          >
-            {msOn ? "Close measure" : "Measure"}
-          </button>
-        )}
+            }}>{tab === "Ask" && msOn ? "Close Measure" : "Measure"}</button>
+            <button type="button" disabled={!path} onClick={(event) => {
+              const menu = event.currentTarget.closest("details");
+              if (menu) {
+                menu.open = false;
+                menu.querySelector("summary")?.focus();
+              }
+              setMsOn(false);
+              setTab("Takeoff");
+            }}>Takeoff</button>
+          </div>
+        </details>
         {tab === "Ask" && <button className="btn" onClick={onRandom}>Random question</button>}
       </header>
 
@@ -278,26 +327,25 @@ export default function App() {
         <Explorer ref={search} drawings={drawings} selected={path} onSelect={select} />
         <main className="stage">
           <div className="canvas">
-            {hasPlan && (
+            {(hasPlan || floors.length > 1) && (
               <div className="modes">
-                <button className={show3d ? "" : "on"} onClick={() => setMode("plan")}>Plan</button>
-                <button className={show3d ? "on" : ""} onClick={() => setMode("3d")}>3D</button>
-              </div>
-            )}
-            {floors.length > 1 && (
-              <div className="modes">
-                <button className={showStack ? "" : "on"} onClick={() => setMode("plan")}>Plan</button>
-                <button className={showStack ? "on" : ""} onClick={() => (setChOn(false), setMsOn(false), setMode("stack"))}>
-                  Building · {floors.length}
-                </button>
+                <button className={!show3d && !showStack ? "on" : ""} onClick={() => setMode("plan")}>Plan</button>
+                {hasPlan && (
+                  <button className={show3d ? "on" : ""} onClick={openModel}>3D</button>
+                )}
+                {floors.length > 1 && (
+                  <button className={showStack ? "on" : ""} onClick={() => (setChOn(false), setMsOn(false), setMode("stack"))}>
+                    Building · {floors.length}
+                  </button>
+                )}
               </div>
             )}
             {showStack ? (
               <Stack floors={floors} selected={path} onPick={(p) => (select(p), setMode("plan"))} />
-            ) : show3d ? (
+            ) : show3d && modelPath ? (
               <Suspense fallback={<div className="empty">Loading 3D viewer…</div>}>
               <Model3D
-                path={path}
+                path={modelPath}
                 answer={answer}
                 hover={hover}
                 focus={focus}
@@ -368,7 +416,7 @@ export default function App() {
               />
             )}
           </div>
-          {drawing && <SheetInfo d={drawing} all={allPaths} view={view} size={size} />}
+          {drawing && <SheetInfo d={drawing} all={allPaths} view={view} size={size} onModel={openModel} />}
         </main>
         <Chat
           msgs={msgs}

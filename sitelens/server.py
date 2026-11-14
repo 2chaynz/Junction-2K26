@@ -82,14 +82,35 @@ def _view_of(rel: str) -> str:
     return str(plans[0].relative_to(data_root())) if plans else rel
 
 
+def _model_of(path: str) -> str | None:
+    if path.endswith(".ifc"):
+        return path
+    prefix, sep, _ = path.rpartition("_plan-")
+    if sep and path.startswith(("data/ifc_models/", "data/ifc_bench/")):
+        model = prefix + ".ifc"
+        if (data_root() / model).is_file():
+            return model
+    return None
+
+
 @app.get("/api/drawings")
 def drawings():
     out = []
     for path, qs in sorted(_questions().items()):
-        out.append({"path": path, "source": path.split("/")[1], "view": _view_of(path),
+        out.append({"path": path, "source": path.split("/")[1], "view": _view_of(path), "model": _model_of(path),
                     "questions": [{"question": q["question"], "answer": q["answer"], "unit": q["unit"],
                                    "type": q["type"]} for q in qs]})
     return out
+
+
+@app.get("/api/original")
+def original(path: str):
+    if path not in _questions():
+        raise HTTPException(404, "drawing not found")
+    p = _safe(path)
+    if p.suffix.lower() in {".pdf", ".png", ".jpg", ".jpeg"}:
+        return FileResponse(p)
+    return FileResponse(p, media_type="application/octet-stream", filename=p.name)
 
 
 @app.get("/api/file")
