@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-14 14:20 · Asif · Asif: T20 added: hot-swappable VLM backends (Gemini/Gemma/Nemotron via one registry + OpenAI-compatible client). Lands before T13 (both edit vlm.py), so T13 should wait for it
 - 2026-11-14 14:16 · johanseneuson · johanseneuson: PR #32 detector v2 = YOLO11l on fixed labels (sink variants, WC rooms): cubicasa dev 82.8% (was 75.5%), rest 82.1%. Weights: gh release download detector-v2 -D models. 8x GPU deleted (~EUR 17 total). Flip-TTA and m-finetune tried, worse
 - 2026-11-14 13:49 · ccolver · ccolver: dead end - classic template matching (NCC, 8 symmetries) on top of T6 detector: dev 368 symbol Qs 78.5% -> 78.5% (+0); open search breaks 12-40 of 108. NCC same on missed vs junk boxes (0.73 vs 0.72). Not worth a ticket
 - 2026-11-14 13:41 · ccolver · T17 PR #30: detector on AECV-Bench (120 French plans, never trained on): windows 41% (best of all, Gemini 3.5 Flash 39%), doors 37% (2nd, Flash 43%), EUR 0.006 vs $3.77-26.88. Loses bedrooms/toilets (needs OCR of room labels)
