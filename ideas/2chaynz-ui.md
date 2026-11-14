@@ -43,10 +43,10 @@ Proposal for T8. Team to confirm the ticket split.
 ## Proposed split (to confirm with the team)
 | Ticket | Content |
 |---|---|
-| T8 | Server + app shell (theme, tabs) + Ask tab |
-| T10 | 3D build-up + IFC highlight |
-| T11 | How it works |
-| T12 | Benchmark tab |
+| UI-1 (T8) | Server + app shell (theme, tabs) + Ask tab |
+| UI-2 | 3D build-up + IFC highlight |
+| UI-3 | How it works |
+| UI-4 | Benchmark tab |
 
 Human (2chaynz): art direction every 1–2 h, headline copy, pick demo examples for the video, merge PRs.
 
