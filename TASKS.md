@@ -82,5 +82,5 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T75 Chat follow-ups + cited reasoning: drawing, project, web | app |  | ccolver | review | ccolver/T75-cited-reasoning |  |  |
 | T76 Fix opening_design schedule counts (regression) | ai |  | Asif | done | asif/T76-schedule-fix |  |  |
 | T77 IFC count fixes: curtain walls, bsc-duplex, gymzaal | ai |  |  | todo |  |  |  |
-| T78 Honest CubiCasa numbers: 83.6% held-out headline | pitch |  |  | todo |  |  |  |
+| T78 Honest CubiCasa numbers: 83.6% held-out headline | pitch |  | Asif | doing | asif/T78-honest-numbers |  |  |
 | T79 Home: BIM project cards spin in 3D (PyVista turntables) | app |  | 2chaynz | doing | 2chaynz/T79-turntables |  |  |
