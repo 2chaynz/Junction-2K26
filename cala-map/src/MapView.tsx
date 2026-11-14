@@ -26,6 +26,8 @@ const SPRITE = {
   coin: { url: iconUrl('coin', '#ebc878'), width: 64, height: 64, id: 'coin' },
   seed: { url: iconUrl('seed', '#7ee0a0'), width: 64, height: 64, id: 'seed' },
 }
+const STARTUP_TILES = TILES.filter((t) => t.startup)
+const square = (t: Tile, h = 0.47) => [[t.x - h, t.y - h], [t.x + h, t.y - h], [t.x + h, t.y + h], [t.x - h, t.y + h]]
 const emblem = (t: Tile) => ({ url: sigilUrl(t.startup!.name, t.color), width: 70, height: 70, id: `s-${t.startup!.id}` })
 
 type View = { target: [number, number, number]; zoom: number } & Partial<typeof FLY>
@@ -50,15 +52,14 @@ function clamp(v: View, w: number, h: number): View {
 interface Props {
   tile: Tile
   visible: Set<string>
-  explored: boolean
+  hideSeen: boolean
   discovered: Set<string>
   gems: Set<string>
   fly: FlyRequest
   onPick: (id: string) => void
-  onIsland: (sector: string) => void
 }
 
-export const MapView = memo(function MapView({ tile, visible, explored, discovered, gems, fly, onPick, onIsland }: Props) {
+export const MapView = memo(function MapView({ tile, visible, hideSeen, discovered, gems, fly, onPick }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 800, h: 600 })
   const [view, setView] = useState<View>({ target: [tile.x, tile.y, 0], zoom: 4.2 })
@@ -89,22 +90,36 @@ export const MapView = memo(function MapView({ tile, visible, explored, discover
 
   const tilesLayer = useMemo(() => new PolygonLayer<Tile>({
     id: 'tiles',
-    data: TILES,
-    getPolygon: (t) => [[t.x - 0.47, t.y - 0.47], [t.x + 0.47, t.y - 0.47], [t.x + 0.47, t.y + 0.47], [t.x - 0.47, t.y + 0.47]],
+    data: STARTUP_TILES,
+    getPolygon: (t) => square(t),
     getFillColor: (t) => {
-      const on = !t.startup || visible.has(t.startup.id)
-      const dim = explored && t.startup && !discovered.has(t.startup.id) ? 0.3 : 1
-      return [t.color[0] * dim, t.color[1] * dim, t.color[2] * dim, on ? 255 : 45]
+      const id = t.startup!.id
+      const dim = hideSeen && discovered.has(id) && t !== tile ? 0.3 : 1
+      return [t.color[0] * dim, t.color[1] * dim, t.color[2] * dim, visible.has(id) ? 255 : 45]
     },
     stroked: false,
     pickable: true,
     autoHighlight: true,
-    highlightColor: [255, 255, 255, 50],
+    highlightColor: [255, 255, 255, 90],
     transitions: { getFillColor: 400 },
-    updateTriggers: { getFillColor: [visible, explored, discovered] },
-    onClick: ({ object }) => object?.startup && onPick(object.startup.id),
-  }), [visible, explored, discovered, onPick])
+    updateTriggers: { getFillColor: [visible, hideSeen, discovered, tile] },
+    onClick: ({ object }) => object && onPick(object.startup!.id),
+  }), [visible, hideSeen, discovered, tile, onPick])
 
+  const selectionLayer = useMemo(() => new PolygonLayer<Tile>({
+    id: 'selection',
+    data: [tile],
+    getPolygon: (t) => square(t, 0.56),
+    filled: false,
+    stroked: true,
+    getLineColor: [235, 200, 120, 255],
+    getLineWidth: 0.1,
+    lineWidthUnits: 'common',
+    lineWidthMinPixels: 2,
+  }), [tile])
+
+  // Labels name the islands from afar and get out of the way once you are close enough to read tiles.
+  const labelOpacity = Math.round(Math.min(1, Math.max(0, (5.4 - view.zoom) / 1.2)) * 20) / 20
   const labelsLayer = useMemo(() => new TextLayer({
     id: 'labels',
     data: ISLANDS,
@@ -112,17 +127,17 @@ export const MapView = memo(function MapView({ tile, visible, explored, discover
     getText: (i) => i.sector,
     getColor: [236, 170, 205, 235],
     // World units, so labels grow and shrink with the island like a map.
-    getSize: (i) => Math.max(4, i.radius * 0.5),
+    getSize: (i) => Math.max(3, i.radius * 0.4),
     sizeUnits: 'common',
     sizeMinPixels: 10,
-    sizeMaxPixels: 58,
+    sizeMaxPixels: 44,
     fontFamily: '"IM Fell English", Georgia, serif',
     fontSettings: { sdf: true },
     outlineWidth: 3,
     outlineColor: [10, 9, 9, 220],
-    pickable: true,
-    onClick: ({ object }) => object && onIsland(object.sector),
-  }), [onIsland])
+    opacity: labelOpacity,
+    visible: labelOpacity > 0,
+  }), [labelOpacity])
 
   const emblemsLayer = useMemo(() => new IconLayer<Tile>({
     id: 'emblems',
@@ -160,6 +175,7 @@ export const MapView = memo(function MapView({ tile, visible, explored, discover
       updateTriggers: { getFillColor: Math.floor(clock * 8) },
     }),
     tilesLayer,
+    selectionLayer,
     emblemsLayer,
     spritesLayer,
     labelsLayer,

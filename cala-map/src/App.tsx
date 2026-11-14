@@ -5,7 +5,7 @@ import type { Tile } from './layout'
 import { useStored } from './useStored'
 import { sendMagicLink, signOut, supabase, useSession } from './auth'
 import { useClock } from './anim'
-import { Icon, type IconName } from './icons'
+import { Icon } from './icons'
 import { Logo, sigilUrl } from './Logo'
 import { MapView, type FlyRequest } from './MapView'
 import { BY_ID, ISLANDS, LAND, TILES } from './world'
@@ -46,7 +46,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(startId)
   const [history, setHistory] = useState<string[]>([])
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
-  const [showFilters, setShowFilters] = useState(true)
+  const [showFilters, setShowFilters] = useState(false)
   const [drawer, setDrawer] = useState<Drawer>('none')
   const [openIsland, setOpenIsland] = useState('')
   const [query, setQuery] = useState('')
@@ -63,7 +63,7 @@ export default function App() {
   const [email, setEmail] = useState('')
   const [loginMsg, setLoginMsg] = useState('')
   const [sofa, setSofa] = useState(false)
-  const [explored, setExplored] = useState(false)
+  const [hideSeen, setHideSeen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [hopAt, setHopAt] = useState(now)
 
@@ -143,7 +143,6 @@ export default function App() {
   const selectRef = useRef(select)
   selectRef.current = select
   const onPick = useCallback((id: string) => selectRef.current(id, false), [])
-  const onIsland = useCallback((sector: string) => setFilters((f) => ({ ...f, sector: f.sector === sector ? '' : sector })), [])
 
   useEffect(() => {
     const island = ISLANDS.find((i) => i.sector === filters.sector)
@@ -175,23 +174,22 @@ export default function App() {
   const islandMembers = openIsland ? (lists[openIsland] ?? []).map((id) => BY_ID.get(id)?.startup).filter(Boolean) as Startup[] : []
   const funded = !!selected.funding || selected.rounds.length > 0
 
-  const filterRows: { key: keyof Filters; label: string; options: string[]; value: string | null }[] = [
-    { key: 'sector', label: 'sector', options: SECTORS, value: selected.sector },
-    { key: 'country', label: 'places', options: COUNTRIES, value: selected.country },
-    { key: 'year', label: 'founded', options: YEARS.map(String), value: selected.founded ? String(selected.founded) : null },
-    ...(HAS_STAGES ? [{ key: 'stage' as const, label: 'stage', options: STAGES, value: selected.stage }] : []),
-    { key: 'funded', label: 'funding', options: ['funded'], value: funded ? 'funded' : null },
+  const filterRows: { key: keyof Filters; label: string; options: string[] }[] = [
+    { key: 'sector', label: 'sector', options: SECTORS },
+    { key: 'country', label: 'country', options: COUNTRIES },
+    { key: 'year', label: 'founded', options: YEARS.map(String) },
+    ...(HAS_STAGES ? [{ key: 'stage' as const, label: 'stage', options: STAGES }] : []),
+    { key: 'funded', label: 'funding', options: ['funded'] },
   ]
 
-  const iconButtons: { icon: IconName; title: string; on?: boolean; act: () => void; disabled?: boolean }[] = [
-    { icon: 'island', title: `Only ${selected.sector}`, on: filters.sector === selected.sector, act: () => toggleFilter('sector', selected.sector) },
-    { icon: 'flag', title: `Only ${selected.country}`, on: filters.country === selected.country, act: () => toggleFilter('country', selected.country) },
-    { icon: 'calendar', title: selected.founded ? `Only founded in ${selected.founded}` : 'Founding year unknown', on: !!filters.year && filters.year === String(selected.founded), act: () => { if (selected.founded) toggleFilter('year', String(selected.founded)) }, disabled: !selected.founded },
-    { icon: 'coin', title: 'Only funded startups', on: !!filters.funded, act: () => toggleFilter('funded', 'funded') },
-    { icon: 'target', title: 'Recenter (r)', act: () => flyTo(tile.x, tile.y) },
-    { icon: 'link', title: copied ? 'Link copied' : 'Copy link to this startup', on: copied, act: () => { navigator.clipboard?.writeText(location.href); setCopied(true); setTimeout(() => setCopied(false), 1500) } },
-    { icon: 'dots', title: explored ? 'Show all tiles' : 'Dim startups you have not seen', on: explored, act: () => setExplored(!explored) },
+  // The current startup's own attributes; clicking one filters the map by it.
+  const facts: { key: keyof Filters; value: string; text: string }[] = [
+    { key: 'sector', value: selected.sector, text: selected.sector },
+    { key: 'country', value: selected.country, text: selected.country },
+    ...(selected.founded ? [{ key: 'year' as const, value: String(selected.founded), text: `est. ${selected.founded}` }] : []),
+    ...(funded ? [{ key: 'funded' as const, value: 'funded', text: 'funded' }] : []),
   ]
+  const copyLink = () => { navigator.clipboard?.writeText(location.href); setCopied(true); setTimeout(() => setCopied(false), 1500) }
 
   return (
     <div className={`app ${collapsed ? 'collapsed' : ''}`}>
@@ -204,7 +202,6 @@ export default function App() {
           <button className={`nav-item ${drawer === 'search' ? 'on' : ''}`} onClick={() => setDrawer(drawer === 'search' ? 'none' : 'search')}><Icon name="search" /><span>Search</span></button>
           <button className={`nav-item ${drawer === 'gems' ? 'on' : ''}`} onClick={() => setDrawer(drawer === 'gems' ? 'none' : 'gems')}><Icon name="gem" /><span>Gems</span>{gemSet.size > 0 && <b className="badge">{gemSet.size}</b>}</button>
           <button className="nav-item" onClick={shuffle}><Icon name="compass" /><span>Surprise me</span></button>
-          <button className="nav-item" disabled title="Coming soon"><Icon name="chat" /><span>Messages</span></button>
         </section>
 
         <section className="block islands-block">
@@ -251,7 +248,7 @@ export default function App() {
           </form>
         )}
         <section className="block bottom-row">
-          <button className="nav-item small" onClick={() => { setFilters(NO_FILTERS); setExplored(false) }}><Icon name="gear" size={12} /><span>Reset view</span></button>
+          <button className="nav-item small" onClick={() => { setFilters(NO_FILTERS); setHideSeen(false) }}><Icon name="gear" size={12} /><span>Reset view</span></button>
           {supabase && (session
             ? <button className="nav-item small" onClick={() => signOut()}><Icon name="door" size={12} /><span>Sign out</span></button>
             : <button className="nav-item small" onClick={() => setLoginOpen(!loginOpen)}><Icon name="door" size={12} /><span>Sign in</span></button>)}
@@ -260,14 +257,8 @@ export default function App() {
 
       <main className="map">
         <div className="map-canvas">
-          <MapView tile={tile} visible={visible} explored={explored} discovered={discoveredSet} gems={gemSet} fly={fly} onPick={onPick} onIsland={onIsland} />
-          <header className="map-head">
-            <span className="coords">{tile.x}~{tile.y}</span>
-            <button className={`map-title ${explored ? 'on' : ''}`} onClick={() => setExplored(!explored)} title="Dim startups you have not seen">
-              <Icon name="target" /> {explored ? 'Exploration map' : 'Archipelago'} <Icon name="down" size={10} />
-            </button>
-            <button className="recenter" title="Recenter (r)" onClick={() => flyTo(tile.x, tile.y)}><Icon name="boat" size={18} /><span>Recenter</span></button>
-          </header>
+          <MapView tile={tile} visible={visible} hideSeen={hideSeen} discovered={discoveredSet} gems={gemSet} fly={fly} onPick={onPick} />
+          <button className="chip recenter" title="Back to the selected startup (r)" onClick={() => flyTo(tile.x, tile.y)}><Icon name="target" /> recenter</button>
 
           {drawer !== 'none' && (
             <div className="drawer">
@@ -291,49 +282,44 @@ export default function App() {
             </div>
           )}
 
-          <div className={`filters ${showFilters ? '' : 'folded'}`}>
+          <div className="filters">
             <div className="filter-tools">
-              <button className="chip ghost" title={showFilters ? 'Hide filters' : 'Show filters'} onClick={() => setShowFilters(!showFilters)}><Icon name="down" size={10} /></button>
+              <button className={`chip ${showFilters ? 'active' : ''}`} onClick={() => setShowFilters(!showFilters)}><Icon name="down" size={10} /> filters</button>
+              <button className={`chip ${hideSeen ? 'active' : ''}`} title="Dim the startups you have already opened" onClick={() => setHideSeen(!hideSeen)}><Icon name="dots" /> dim seen</button>
               {filtering && <span className="chip count">{visible.size} startups</span>}
-              {filtering && <button className="chip ghost" onClick={() => setFilters(NO_FILTERS)}>clear</button>}
-              {filtering && <button className="chip ghost" title="Save these filters" onClick={() => setSavedFilters([...savedFilters, filters])}><Icon name="save" size={11} /></button>}
+              {filtering && <button className="chip" onClick={() => setFilters(NO_FILTERS)}>clear ✕</button>}
+              {filtering && <button className="chip" title="Save these filters" onClick={() => setSavedFilters([...savedFilters, filters])}><Icon name="save" /> save</button>}
               {savedFilters.map((f, i) => (
-                <button key={i} className="chip ghost" title={Object.values(f).filter(Boolean).join(' · ')} onClick={() => setFilters(f)}>★{i + 1}</button>
+                <button key={i} className="chip" title={Object.values(f).filter(Boolean).join(' · ')} onClick={() => setFilters(f)}>★ {Object.values(f).filter(Boolean).join(' · ').slice(0, 24)}</button>
               ))}
             </div>
             {showFilters && filterRows.map((row) => (
-              <div key={row.key} className="filter-row">
-                <label className={`chip label ${filters[row.key] ? 'active' : ''}`}>
-                  <select value={filters[row.key]} onChange={(e) => setFilters((f) => ({ ...f, [row.key]: e.target.value }))}>
-                    <option value="">{row.label}</option>
-                    {row.options.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                  <span>{filters[row.key] || row.label}</span>
-                </label>
-                {row.value && (
-                  <button className={`chip value ${filters[row.key] === row.value ? 'active' : ''}`} title={`Only ${row.value}`} onClick={() => toggleFilter(row.key, row.value!)}>{row.value}</button>
-                )}
-              </div>
+              <label key={row.key} className={`chip label ${filters[row.key] ? 'active' : ''}`}>
+                <select value={filters[row.key]} onChange={(e) => setFilters((f) => ({ ...f, [row.key]: e.target.value }))}>
+                  <option value="">any {row.label}</option>
+                  {row.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <span className="k">{row.label}</span>
+                <span>{filters[row.key] || 'any'}</span>
+                <Icon name="down" size={9} />
+              </label>
             ))}
             {filters.investor && (
-              <div className="filter-row">
-                <span className="chip label active">investor</span>
-                <button className="chip value active" onClick={() => toggleFilter('investor', filters.investor)}>{STARTUPS.flatMap((s) => s.investors).find((i) => i.id === filters.investor)?.name ?? 'investor'} ✕</button>
-              </div>
+              <button className="chip label active" title="Remove investor filter" onClick={() => toggleFilter('investor', filters.investor)}>
+                <span className="k">investor</span>
+                <span>{STARTUPS.flatMap((s) => s.investors).find((i) => i.id === filters.investor)?.name ?? 'investor'} ✕</span>
+              </button>
             )}
           </div>
         </div>
 
         <footer className="transport">
-          <div className="transport-main">
-            <button className="t-btn" title="Previous (p)" onClick={previous} disabled={!history.length}><Icon name="prev" /></button>
-            <button className={`t-btn boat-btn ${sofa ? 'on' : ''}`} title="Sofa mode: sail on autopilot (space)" onClick={toggleSofa}>
-              <Icon name="boat" size={22} />
-            </button>
-            <button className="t-btn wide" title="Next: navigate (n)" onClick={next}><Icon name="next" /><span>navigate</span></button>
-            <button className="t-btn" title="Surprise me (s)" onClick={shuffle}><Icon name="compass" /></button>
-          </div>
-          <SofaBar sofa={sofa} hopAt={hopAt} onToggle={toggleSofa} />
+          <button className="t-btn" title="Previous (p)" onClick={previous} disabled={!history.length}><Icon name="prev" /><span>back</span></button>
+          <button className={`t-btn ${sofa ? 'on' : ''}`} title="Autopilot: sail to a new startup every few seconds (space)" onClick={toggleSofa}>
+            <Icon name={sofa ? 'pause' : 'boat'} size={18} /><span>{sofa ? 'stop autopilot' : 'autopilot'}</span>
+            {sofa && <SofaBar hopAt={hopAt} />}
+          </button>
+          <button className="t-btn wide" title="Nearest startup you have not seen yet (n)" onClick={next}><span>next startup</span><Icon name="next" /></button>
         </footer>
       </main>
 
@@ -348,12 +334,16 @@ export default function App() {
           </div>
           <div className="cover-text">
             <h2>{selected.name}</h2>
-            <div className="muted">{selected.sector} · {selected.country}{selected.founded ? ` · est. ${selected.founded}` : ''}</div>
+            <div className="facts">
+              {facts.map((f) => (
+                <button key={f.key} className={`tag ${filters[f.key] === f.value ? 'on' : ''}`} title={filters[f.key] === f.value ? 'Remove this filter' : `Show only ${f.text} on the map`} onClick={() => toggleFilter(f.key, f.value)}>{f.text}</button>
+              ))}
+            </div>
           </div>
         </section>
 
         <section className="actions">
-          <button className={`a-btn gem-btn ${isGem ? 'on' : ''}`} title="Gem (g)" onClick={toggleGem}><Icon name="gem" /><small>{isGem ? 1 : 0}</small></button>
+          <button className={`a-btn gem-btn ${isGem ? 'on' : ''}`} title="Gem (g)" onClick={toggleGem}><Icon name="gem" /><span>{isGem ? 'gemmed' : 'gem'}</span></button>
           <div className="add-wrap">
             <button className="a-btn wide" onClick={() => setAddMenu(!addMenu)}><Icon name="save" /><span>add to island</span></button>
             {addMenu && (
@@ -366,13 +356,6 @@ export default function App() {
               </div>
             )}
           </div>
-          <button className="a-btn" title="Next (n)" onClick={next}><Icon name="next" /></button>
-        </section>
-
-        <section className="icon-row">
-          {iconButtons.map((b) => (
-            <button key={b.icon} className={`i-btn ${b.on ? 'on' : ''}`} title={b.title} disabled={b.disabled} onClick={b.act}><Icon name={b.icon} size={16} /></button>
-          ))}
         </section>
 
         <section className="block">
@@ -416,7 +399,8 @@ export default function App() {
         <section className="block footer-link">
           {selected.website
             ? <a href={`https://${selected.website.replace(/^https?:\/\//, '')}`} target="_blank" rel="noreferrer"><Icon name="link" size={12} /> Visit {selected.website}</a>
-            : <span className="muted"><Icon name="link" size={12} /> {IS_MOCK ? 'Mock data' : 'Data from Cala'}</span>}
+            : <span className="muted">{IS_MOCK ? 'Mock data' : 'Data from Cala'}</span>}
+          <button className="copy" onClick={copyLink}><Icon name="link" size={12} /> {copied ? 'Link copied' : 'Copy link to this startup'}</button>
           {selected.sources.slice(0, 3).map((s) => <a key={s} className="source" href={s} target="_blank" rel="noreferrer">{s.replace(/^https?:\/\//, '').slice(0, 40)}</a>)}
         </section>
       </aside>
@@ -443,15 +427,8 @@ function StartupList({ items, current, onPick, meta, empty }: { items: Startup[]
 }
 
 // Own clock so the progress bar animates without re-rendering the whole app.
-function SofaBar({ sofa, hopAt, onToggle }: { sofa: boolean; hopAt: number; onToggle: () => void }) {
-  const clock = useClock(sofa ? 20 : 1)
-  const progress = sofa ? Math.min(1, Math.max(0, clock - hopAt) / SOFA_SECONDS) : 0
-  return (
-    <div className="transport-bar">
-      <button className="t-mini" onClick={onToggle}><Icon name={sofa ? 'pause' : 'play'} size={10} /></button>
-      <span className="time">0:0{Math.floor(progress * SOFA_SECONDS)}</span>
-      <div className="bar"><div className="bar-fill" style={{ width: `${progress * 100}%` }} /></div>
-      <span className="time">0:0{SOFA_SECONDS}</span>
-    </div>
-  )
+function SofaBar({ hopAt }: { hopAt: number }) {
+  const clock = useClock(20)
+  const progress = Math.min(1, Math.max(0, clock - hopAt) / SOFA_SECONDS)
+  return <i className="bar-fill" style={{ width: `${progress * 100}%` }} />
 }

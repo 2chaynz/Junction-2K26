@@ -10,7 +10,7 @@ npm run dev
 
 ## Stack
 - Vite + React + TypeScript, deck.gl (same renderer as zig-zag).
-- Layout: one island per sector, coastline from Perlin noise (`src/perlin.ts`, `src/layout.ts`). Inside an island, similar startups are neighbours (`src/data/positions.json`).
+- Layout: one island per sector, each with its own random silhouette (lobes, stretch, Perlin coast), packed at random bearings (`src/perlin.ts`, `src/layout.ts`). Every land tile is a startup. Inside an island, similar startups are neighbours (`src/data/positions.json`).
 - Data: Cala API (`/v1/knowledge/query`, `/v1/entities`), cached in `.cache/`. Mock data only if `src/data/startups.json` is missing.
 
 ## Data pipeline
