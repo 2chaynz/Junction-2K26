@@ -50,7 +50,8 @@ export default function Intro() {
   // Don't wait forever for the 3D chunk.
   useEffect(() => {
     const id = setTimeout(() => setStart((s) => s ?? performance.now()), 1200);
-    return () => clearTimeout(id);
+    const safe = setTimeout(() => setDone(true), 4000); // title shows even if the scene never runs
+    return () => (clearTimeout(id), clearTimeout(safe));
   }, []);
 
   // Called by the scene every frame: overlay follows the animation exactly, no React re-render.

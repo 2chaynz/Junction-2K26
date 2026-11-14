@@ -173,6 +173,7 @@ export default function IntroScene({ start, onReady, onFrame }: Props) {
       cancelAnimationFrame(raf);
       ro.disconnect();
       renderer.dispose();
+      renderer.forceContextLoss(); // hand the GL context back for the BIM viewer
       renderer.domElement.remove();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
