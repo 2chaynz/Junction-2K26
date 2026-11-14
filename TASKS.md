@@ -85,4 +85,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T78 Honest CubiCasa numbers: 83.6% held-out headline | pitch |  | Asif | done | asif/T78-honest-numbers |  |  |
 | T79 Home: BIM project cards spin in 3D (PyVista turntables) | app |  | 2chaynz | doing | 2chaynz/T79-turntables |  |  |
 | T80 Takeoff: filter dropdowns + motion | app |  | ccolver | doing | ccolver/T80-takeoff-filters |  |  |
-| T81 Fix Vitoria takeoff dimensions | app |  |  | todo |  |  |  |
+| T81 Fix Vitoria takeoff dimensions | app |  | ccolver | doing | ccolver/T81-vitoria-dimensions |  |  |
