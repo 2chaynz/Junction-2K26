@@ -147,6 +147,13 @@ def ask(req: Ask):
     _safe(req.path)
     t = time.time()
     a = answer(req.path, req.question).to_dict()
+    # The VLM never returns null: it answers "not mentioned" etc. Text from it may be a general question.
+    if a["method"] == "vlm" and isinstance(a["value"], str):
+        g = _general(req.path, req.question)
+        if g:
+            g["cost_eur"] = round(g["cost_eur"] + a["cost_eur"], 6)
+            g["trace"] = [f"vlm replied '{a['value']}'"] + g["trace"]
+            a = g
     if a["value"] is None:
         a["tried"] = [n.rsplit(".", 1)[1] for n in PATHS if _load(n) is not None]
         a = _general(req.path, req.question) or a
