@@ -15,6 +15,5 @@ def _pdf_text(path, size, modified):
 
     with pymupdf.open(path) as doc:
         page = doc[0]
-        text = page.get_textpage()
-        return (text.extractText(), tuple(map(tuple, text.extractWORDS())),
+        return (page.get_text(), tuple(map(tuple, page.get_text("words"))),
                 tuple(page.rotation_matrix))
