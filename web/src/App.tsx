@@ -4,7 +4,7 @@ import Benchmark from "./Benchmark";
 import Changes, { CHANGE_Q, PAIRS, onNewSheet } from "./Changes";
 import Chat from "./Chat";
 import Explorer from "./Explorer";
-import { baselinePath, demoName, demoPath, ifcUrl, useRevisionDemo } from "./FinalDemo";
+import { baselinePath, demoName, demoPath, ifcUrl, TakeoffPreview, useRevisionDemo } from "./FinalDemo";
 import { Splitter, usePanels } from "./Splitter";
 import { SOURCE_LABEL, TYPE, floorsOf, fmtSize, pickChips, sheetCode, shortName } from "./format";
 import ProjectMenu from "./ProjectMenu";
@@ -662,11 +662,7 @@ export default function App({ revisionDemo = false }: { revisionDemo?: boolean }
           path={revisionDemo ? demoPath : path}
           chips={revisionDemo ? [] : chips}
           active={revisionDemo ? demo.active : active}
-          artifact={demo.image ? <details className="demo-artifact" open>
-            <summary>Revision takeoff image</summary>
-            <img src={demo.image} alt="Added and removed elements by type for the selected scope" />
-            <a className="btn" href={demo.image} download="vitoria-renovation-takeoff.png">Download PNG</a>
-          </details> : undefined}
+          artifact={demo.image ? <TakeoffPreview key={demo.active} image={demo.image} /> : undefined}
           hover={hover}
           focus={focus}
           draft={revisionDemo ? demo.draft : draft}

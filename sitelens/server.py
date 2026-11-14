@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import collections
-from hashlib import file_digest
+from hashlib import sha256
 import io
 import os
 import json
@@ -178,14 +178,13 @@ def ifc(path: str, request: Request):
     p = _safe(path)
     if p.suffix.lower() != ".ifc":
         raise HTTPException(400, "not an IFC file")
-    stat = p.stat()
-    with p.open("rb") as source:
-        etag = '"' + file_digest(source, "sha256").hexdigest() + '"'
+    content = p.read_bytes()
+    etag = f'"{sha256(content).hexdigest()}"'
     headers = {"Cache-Control": "private, no-cache", "ETag": etag}
     validators = {value.strip().removeprefix("W/") for value in request.headers.get("if-none-match", "").split(",")}
     if etag in validators or "*" in validators:
         return Response(status_code=304, headers=headers)
-    return FileResponse(p, stat_result=stat, media_type="application/octet-stream", headers=headers)
+    return Response(content, media_type="application/octet-stream", headers=headers)
 
 
 VITORIA = "data/ifc_models/bimspeed-vitoria_ald26-"
@@ -195,6 +194,7 @@ VITORIA = "data/ifc_models/bimspeed-vitoria_ald26-"
 def demo_revisions():
     """Compare element IDs in the Vitoria baseline and renovation proposal."""
     import ifcopenshell
+    import ifcopenshell.geom
     from ifcopenshell.util.element import get_container
 
     try:
@@ -219,17 +219,28 @@ def demo_revisions():
                     "IfcBuildingElementProxy": "Other modeled components",
                     "IfcDoor": "Doors", "IfcWindow": "Windows", "IfcRoof": "Roofs",
                 }.get(kind, kind.removeprefix("Ifc"))
-            elements[element.GlobalId] = {
+            elements[element.GlobalId] = (element, {
                 "guid": element.GlobalId, "kind": kind, "name": element.Name or kind,
                 "level": level.Name if level else None,
-            }
+            })
         revisions.append(elements)
     before, after = revisions
-    return [
-        {**element, "change": change}
-        for change, current, other in (("added", after, before), ("removed", before, after))
-        for guid, element in current.items() if guid not in other
-    ]
+    settings = ifcopenshell.geom.settings()
+    changes = []
+    for change, current, other in (("added", after, before), ("removed", before, after)):
+        for guid in current.keys() - other.keys():
+            element, data = current[guid]
+            dimensions = None
+            try:
+                shape = ifcopenshell.geom.create_shape(settings, element)
+                xyz = shape.geometry.verts
+                if xyz:
+                    dimensions = [round(max(xyz[i::3]) - min(xyz[i::3]), 3) for i in range(3)]
+            except RuntimeError:
+                pass
+            changes.append({**data, "change": change, "dimensions": dimensions})
+    return sorted(changes, key=lambda row: (row["kind"], row["name"], row["guid"]))
+
 
 
 @app.get("/api/takeoff")

@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { METHOD_NAME, fmtAnswer, fmtEur, fmtTime, fmtValue, shortName } from "./format";
 import type { Answer, Mark, Msg, Step, Table } from "./types";
 
@@ -245,7 +245,19 @@ function AnswerMsg(props: {
 
 export default function Chat(p: Props) {
   const log = useRef<HTMLDivElement>(null);
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const box = input.current;
+    if (!box) return;
+    const resize = () => {
+      box.style.height = "auto";
+      box.style.height = `${box.scrollHeight + box.offsetHeight - box.clientHeight}px`;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, [p.draft]);
 
   useEffect(() => {
     if (p.mark) input.current?.focus();
@@ -315,11 +327,19 @@ export default function Chat(p: Props) {
             if (p.draft.trim() && !p.busy) p.onAsk(p.draft.trim());
           }}
         >
-          <input
+          <textarea
             ref={input}
+            rows={1}
+            aria-label="Question"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
             value={p.draft}
             onChange={(e) => p.setDraft(e.target.value)}
-            placeholder={p.mark ? "What is this? Area of this room? How many doors here?" : "Ask about this drawing, any language"}
+            placeholder={p.mark ? "Ask about the highlighted spot" : "Ask a question"}
           />
           <button className="send" disabled={p.busy || !p.draft.trim()} aria-label="Ask">
             Ask
