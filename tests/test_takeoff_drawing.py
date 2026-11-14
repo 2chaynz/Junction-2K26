@@ -178,6 +178,23 @@ class DrawingTakeoff(unittest.TestCase):
             self.assertTrue(any("not-to-scale" in line for line in row["reason"]))
             self.assertTrue(any("Skipped symbol counts on 2" in line for line in result["notes"]))
 
+    def test_bordered_legend_does_not_hide_plan_or_count_its_icons(self):
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"STOA_DATA": d, "SITELENS_STORE": d}):
+            path = "Plan.pdf"
+            with pymupdf.open() as doc:
+                page = doc.new_page()
+                page.insert_text((50, 50), "GROUND FLOOR PLAN")
+                page.insert_text((410, 60), "DOOR LEGEND")
+                page.draw_rect(pymupdf.Rect(400, 40, 550, 220))
+                doc.save(Path(d) / path)
+            doors = [("Doors", Evidence(path, box), "Detected symbol", None)
+                     for box in ([90, 100, 110, 110], [410, 100, 430, 110])]
+            with patch.object(takeoff_2d, "_detected", return_value=doors):
+                result = takeoff.takeoff(path)
+            row, = result["rows"]
+            self.assertEqual(row["count"], 1)
+            self.assertEqual(row["evidence"][0]["bbox"], [90, 100, 110, 110])
+
     def test_disagreeing_scale_bars_do_not_produce_dimensions(self):
         from sitelens.measure import Scale
 
