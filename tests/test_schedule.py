@@ -40,6 +40,15 @@ def test_types_count_rows():
     assert a.value == 3, a
     a = _rules(P, "Number of door types listed in the schedule?", [TYPES])
     assert a.value == 3, a
+    a = _rules(P, "How many different door types are listed in the schedule?", [TYPES])
+    assert a.value == 3, a
+    a = _rules(P, "How many door leaves of the type U01 are scheduled?", [TYPES])
+    assert a.value == 71, a
+
+
+def test_mostly_unreadable_still_abstains():
+    t = table("DOOR SCHEDULE - TYPE", ["Count", "Type Mark"], [["?", "U04"], ["?", "U05"], ["3", "U06"]])
+    assert _rules(P, "How many doors of type U04 are scheduled?", [t]) is None
 
 
 def test_thousands_and_unreadable():

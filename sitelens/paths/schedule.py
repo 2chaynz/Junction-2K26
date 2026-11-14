@@ -250,8 +250,8 @@ def _qty(t: Table) -> int | None:
     k = t.col(r"^(count|qty|quantity)$")
     if k is None or not t.rows:
         return None
-    nums = sum(1 for r in t.rows if _int(r[k]) is not None)
-    return k if nums >= 0.6 * len(t.rows) else None
+    # header decides; a few unreadable cells must not turn it back into a row count
+    return k if any(_int(r[k]) is not None for r in t.rows) else None
 
 
 def _int(s: str) -> int | None:
@@ -297,7 +297,7 @@ def _rules(path: str, question: str, tables: list[Table]) -> Answer | None:
         if not idx:
             return None   # no matching row: say nothing rather than a confident 0
         # "how many types / marks" counts rows, not the instances in the count column
-        k = None if re.search(r"(?i)(how many|number of)\s+(\w+\s+)?(types|type marks|kinds)\b", q) else _qty(t)
+        k = None if re.search(r"(?i)(how many|number of)\s+(?:(?!of\b)\w+\s+){0,3}(types|type marks|kinds)\b", q) else _qty(t)
         if k is not None:
             vals = [_int(t.rows[i][k]) for i in idx]
             if None in vals:
