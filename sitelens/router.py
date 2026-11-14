@@ -47,8 +47,9 @@ def _load(name):
         raise
 
 
-def answer(path: str, question: str, on_step: Step | None = None) -> Answer:
-    """on_step gets each step as it happens: {"kind": try|skip|fail|found|trace, "path", "text", "t"}."""
+def answer(path: str, question: str, on_step: Step | None = None, skip: tuple[str, ...] = ()) -> Answer:
+    """on_step gets each step as it happens: {"kind": try|skip|fail|found|trace, "path", "text", "t"}.
+    skip: short path names to leave out (the chat holds the VLM back until related sheets are checked)."""
     t0 = time.time()
 
     def step(kind: str, short: str, text: str) -> None:
@@ -62,6 +63,8 @@ def answer(path: str, question: str, on_step: Step | None = None) -> Answer:
         if mod is None:
             continue
         short = name.rsplit(".", 1)[1]
+        if short in skip:
+            continue
         step("try", short, LABEL.get(short, f"Let me try the {short} reader."))
         t = time.time()
         try:
