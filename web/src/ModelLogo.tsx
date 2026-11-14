@@ -1,6 +1,6 @@
 import type { Maker } from "./benchData";
 
-// Simple marks so each row is recognisable at a glance; the maker's name is always written next to it.
+// Recognisable marks per maker (NVIDIA: official eye mark); the maker's name is always written next to it.
 export default function ModelLogo({ maker, size = 22 }: { maker: Maker; size?: number }) {
   const s = { width: size, height: size, flex: "none" } as const;
   switch (maker) {
@@ -18,13 +18,7 @@ export default function ModelLogo({ maker, size = 22 }: { maker: Maker; size?: n
         </svg>
       );
     case "nvidia":
-      return (
-        <svg viewBox="0 0 24 24" style={s} aria-hidden>
-          <rect width="24" height="24" rx="4" fill="#76B900" />
-          <path d="M4 12 Q12 4 20 12 Q12 20 4 12Z" fill="none" stroke="#fff" strokeWidth="2" />
-          <circle cx="12" cy="12" r="2.6" fill="#fff" />
-        </svg>
-      );
+      return <img src="/logos/nvidia.png" alt="" style={{ ...s, objectFit: "contain" }} />;
     case "anthropic":
       return (
         <svg viewBox="0 0 24 24" style={s} aria-hidden>
