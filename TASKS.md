@@ -29,3 +29,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T22 Reliable heartbeats: retry on failure, beat the claimed ticket | setup | T16 | Asif | review | asif/T22-reliable-beats |  |  |
 | T23 Revision quantities: how much changed between issues | ai | T15 | ccolver | doing | ccolver/T23-revision-quantities |  |  |
 | T24 Facts path: free-form questions over extracted facts | ai |  | johanseneuson | doing | johanseneuson/T24-facts |  |  |
+| T25 DrawingVQA: whole-sheet VLM vs our crop pipeline | eval | T13,T20 |  | todo |  |  |  |
