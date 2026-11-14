@@ -207,6 +207,29 @@ class DrawingTakeoff(unittest.TestCase):
                 self.assertEqual(row["count"], 1)
                 self.assertEqual(row["evidence"][0]["bbox"], [90, 100, 110, 110])
 
+    def test_window_span_does_not_use_scale_from_schedule(self):
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"STOA_DATA": d, "SITELENS_STORE": d}):
+            path = "Plan.pdf"
+            with pymupdf.open() as doc:
+                page = doc.new_page()
+                page.insert_text((50, 50), "GROUND FLOOR PLAN")
+                page.draw_rect(pymupdf.Rect(330, 70, 570, 240))
+                page.insert_text((340, 95), "DOOR SCHEDULE")
+                for y, row in [(115, ("MARK", "TYPE", "WIDTH")),
+                               (130, ("D1", "A1", "900mm")),
+                               (145, ("D2", "A1", "900mm")),
+                               (160, ("D3", "A1", "900mm"))]:
+                    for x, label in zip((340, 415, 490), row):
+                        page.insert_text((x, y), label, fontsize=8)
+                page.insert_text((340, 225), "Scale 1:20")
+                doc.save(Path(d) / path)
+            window = ("Windows", Evidence(path, [100, 100, 160, 104]), "Detected symbol", None)
+            with patch.object(takeoff_2d, "_detected", return_value=[window]):
+                result = takeoff.takeoff(path)
+            row = next(r for r in result["rows"] if r["category"] == "Windows")
+            self.assertEqual(row["count"], 1)
+            self.assertEqual(row["size"], "")
+
     def test_framed_plan_beside_unframed_elevation(self):
         with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"STOA_DATA": d, "SITELENS_STORE": d}):
             path = "Views.pdf"

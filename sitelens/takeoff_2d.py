@@ -535,7 +535,7 @@ def _sheet(path, root, mtime, weights_mtime):
                     if _outside_schedule(list(pymupdf.Rect(line["bbox"]) * page.rotation_matrix), excluded_views)
                 )
             has_other = bool(NON_PLAN_VIEW.search(outside_views)) or bool(excluded_views and not has_plan)
-            multiple_views = len(plan_titles) > 1 or (has_plan and (has_other or bool(excluded_views)))
+            multiple_views = len(plan_titles) > 1 or (has_plan and (has_other or bool(excluded_views or tables)))
             schedule_unbounded = _unbounded_schedule(text, tables, has_plan, bounded_schedule)
             plan_frames = []
             if (schedule_unbounded or has_other) and has_plan:
@@ -559,7 +559,8 @@ def _sheet(path, root, mtime, weights_mtime):
             objects = [obj for obj in objects if _outside_schedule(obj[1].bbox, regions)]
             scale_issue = (UNKNOWN_VIEW_SCALE
                            if NOT_TO_SCALE.search(text) else
-                           "This sheet has multiple views; the applicable scale is unknown." if multiple_views or schedule_unbounded else "")
+                           "This sheet has multiple views or a schedule; the applicable scale is unknown."
+                           if multiple_views or schedule_unbounded else "")
             pages.append((page.number, objects, words, bars, scale_issue, False))
         return pages, len(doc) > reviewed, page_tables, excluded
 
