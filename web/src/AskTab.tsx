@@ -4,7 +4,7 @@ import type { Answer, Drawing } from "./types";
 import Picker from "./Picker";
 import Viewer from "./Viewer";
 import AnswerCard from "./AnswerCard";
-import { SOURCE_LABEL, shortName } from "./format";
+import { SOURCE_LABEL, sheetCode, shortName } from "./format";
 
 type Status = "idle" | "asking" | "answered" | "unknown" | "error";
 
@@ -18,6 +18,7 @@ export default function AskTab() {
   const [hover, setHover] = useState<number | null>(null);
   const [focus, setFocus] = useState<number | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [asked, setAsked] = useState("");
 
   useEffect(() => {
     getDrawings()
@@ -44,12 +45,14 @@ export default function AskTab() {
     setAnswer(null);
     setStatus("idle");
     setQuestion("");
+    setAsked("");
     setShowAll(false);
   }
 
   async function run(p: string, q: string) {
     if (!q.trim()) return;
     setQuestion(q);
+    setAsked(q);
     setStatus("asking");
     setAnswer(null);
     setHover(null);
@@ -77,6 +80,7 @@ export default function AskTab() {
 
   const chips = drawing ? (showAll ? drawing.questions : drawing.questions.slice(0, 5)) : [];
   const view = answer?.view ?? drawing?.view ?? "";
+  const code = drawing ? sheetCode(drawings.map((d) => d.path), drawing.path, drawing.source) : "";
 
   return (
     <div className="ask">
@@ -84,6 +88,8 @@ export default function AskTab() {
 
       <section className="panel sheet">
         <div className="panel-head">
+          <span className="tb-label">Sheet</span>
+          <span className="mono sheet-no">{code}</span>
           <span className="tb-label">File</span>
           <span className="mono ellipsis">{shortName(path)}</span>
           <span className="spacer" />
@@ -94,7 +100,7 @@ export default function AskTab() {
         {view.endsWith(".ifc") ? (
           <div className="empty">3D model: the 3D view comes in step 3. Answers and evidence are on the right.</div>
         ) : view ? (
-          <Viewer view={view} answer={answer} hover={hover} focus={focus} onHover={setHover} />
+          <Viewer view={view} answer={answer} hover={hover} focus={focus} onHover={setHover} busy={status === "asking"} />
         ) : (
           <div className="empty">{error || "Loading drawings…"}</div>
         )}
@@ -125,8 +131,14 @@ export default function AskTab() {
             <div className="chips">
               <div className="tb-label">Stoa's questions for this drawing</div>
               {chips.map((q, i) => (
-                <button key={i} className="chip" onClick={() => run(path, q.question)} title={q.question}>
-                  {q.question}
+                <button
+                  key={i}
+                  className={`chip ${q.question === asked ? "on" : ""}`}
+                  onClick={() => run(path, q.question)}
+                  title={q.question}
+                >
+                  <span className={`qtype ${q.type}`}>{q.type}</span>
+                  <span className="ellipsis">{q.question}</span>
                 </button>
               ))}
               {drawing.questions.length > 5 && (

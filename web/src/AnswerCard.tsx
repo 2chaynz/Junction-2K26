@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { METHOD_COLOR, fmtEur, fmtValue } from "./format";
+import { useMemo, useState } from "react";
+import { BASELINE_EUR, METHOD_COLOR, fmtEur, fmtValue } from "./format";
 import type { Answer } from "./types";
 
 type Props = {
@@ -10,8 +10,26 @@ type Props = {
   onFocus: (i: number | null) => void;
 };
 
+const METHOD_WHAT: Record<string, string> = {
+  ifc: "read from the BIM model, no AI",
+  vector: "read from the CAD geometry, no AI",
+  detector: "symbol detector, runs on a laptop CPU",
+  vlm: "vision model, last resort",
+  none: "no method could answer",
+};
+
 export default function AnswerCard({ answer, status, hover, onHover, onFocus }: Props) {
   const [json, setJson] = useState(false);
+
+  // Group evidence by label: "28 × window" reads faster than 28 rows.
+  const groups = useMemo(() => {
+    const g = new Map<string, number[]>();
+    answer?.evidence.forEach((e, i) => {
+      const k = e.label || e.kind;
+      g.set(k, [...(g.get(k) ?? []), i]);
+    });
+    return [...g.entries()];
+  }, [answer]);
 
   if (!answer) {
     return (
@@ -19,15 +37,24 @@ export default function AnswerCard({ answer, status, hover, onHover, onFocus }: 
         <div className="panel-head">
           <span className="tb-label">Answer</span>
         </div>
-        <p className="dim">{status === "asking" ? "Reading the drawing…" : "Pick a drawing, then ask or tap one of Stoa's questions."}</p>
+        {status === "asking" ? (
+          <p className="hand big">Reading the drawing…</p>
+        ) : (
+          <ol className="howto">
+            <li><b>Pick</b> a drawing on the left.</li>
+            <li><b>Ask</b> anything, or tap one of Stoa's questions.</li>
+            <li><b>Check</b> the red marks on the plan: every answer shows where it comes from.</li>
+          </ol>
+        )}
       </div>
     );
   }
 
   const c = answer.check;
   const color = METHOD_COLOR[answer.method] ?? METHOD_COLOR.none;
-  // The router appends its own timing line; the UI shows time in the footer instead.
+  // The router appends its own timing line; the footer shows time instead.
   const notes = answer.trace.filter((s) => !/ path, [\d.]+s$/.test(s));
+  const cheaper = answer.cost_eur > 0 ? Math.round(BASELINE_EUR / answer.cost_eur) : null;
 
   return (
     <div className="panel answer">
@@ -38,8 +65,11 @@ export default function AnswerCard({ answer, status, hover, onHover, onFocus }: 
       </div>
 
       <div className="value-row">
-        <div className="value">{fmtValue(answer.value, answer.unit)}</div>
-        {c && (
+        <div>
+          <div className="value">{fmtValue(answer.value, answer.unit)}</div>
+          <div className="dim small">{METHOD_WHAT[answer.method] ?? answer.method}</div>
+        </div>
+        {c && c.match !== null && (
           <div className={`stamp ${c.match ? "ok" : "ko"}`}>
             {c.match ? "CHECKED ✓" : "MISMATCH ✗"}
             <small>Stoa: {fmtValue(c.expected, c.unit)}</small>
@@ -55,24 +85,45 @@ export default function AnswerCard({ answer, status, hover, onHover, onFocus }: 
         </ol>
       )}
 
-      {answer.evidence.length > 0 && (
+      {groups.length > 0 && (
         <div className="evidence">
-          <div className="tb-label">Evidence · {answer.evidence.length}</div>
-          <ul>
-            {answer.evidence.map((e, i) => (
-              <li
-                key={i}
-                className={hover === i ? "hot" : ""}
-                onMouseEnter={() => onHover(i)}
-                onMouseLeave={() => onHover(null)}
-                onClick={() => onFocus(i)}
-              >
-                <span className="num">{i + 1}</span>
-                <span className="ellipsis">{e.label || e.kind}</span>
-                {e.ifc_guid && <span className="mono dim">{e.ifc_guid.slice(0, 8)}</span>}
-              </li>
-            ))}
-          </ul>
+          <div className="tb-label">Evidence on the plan · {answer.evidence.length}</div>
+          {groups.every(([, idx]) => idx.length === 1) ? (
+            <ul className="rows">
+              {groups.map(([label, [i]]) => (
+                <li
+                  key={i}
+                  className={hover === i ? "hot" : ""}
+                  onMouseEnter={() => onHover(i)}
+                  onMouseLeave={() => onHover(null)}
+                  onClick={() => onFocus(i)}
+                >
+                  <span className="hand">{i + 1}</span>
+                  <span className="ellipsis">{label}</span>
+                </li>
+              ))}
+            </ul>
+          ) : groups.map(([label, idx]) => (
+            <div key={label} className="group">
+              <div className="group-label">
+                <span className="hand">{idx.length} ×</span> {label}
+              </div>
+              <div className="nums">
+                {idx.map((i) => (
+                  <button
+                    key={i}
+                    className={hover === i ? "hot" : ""}
+                    onMouseEnter={() => onHover(i)}
+                    onMouseLeave={() => onHover(null)}
+                    onClick={() => onFocus(i)}
+                    title={answer.evidence[i].ifc_guid ?? `zoom to #${i + 1}`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -92,6 +143,10 @@ export default function AnswerCard({ answer, status, hover, onHover, onFocus }: 
           </tr>
         </tbody>
       </table>
+      <div className="versus mono">
+        Whole-sheet vision model: ~{fmtEur(BASELINE_EUR)} ·{" "}
+        {cheaper ? `${cheaper}× cheaper here` : "no model call here"}
+      </div>
 
       <button className="btn ghost small" onClick={() => setJson(!json)}>
         {json ? "hide" : "show"} API response
