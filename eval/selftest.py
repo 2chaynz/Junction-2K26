@@ -21,4 +21,22 @@ except ValueError as e:
 with vlm.use_backend("nemotron"):
     assert vlm._override.get() == "nemotron"
 assert vlm._override.get() is None
+import http.server, os, threading, time
+from sitelens.vlm_backends import _http
+calls = []
+class H(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):  # 1st: 503, 2nd: hangs past the deadline, 3rd: ok
+        calls.append(1)
+        if len(calls) == 1:
+            self.send_error(503)
+            return
+        if len(calls) == 2:
+            time.sleep(2)
+        self.send_response(200); self.end_headers(); self.wfile.write(b'{"ok": 1}')
+    def log_message(self, *a): pass
+srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+_http.BACKOFF_S, os.environ["SITELENS_VLM_TIMEOUT"] = (0, 0), "0.5"
+assert _http.request_json(f"http://127.0.0.1:{srv.server_port}/", {}) == {"ok": 1} and len(calls) == 3
+srv.shutdown()
 print("selftest ok")

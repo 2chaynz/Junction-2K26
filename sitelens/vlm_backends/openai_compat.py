@@ -8,19 +8,18 @@ from __future__ import annotations
 
 import base64
 import io
-import json
 import os
 import time
-import urllib.request
 from functools import lru_cache
+
+from ._http import request_json
 
 
 def _post(url: str, key: str | None, body: dict | None = None) -> dict:
     h = {"Content-Type": "application/json", "Accept": "application/json"}
     if key:
         h["Authorization"] = f"Bearer {key}"
-    req = urllib.request.Request(url, data=json.dumps(body).encode() if body else None, headers=h)
-    return json.load(urllib.request.urlopen(req, timeout=300))
+    return request_json(url, h, body)
 
 
 @lru_cache(maxsize=8)
