@@ -10,7 +10,7 @@
 //   node scripts/status.mjs log "<text>"
 //   node scripts/status.mjs publish <paths...>           push ideas/, context/, tickets/ files to main
 //   node scripts/status.mjs watch [--force]              hook: notice when shared files change on main
-//   node scripts/status.mjs beat [T3] "<doing now>"      heartbeat: what this agent is doing (ticket from branch)
+//   node scripts/status.mjs beat [T3] "<doing now>"      heartbeat: what this agent is doing (claimed ticket)
 //   node scripts/status.mjs close-merged                 set review tickets whose PR merged to done (Action + show)
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, rmSync, existsSync, cpSync, mkdirSync } from "node:fs";
@@ -117,6 +117,7 @@ const mainHash = () => { try { return git(["rev-parse", "origin/main"], { cwd: r
 const BEATS = "beats";
 const STALE_MIN = 15;
 const AUTO_BEAT_MS = 5 * 60000;
+const RETRY_MS = 60000;
 const fetchBeats = (timeout = 15000) => {
   try { git(["fetch", "--quiet", "origin", `+refs/heads/${BEATS}:refs/remotes/origin/${BEATS}`], { cwd: root, timeout }); return true; }
   catch { return false; }
@@ -125,6 +126,21 @@ const readBeats = () => { try { return JSON.parse(git(["show", `origin/${BEATS}:
 const branchTicket = () => {
   try { return (git(["branch", "--show-current"], { cwd: root }).match(/(?:^|\/)(T\d+)(?:-|$)/i) || [])[1]?.toUpperCase() || ""; }
   catch { return ""; }
+};
+// Agents often work on a branch not named after the ticket they claimed; beat the claimed one.
+// Reads the last fetched origin/main only, so the hook stays fast.
+const beatTicket = () => {
+  const fromName = branchTicket();
+  try {
+    const branch = git(["branch", "--show-current"], { cwd: root });
+    const me = git(["config", "user.name"], { cwd: root });
+    const doing = parseTable(showFile("TASKS.md")).rows.filter((r) => r.status === "doing");
+    const hit = doing.find((r) => branch && r.branch === branch) || doing.find((r) => idOf(r) === fromName);
+    if (hit) return idOf(hit);
+    const mine = doing.filter((r) => r.owner === me);
+    if (mine.length === 1) return idOf(mine[0]);
+  } catch {}
+  return fromName;
 };
 const minsAgo = (iso) => Math.round((Date.now() - new Date(iso).getTime()) / 60000);
 function pushBeat(id, text, { tries = 4, timeout = 20000 } = {}) {
@@ -334,22 +350,24 @@ const commands = {
   },
 
   beat() {
-    const id = /^T\d+$/i.test(pos[0] || "") ? pos.shift().toUpperCase() : branchTicket();
+    const id = /^T\d+$/i.test(pos[0] || "") ? pos.shift().toUpperCase() : beatTicket();
     if (flags.hook) {
       // Runs after every tool call: throttled, silent, never fails. Inline, not detached:
       // Claude Code on Windows kills a hook's child processes when the hook exits.
       try {
         if (!id) return;
         const s = readState();
-        const last = s.beats?.[id] || 0;
-        if (Date.now() - last < AUTO_BEAT_MS) return;
+        if (Date.now() - (s.beats?.[id] || 0) < AUTO_BEAT_MS) return;
+        // Claim the slot first so parallel tool calls don't all push.
         writeState({ ...s, beats: { ...s.beats, [id]: Date.now() } });
-        // One short try keeps the hook under its 10s timeout; the next one comes in 5 min.
-        pushBeat(id, "", { tries: 1, timeout: 4000 });
+        // GitHub fetch/push can take 4-6s each; one try at 8s fits the 20s hook timeout.
+        const ok = pushBeat(id, "", { tries: 1, timeout: 8000 });
+        // Failed: retry in ~1 min instead of waiting a full interval.
+        if (!ok) { const s2 = readState(); writeState({ ...s2, beats: { ...s2.beats, [id]: Date.now() - AUTO_BEAT_MS + RETRY_MS } }); }
       } catch {}
       return;
     }
-    if (!id) fail('Usage: beat [T3] "<doing now>" (or run on a <person>/T<n>-slug branch)');
+    if (!id) fail('Usage: beat [T3] "<doing now>" (or run with one doing ticket / on its branch)');
     const text = pos.join(" ").slice(0, 140);
     if (!pushBeat(id, text)) fail("Beat not pushed. Check network and `gh auth status`.");
     const s = readState();
