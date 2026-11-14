@@ -18,8 +18,8 @@ RASTER = (".png", ".jpg", ".jpeg")
 
 # question pattern (en / fi) → detector classes summed for the count. Order matters: first match wins.
 TARGETS: list[tuple[str, tuple[str, ...]]] = [
+    (r"(?i)bathrooms or washrooms|kylpy- tai pesuhuone", ("room_bath",)),  # mentions WC rooms: match first
     (r"(?i)separate WC rooms|erillist\w* WC-til", ("room_wc",)),
-    (r"(?i)bathrooms or washrooms|kylpy- tai pesuhuone", ("room_bath",)),
     (r"(?i)toilet bowls|WC seats|WC-istuin|\btoilets?\b", ("toilet",)),
     (r"(?i)showers and bathtubs|suihkua ja kylpyamme", ("shower", "bathtub")),
     (r"(?i)\bshowers?\b|suihku", ("shower",)),
@@ -27,7 +27,7 @@ TARGETS: list[tuple[str, tuple[str, ...]]] = [
     (r"(?i)sinks|wash ?basins|pesu- ja tiskiallas|allas", ("sink",)),
     (r"(?i)windows?|ikkun", ("window",)),
     (r"(?i)doors?\b|ovea|ovi", ("door",)),
-    (r"(?i)saunas?\b|saunaa", ("room_sauna",)),
+    (r"(?i)saunas?\b|saunaa", ("sauna_bench",)),  # benches clustered per sauna: 89% vs 47% for the room class
     (r"(?i)kitchens?|keitti", ("room_kitchen",)),
     (r"(?i)bedrooms?|makuuhuone", ("room_bedroom",)),
     (r"(?i)balcon|parveke", ("room_outdoor",)),
@@ -35,8 +35,20 @@ TARGETS: list[tuple[str, tuple[str, ...]]] = [
 FLOORS = re.compile(r"(?i)floors \(storeys\)|how many floors|kerrosta")
 COUNT_CUE = re.compile(r"(?i)how many|number of|kuinka monta|montako")
 
-# per-class confidence thresholds; tune on the `rest` split (never on dev)
+# confidence threshold per target (classes joined by "+"), tuned on the `rest` split only
 CONF = {"default": 0.35}
+
+
+CLUSTER = {"sauna_bench": 0.05}  # count groups of touching boxes, gap as fraction of image size
+
+
+def _clusters(boxes: list, gap: float) -> list[list]:
+    groups: list[list] = []
+    for b in boxes:
+        near = [g for g in groups if any(not (b[2] + gap < o[0] or o[2] + gap < b[0] or b[3] + gap < o[1]
+                                              or o[3] + gap < b[1]) for o in g)]
+        groups = [g for g in groups if g not in near] + [[b] + [o for g in near for o in g]]
+    return groups
 
 
 def _weights() -> Path:
@@ -70,16 +82,24 @@ def detect(path: str) -> tuple:
 def answer(path: str, question: str) -> Answer | None:
     if not path.lower().endswith(RASTER) or not COUNT_CUE.search(question):
         return None
-    if FLOORS.search(question):
-        # Not detectable yet: most single images show one storey (80% of preview floors answers are 1).
-        return Answer(value=1, unit="count", method="detector", confidence=0.5,
-                      trace=["floor count: default 1 (no storey detector yet)"])
-    classes = next((c for rx, c in TARGETS if re.search(rx, question)), None)
+    classes = ("floor",) if FLOORS.search(question) else next((c for rx, c in TARGETS if re.search(rx, question)), None)
     if classes is None or _model() is None:
         return None
-    hits = [d for d in detect(path) if d[0] in classes and d[1] >= CONF.get(d[0], CONF["default"])]
+    t = CONF.get("+".join(classes), CONF["default"])
+    hits = [d for d in detect(path) if d[0] in classes and d[1] >= t]
+    if classes == ("floor",) and not hits:
+        return Answer(value=1, unit="count", method="detector", confidence=0.5, trace=["no storey box found, default 1"])
+    if len(classes) == 1 and classes[0] in CLUSTER:
+        from PIL import Image
+        gap = CLUSTER[classes[0]] * max(Image.open(data_root() / path).size)
+        groups = _clusters([list(b) for _, _, b in hits], gap)
+        ev = [Evidence(file=path, label=f"{classes[0]} group ({len(g)})",
+                       bbox=[min(x[0] for x in g), min(x[1] for x in g), max(x[2] for x in g), max(x[3] for x in g)])
+              for g in groups]
+        return Answer(value=len(groups), unit="count", method="detector", confidence=0.7, cost_eur=0.00001,
+                      evidence=ev, trace=[f"{len(hits)} {classes[0]} boxes ≥ {t}", f"{len(groups)} groups"])
     return Answer(
         value=len(hits), unit="count", method="detector", confidence=0.7, cost_eur=0.00001,
         evidence=[Evidence(file=path, bbox=list(b), label=f"{c} {p:.2f}") for c, p, b in hits],
-        trace=[f"detector classes {', '.join(classes)}", f"{len(hits)} boxes ≥ threshold"],
+        trace=[f"detector classes {', '.join(classes)}", f"{len(hits)} boxes ≥ {t}"],
     )
