@@ -52,8 +52,12 @@ with tempfile.TemporaryDirectory() as d:
     # questions, through the curated-pair lookup
     diff.pairs = lambda: [{"old": old, "new": new}]
     p = new
-    assert diff.answer(p, "How many doors were added since the previous issue?").value == 2
-    assert diff.answer(p, "How many doors were removed?").value == 1
+    r = diff.answer(p, "How many doors were added since the previous issue?")
+    assert r.value == 2 and len(r.evidence) == 2, r          # one box per counted door
+    r = diff.answer(p, "How many doors were removed?")
+    assert r.value == 1 and [e.label for e in r.evidence] == ["quantity: door 102.A removed"], r
+    s = diff.SCALE.search("DETAIL 1 1/2\" = 1'-0\"")
+    assert (s.group(1), s.group(2), s.group(3)) == ("1", "1", "2"), s.groups()  # mixed number, not 1/2
     r = diff.answer(p, "How much did the area change?")
     assert (r.value, r.unit) == (30.0, "ft2"), r
     assert diff.answer(p, "What changed?").value == a.value

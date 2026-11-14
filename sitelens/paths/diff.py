@@ -48,7 +48,7 @@ ORDER = ("quantity", "changed", "removed", "added", "table", "drawing")  # most 
 AREA_Q = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(SF|SQ\.? ?FT|sq\.? ?ft|ft2|ft²|m2|m²)(?![A-Za-z])")
 FTIN_Q = re.compile(r"(\d+)'\s*-?\s*(\d+)?(?:\s+(\d+)/(\d+))?\"?")
 DOOR_MARK = re.compile(r"^\d{2,3}\.[A-Z]\d?$")
-SCALE = re.compile(r"(\d+)(?:/(\d+))?\"\s*=\s*1'\s*-\s*0\"")
+SCALE = re.compile(r"(?<![\d/])(?:(\d+)\s+)?(\d+)(?:/(\d+))?\s*\"\s*=\s*1\s*'\s*-?\s*0\s*\"")  # 1 1/2" = 1'-0"
 SIZE_RATIO = 4.0      # a size that grows/shrinks more than this is a mis-paired label, not an edit
 RASTER_INK = 0.5      # both issues have this share of ink in a region...
 RASTER_LINES = 0.1    # ...but one has under this share of vector lines: it was drawn as an image
@@ -269,19 +269,6 @@ def _bbox(r: fitz.Rect) -> list[float]:
     return [round(r.x0, 1), round(r.y0, 1), round(r.x1, 1), round(r.y1, 1)]
 
 
-AREA_Q = re.compile(r"(?i)(\d[\d,]*(?:\.\d+)?)\s*(SF|SQ\.?\s*FT|FT²|FT2|M²|M2)(?![A-Za-z])")
-FTIN_Q = re.compile(r"(\d+)\s*'\s*-?\s*(\d+)?(?:\s+(\d+)/(\d+))?\s*\"?")
-SCALE = re.compile(r"(\d+)(?:/(\d+))?\s*\"\s*=\s*1\s*'\s*-?\s*0\s*\"")
-DOOR_MARK = re.compile(r"\d{3}[A-Z]?\.[A-Z]\d?$")
-SIZE_RATIO = 2.0     # old/new dims further apart than this are different things, not a resize
-RASTER_SHARE = 0.5   # region mostly covered by an embedded image: its lines can't be measured
-HATCH_DENSITY = 6.0  # pt of line per pt of box perimeter: more than outlines, so a hatch or fill pattern
-DOOR_ASK = re.compile(r"(?i)\bdoors?\b|\bovi|\btür")
-ADDED_ASK = re.compile(r"(?i)\badd|\bnew\b|lisät|hinzu")
-REMOVED_ASK = re.compile(r"(?i)remov|delet|poist|entfern")
-AREA_ASK = re.compile(r"(?i)\barea|\bSF\b|square|m²|\bm2\b|pinta-ala|fläche")
-
-
 def _areas(text: str) -> list[tuple[float, str]]:
     return [(float(n.replace(",", "")), "m2" if u.lower().startswith("m") else "ft2") for n, u in AREA_Q.findall(text)]
 
@@ -318,7 +305,7 @@ def _scales(page) -> list[tuple[float, fitz.Point]]:
     out = []
     for b in page.get_text("blocks"):
         for m in SCALE.finditer(b[4].replace("\n", " ")):
-            paper_in = float(m.group(1)) / float(m.group(2) or 1)
+            paper_in = float(m.group(1) or 0) + float(m.group(2)) / float(m.group(3) or 1)
             r = fitz.Rect(b[:4]) * page.rotation_matrix
             if paper_in > 0:
                 out.append((1 / (72 * paper_in), fitz.Point((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2)))
@@ -519,9 +506,10 @@ def answer(path: str, question: str) -> Answer | None:
     a.trace.insert(0, f"compared with earlier issue: {p['old']}")
     if DOOR_ASK.search(question) and (q["doors_added"] or q["doors_removed"]):
         add, rem = len(q["doors_added"]), len(q["doors_removed"])
-        a.value = add if ADDED_ASK.search(question) and not REMOVED_ASK.search(question) else \
-            rem if REMOVED_ASK.search(question) and not ADDED_ASK.search(question) else add - rem
-        a.evidence = [e for e in a.evidence if " door " in e.label]
+        wants_add, wants_rem = ADDED_ASK.search(question), REMOVED_ASK.search(question)
+        keep = "added" if wants_add and not wants_rem else "removed" if wants_rem and not wants_add else ""
+        a.value = add if keep == "added" else rem if keep == "removed" else add - rem
+        a.evidence = [e for e in a.evidence if " door " in e.label and e.label.endswith(keep)]
         a.trace.append(f"answer: doors +{add} / -{rem}")
     elif AREA_ASK.search(question) and q["area_delta"]:
         u, d = max(q["area_delta"].items(), key=lambda kv: abs(kv[1]))
