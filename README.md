@@ -8,7 +8,8 @@ Our entry for Junction 2026 (Espoo, 13–15 Nov). Agents do the building; humans
 1. Clone, then run: `bash scripts/setup.sh`. Fix anything marked `FIX`.
    - Turns on the git hook that guards `main`. Checks `node`, `gh auth`, git name, `claude`/`codex`.
 2. Codex users: allow network in `~/.codex/config.toml` (see `AGENTS.md` → Codex setup).
-3. Open your agent in the repo and ask: "What's the workflow here?" It should describe `AGENTS.md`.
+3. Run the demo: `node scripts/dev.mjs` → http://localhost:8000. First run installs deps and downloads the dataset to `../junction-data/`. Put keys (e.g. `GEMINI_API_KEY`) in `.env`.
+4. Open your agent in the repo and ask: "What's the workflow here?" It should describe `AGENTS.md`.
 
 ## How it works
 - **The repo is the team's shared memory.** Agents read and write a few files; nobody re-explains anything.
