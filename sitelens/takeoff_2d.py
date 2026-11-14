@@ -399,7 +399,8 @@ def _sheet(path, root, mtime, weights_mtime):
             regions.extend(excluded_views)
             words = [(token, box) for token, box in words if _outside_schedule(box, excluded_views)]
             bars = _pdf_bars(path, page, words)
-            has_plan = bool(PLAN_TITLE.search(text))
+            plan_titles = list(PLAN_TITLE.finditer(text))
+            has_plan = bool(plan_titles)
             outside_views = text
             if excluded_views:
                 outside_views = "\n".join(
@@ -409,7 +410,7 @@ def _sheet(path, root, mtime, weights_mtime):
                     if _outside_schedule(list(pymupdf.Rect(line["bbox"]) * page.rotation_matrix), excluded_views)
                 )
             has_other = bool(NON_PLAN_VIEW.search(outside_views)) or bool(excluded_views and not has_plan)
-            mixed = has_plan and (has_other or bool(excluded_views))
+            multiple_views = len(plan_titles) > 1 or (has_plan and (has_other or bool(excluded_views)))
             objects = _vector(path) if page.number == 0 else []
             if not objects:
                 if has_other or (tables and not has_plan):
@@ -419,7 +420,7 @@ def _sheet(path, root, mtime, weights_mtime):
             objects = [obj for obj in objects if _outside_schedule(obj[1].bbox, regions)]
             scale_issue = (UNKNOWN_VIEW_SCALE
                            if NOT_TO_SCALE.search(text) else
-                           "This sheet has multiple views; the applicable scale is unknown." if mixed else "")
+                           "This sheet has multiple views; the applicable scale is unknown." if multiple_views else "")
             pages.append((page.number, objects, words, bars, scale_issue))
         return pages, len(doc) > reviewed, page_tables, excluded
 

@@ -232,6 +232,24 @@ class DrawingTakeoff(unittest.TestCase):
         self.assertEqual(row["size"], "")
         self.assertTrue(any("disagree" in line for line in row["reason"]))
 
+    def test_two_plan_views_do_not_share_one_scale(self):
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"STOA_DATA": d, "SITELENS_STORE": d}):
+            path = "Plans.pdf"
+            with pymupdf.open() as doc:
+                page = doc.new_page()
+                page.insert_text((50, 50), "GROUND FLOOR PLAN")
+                page.insert_text((350, 50), "FIRST FLOOR PLAN")
+                page.insert_text((50, 70), "Scale 1:100")
+                doc.save(Path(d) / path)
+            windows = [("Windows", Evidence(path, box), "Detected symbol", None)
+                       for box in ([50, 100, 80, 104], [350, 100, 380, 104])]
+            with patch.object(takeoff_2d, "_detected", return_value=windows):
+                result = takeoff.takeoff(path)
+            row, = result["rows"]
+            self.assertEqual(row["count"], 2)
+            self.assertEqual(row["size"], "")
+            self.assertTrue(any("multiple views" in line for line in row["reason"]))
+
     def test_disagreeing_scale_bars_do_not_produce_dimensions(self):
         from sitelens.measure import Scale
 
