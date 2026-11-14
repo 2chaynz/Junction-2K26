@@ -7,11 +7,11 @@ import json
 import os
 import urllib.request
 
-EUR_PER_MTOK = (0.30, 2.50)  # input, output; set to the model you use
+EUR_PER_MTOK = (0.70, 3.50)  # gemini-3.8-flash $0.75 / $3.75 incl. thinking, until 2026-12-31
 
 
 def model() -> str:
-    return os.environ.get("SITELENS_GEMINI_MODEL", "gemini-2.5-flash")
+    return os.environ.get("SITELENS_GEMINI_MODEL", "gemini-3.8-flash")  # 2.5-flash is closed to new keys
 
 
 def ask(img, prompt: str) -> tuple[str, float]:
