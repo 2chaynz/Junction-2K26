@@ -75,7 +75,7 @@ def extract(path: str) -> list[Table]:
     W = _words(path)
     tables = []
     for i, w in enumerate(W):
-        if w[4].lower() not in ("schedule", "schedules"):
+        if w[4].lower() not in ("schedule", "schedules", "key", "legend"):
             continue
         title_ws = [x for x in W if abs((x[1] + x[3]) / 2 - (w[1] + w[3]) / 2) < 2 and abs(x[0] - w[0]) < 300]
         title = " ".join(x[4] for x in sorted(title_ws, key=lambda x: x[0]))
@@ -148,10 +148,73 @@ def _pick(tables: list[Table], q: str) -> Table | None:
 CODE = re.compile(r"""\b(?:type|note|finish|base|key|group)\s+([A-Z]{1,3}-?\d{0,2})\b|(\d+'-\s?\d+(?:\s\d+/\d+)?")""", re.I)
 
 
+LLM_PROMPT = """You answer questions about construction drawing schedules. Below are the tables extracted from one
+sheet (title, header, then rows as `index | cells`). Cells may have merged words. Use only these tables.
+Question: {q}
+
+{tables}
+
+Reply with JSON only: {{"answer": <number for counts/areas, otherwise short text exactly as written on the sheet>,
+"table": "<title of the table you used>", "rows": [<row indexes you used>]}}
+If the tables cannot answer the question, reply {{"answer": null}}."""
+EUR_PER_MTOK = (0.30, 2.50)
+
+
+def _table_text(tables: list[Table]) -> str:
+    out = []
+    for t in tables:
+        out.append(f"## {t.title}\nheader: " + " | ".join(t.header))
+        out += [f"{i} | " + " | ".join(r) for i, r in enumerate(t.rows)]
+    return "\n".join(out)
+
+
+def _llm(path: str, question: str, tables: list[Table]) -> Answer | None:
+    import json
+    import os
+    import urllib.request
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key or not tables:
+        return None
+    model = os.environ.get("SITELENS_SCHEDULE_MODEL", "gemini-3.5-flash")
+    body = {"contents": [{"parts": [{"text": LLM_PROMPT.format(q=question, tables=_table_text(tables))}]}],
+            "generationConfig": {"responseMimeType": "application/json", "temperature": 0}}
+    req = urllib.request.Request(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+        data=json.dumps(body).encode(), headers={"Content-Type": "application/json", "x-goog-api-key": key})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        d = json.load(r)
+    u = d.get("usageMetadata", {})
+    cost = (u.get("promptTokenCount", 0) * EUR_PER_MTOK[0]
+            + (u.get("candidatesTokenCount", 0) + u.get("thoughtsTokenCount", 0)) * EUR_PER_MTOK[1]) / 1e6
+    text = d["candidates"][0]["content"]["parts"][0]["text"]
+    j = json.loads(text[text.find("{"): text.rfind("}") + 1])
+    if j.get("answer") in (None, ""):
+        return None
+    t = next((t for t in tables if t.title == j.get("table")), tables[0])
+    idx = [i for i in j.get("rows") or [] if isinstance(i, int) and 0 <= i < len(t.rows)]
+    v = j["answer"]
+    if isinstance(v, str) and re.fullmatch(r"[\d,]+(\.\d+)?", v.strip()):
+        v = float(v.replace(",", ""))
+    return Answer(value=v, unit=None, method="vector+llm", confidence=0.7, cost_eur=round(cost, 6),
+                  evidence=[Evidence(file=path, bbox=t.boxes[i], label=" | ".join(c for c in t.rows[i] if c)[:80]) for i in idx],
+                  trace=[f"{len(tables)} tables extracted from the sheet's text layer", f"{model} read table '{t.title}'",
+                         f"rows used: {idx[:20]}{' …' if len(idx) > 20 else ''}"])
+
+
 def answer(path: str, question: str) -> Answer | None:
     if "/opening_design/" not in path or not path.lower().endswith(".pdf"):
         return None
     tables = extract(path)
+    try:
+        a = _llm(path, question, tables)
+        if a is not None:
+            return a
+    except Exception:  # API down / quota: fall back to rules
+        pass
+    return _rules(path, question, tables)
+
+
+def _rules(path: str, question: str, tables: list[Table]) -> Answer | None:
     t = _pick(tables, question)
     if t is None or not t.rows:
         return None
