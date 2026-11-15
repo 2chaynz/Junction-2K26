@@ -99,4 +99,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T92 Pages never served stale after a rebuild | app |  | 2chaynz | done | 2chaynz/T92-nocache |  |  |
 | T93 Import a folder or zip of drawings as a new project | app |  | Asif | done | asif/T93-import |  |  |
 | T94 Sindri logo: red dot on the last i | app | T90 | ccolver | done | ccolver/T94-logo |  |  |
-| T95 Delete an imported project | app | T93 |  | todo |  |  |  |
+| T95 Delete an imported project | app | T93 | Asif | doing | asif/T95-delete-project |  |  |
