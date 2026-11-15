@@ -15,7 +15,7 @@ import pymupdf
 from . import data_root
 
 RED = (0.85, 0.18, 0.13)
-AUTHOR = "SiteLens"
+AUTHOR = "Sindri"
 
 
 def _page(path: str) -> tuple[pymupdf.Document, pymupdf.Page]:
@@ -71,7 +71,7 @@ def redline(path: str, question: str, answer: dict) -> bytes:
     lines += [f"· {t}" for t in answer.get("trace") or []]
     note = page.add_text_annot(pymupdf.Point(12, 12) * (page.derotation_matrix if path.lower().endswith(".pdf")
                                                          else pymupdf.Identity), "\n".join(lines), icon="Comment")
-    note.set_info(title=AUTHOR, subject="SiteLens answer")
+    note.set_info(title=AUTHOR, subject="Sindri answer")
     note.set_colors(stroke=RED)
     note.update()
     out = doc.tobytes(garbage=3, deflate=True)

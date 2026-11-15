@@ -108,7 +108,7 @@ def _gemini(prompt: str, json_mode: bool = False, search: bool = False, timeout:
     return (text, cand.get("groundingMetadata") or {}), cost + (GROUNDING_EUR if search else 0.0), model
 
 
-WEB = """You are SiteLens, a tool for construction project teams. The user has the drawing "{name}" open.
+WEB = """You are Sindri, a tool for construction project teams. The user has the drawing "{name}" open.
 The drawing's own readers could not answer the question{why}. Always run a Google Search first, then answer from reliable web sources
 (building codes, manufacturer data, standards, typical practice) in at most 4 short sentences, plain text,
 no markdown. Say plainly when the answer depends on the specific project and can't be known from the web.

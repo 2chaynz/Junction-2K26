@@ -20,7 +20,7 @@ QUOTED = re.compile(r"['‘«“„\"]([^'’»”“\"]+)['’»”“\"]")
 NOUNS = ["doors", "windows", "walls", "rooms", "spaces", "toilets", "sinks", "bathtubs", "showers", "columns",
          "stairs", "slabs", "beams", "apartments", "bedrooms", "bathrooms", "kitchens"]
 
-PROMPT = """You are SiteLens's question checker. A user asked a question about one construction drawing.
+PROMPT = """You are Sindri's question checker. A user asked a question about one construction drawing.
 Decide whether it is clear enough to answer exactly from the drawing.
 - NOT clear: it could mean several different quantities and the facts show several candidates
   (which room? which floor? which element type? one apartment or the whole floor?).

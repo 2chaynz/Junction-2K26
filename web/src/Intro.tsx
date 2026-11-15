@@ -81,7 +81,7 @@ export default function Intro() {
 
   if (!open) return null;
   return (
-    <div className={`intro ${done ? "done" : ""} ${leaving ? "leaving" : ""}`} role="dialog" aria-label="SiteLens intro">
+    <div className={`intro ${done ? "done" : ""} ${leaving ? "leaving" : ""}`} role="dialog" aria-label="Sindri intro">
       <Quiet onError={() => setDone(true)}>
         <Suspense fallback={null}>
           <Scene start={start} onReady={ready} onFrame={frame} />
@@ -97,10 +97,10 @@ export default function Intro() {
       </div>
 
       <div className="intro-hero">
-        <h1>SiteLens</h1>
+        <h1 className="wordmark">Sindri</h1>
         <p>Ask your drawings. See the answer on the plan.</p>
         <button className="intro-enter" onClick={enter} tabIndex={done ? 0 : -1}>
-          Open SiteLens <span aria-hidden>→</span>
+          Open <span className="wordmark">Sindri</span> <span aria-hidden>→</span>
         </button>
       </div>
     </div>

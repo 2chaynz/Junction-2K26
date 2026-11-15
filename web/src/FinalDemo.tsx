@@ -60,7 +60,7 @@ function takeoffImage(rows: Change[], scope: string) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#d92d20";
   ctx.fillRect(0, 0, canvas.width, 8);
-  text("SiteLens  /  " + demoName, 48, 62, "600 20px sans-serif", "#666");
+  text("Sindri  /  " + demoName, 48, 62, "400 22px 'Tac One', sans-serif", "#666");
   text("Renovation takeoff", 48, 126, "600 56px sans-serif");
   text(scope + "  |  Baseline and proposed renovation", 50, 165, "22px sans-serif", "#666");
   text("+" + total.added + " added", 48, 223, "600 32px sans-serif", "#087758");
@@ -149,7 +149,7 @@ export function useRevisionDemo(enabled: boolean, entered: boolean, onOpen: () =
       if (!res.ok) throw new Error("Load the full Junction dataset to open the Vitoria IFC revisions.");
       const rows: Change[] = await res.json();
       if (!rows.some((row) => row.level === demoFloor && row.dimensions?.length === 3)) {
-        throw new Error("P2 geometry measurements are missing. Restart SiteLens with the current demo server and full dataset.");
+        throw new Error("P2 geometry measurements are missing. Restart Sindri with the current demo server and full dataset.");
       }
       return rows;
     }).then(setChanges).catch((err: Error) => { if (!controller.signal.aborted) setError(err.message); });

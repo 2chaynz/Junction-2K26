@@ -17,7 +17,7 @@ export default function HowItWorks() {
       <header className="page-head">
         <h1>How it works</h1>
         <p className="lede">
-          You ask a question about a drawing. SiteLens hands it to the exact readers first, the ones that read the
+          You ask a question about a drawing. <span className="wordmark">Sindri</span> hands it to the exact readers first, the ones that read the
           file's own data, and only uses AI when none of them can answer. Every answer shows where on the drawing it
           comes from, how it was found, and what it cost.
         </p>
@@ -36,7 +36,7 @@ export default function HowItWorks() {
           </ul>
         </div>
         <div className="col us">
-          <h3>SiteLens</h3>
+          <h3 className="wordmark">Sindri</h3>
           <ul>
             <li>Reads the file's own data: model properties, text, lines, symbols.</li>
             <li>Every hit is marked on the drawing. A wrong answer shows at a glance.</li>

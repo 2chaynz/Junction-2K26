@@ -53,7 +53,7 @@ python -c "import torch" 2>/dev/null || pip install -q torch torchvision --index
 pip install -q -r requirements.txt
 cat > /etc/systemd/system/sitelens.service <<UNIT
 [Unit]
-Description=SiteLens demo
+Description=Sindri demo
 After=network.target
 [Service]
 WorkingDirectory=/opt/sitelens

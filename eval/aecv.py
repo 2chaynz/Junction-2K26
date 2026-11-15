@@ -96,7 +96,7 @@ def main() -> None:
 
     rooms = [(t, {**p, "Toilet": p["Toilet_rooms"]}) for t, p in ours]
     toilet_rooms = _stats(rooms)["Toilet"]
-    table = [("**SiteLens detector**", _stats(ours), f"€{EUR_PER_ANSWER * len(CLASSES) * len(plans):.4f}")]
+    table = [("**Sindri detector**", _stats(ours), f"€{EUR_PER_ANSWER * len(CLASSES) * len(plans):.4f}")]
     for stem, label in VLM_ROWS.items():
         rows, cost = _vlm(root, stem, names)
         table.append((label, _stats(rows), f"${cost:.2f}" if cost else "n/a"))

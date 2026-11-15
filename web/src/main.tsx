@@ -5,6 +5,7 @@ import "@fontsource/inter/600.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/700.css";
 import "@fontsource/caveat/600.css";
+import "@fontsource/tac-one/400.css";
 import "./styles.css";
 import "./motion.css";
 import App from "./App";

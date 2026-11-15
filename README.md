@@ -1,4 +1,4 @@
-# SiteLens
+# Sindri
 
 The one tool every project role opens the drawings in: ask, measure, take off, compare revisions, with the exact spot highlighted, for a fraction of a cent.
 
@@ -11,7 +11,7 @@ Junction 2026 · Stoa challenge "Make Blueprints Talk".
 ## What it does
 Ask in any language. You get the answer, the evidence highlighted on the sheet, the steps taken, and the cost of that answer in €.
 
-| Role | SiteLens feature |
+| Role | Sindri feature |
 |---|---|
 | Project engineer | ask in plain language, answer + highlighted evidence |
 | Site manager | what changed between issues, plan vs schedule cross-check, 3D floors |
@@ -21,7 +21,7 @@ Ask in any language. You get the answer, the evidence highlighted on the sheet, 
 Formats: vector PDF, DXF, IFC, scanned plans (PNG/JPEG), door and finish schedules.
 
 ## How it works
-![SiteLens architecture](docs/architecture.svg)
+![Sindri architecture](docs/architecture.svg)
 
 - **Cheapest reader first.** A router tries exact readers before anything else: IFC models (ifcopenshell), vector PDF and DXF text + geometry, schedule tables.
 - **Scans:** a symbol detector trained on floor plans + room-label OCR. Runs on a laptop CPU. One box per counted object.
@@ -42,7 +42,7 @@ Held-out numbers (`eval/report.md`), Stoa's own questions and answer key, previe
 
 Same 40 dev questions per source vs Gemini 3.8 Flash on the full sheet (`web/src/benchData.ts`):
 
-| Source | SiteLens | Gemini 3.8 Flash |
+| Source | Sindri | Gemini 3.8 Flash |
 |---|---|---|
 | Swiss vector plans | 100% · €0 | 60% · €0.021 |
 | Scanned plans | 95% · €0.00001 | 85% · €0.0045 |

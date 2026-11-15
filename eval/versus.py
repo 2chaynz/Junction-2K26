@@ -2,7 +2,7 @@
 
   GEMINI_API_KEY=... python -m eval.versus [--n 12]
 
-Picks held-out (dev split) questions across sources, answers each with the SiteLens router and with the
+Picks held-out (dev split) questions across sources, answers each with the Sindri router and with the
 whole-sheet VLM (gemini by default), and stores both answers, their evidence boxes, the truth and the cost.
 Precomputed so the demo never calls a paid API live.
 """

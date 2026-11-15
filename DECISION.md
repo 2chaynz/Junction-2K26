@@ -5,11 +5,11 @@ Updated Sat 14 Nov 2026. Main challenge: **Stoa, Make Blueprints Talk** (`contex
 - **Challenge:** Stoa, Make Blueprints Talk.
 - **Tech tracks:** Gemini + Gemma (VLM path, T7), Verda (detector training, T5). ElevenLabs only if the voice stretch ships.
 - **Side project:** Bahn Express Spread (owner: 2chaynz). Separate submission.
-- **Idea:** SiteLens: answers questions about construction drawings and BIM, shows where the answer comes from, and shows the cost per answer.
+- **Idea:** Sindri: answers questions about construction drawings and BIM, shows where the answer comes from, and shows the cost per answer.
 - **One-line pitch:** The one tool every project role opens the drawings in: ask, measure, take off, compare revisions, with the exact spot highlighted, for a fraction of a cent.
-- **Pitch angle:** one integration tool for the whole project team, not another point solution. Today they juggle a PDF viewer, Bluebeam, a BIM viewer, takeoff software, Excel and emails to the designer. SiteLens reads every format (vector PDF, scans, DXF, IFC, schedules) and does the jobs in one place.
+- **Pitch angle:** one integration tool for the whole project team, not another point solution. Today they juggle a PDF viewer, Bluebeam, a BIM viewer, takeoff software, Excel and emails to the designer. Sindri reads every format (vector PDF, scans, DXF, IFC, schedules) and does the jobs in one place.
 
-| Role | Job they do today | SiteLens feature |
+| Role | Job they do today | Sindri feature |
 |---|---|---|
 | Project engineer | look up facts, chase RFIs | ask in plain language, answer + highlighted evidence |
 | Site manager / superintendent | check what's built vs. drawn, latest revision | what changed between issues, plan vs schedule cross-check, 3D floors |
