@@ -116,7 +116,7 @@ export default function NewProject({ initial, onClose, onCreated }: Props) {
         const res = await uploadFile(id, r.file.name, r.file, (n) => setSent(base + n));
         base += r.file.size;
         setSent(base);
-        added += res.added.length;
+        added += res.added.filter((p) => !/\.dxf$/i.test(p)).length; // DXF rides along with a PDF; alone it shows nothing
         const note = res.skipped.length
           ? res.added.length ? `${res.added.length} added · ${res.skipped.length} skipped: ${res.skipped.map((s) => `${s.name.split("/").pop()} (${s.reason})`).join(", ")}` : res.skipped[0].reason
           : res.added.length > 1 ? `${res.added.length} drawings` : undefined;
@@ -126,7 +126,7 @@ export default function NewProject({ initial, onClose, onCreated }: Props) {
         await deleteProject(id).catch(() => {});
         setPhase("pick");
         setRows((rs) => rs.map((r) => (r.state === "skipped" ? { ...r, state: "bad" } : r)));
-        return setErr("None of these files could be read as drawings.");
+        return setErr("Nothing to open: add at least one PDF, image or IFC (a DXF needs its PDF next to it).");
       }
       setKey(p.key);
       setPhase("done");

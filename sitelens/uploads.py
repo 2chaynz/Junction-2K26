@@ -14,7 +14,7 @@ import tempfile
 import time
 import zipfile
 from pathlib import Path
-from typing import BinaryIO, Iterable
+from typing import BinaryIO
 
 from . import data_root
 
@@ -136,40 +136,46 @@ def _rel(p: Path) -> str:
     return p.relative_to(data_root()).as_posix()
 
 
-def add(pid: str, name: str, chunks: Iterable[bytes]) -> dict:
-    """Store one uploaded file; a zip is unpacked. → {"added": [paths], "skipped": [{name, reason}]}."""
+MAX_UPLOAD = MAX_FILE * 4   # one request; a zip may hold several files
+
+
+def spool(pid: str) -> BinaryIO:
+    """Temp file inside the project folder (same disk), for streaming a request body into."""
+    return tempfile.TemporaryFile(dir=_dir(pid))
+
+
+def add(pid: str, name: str, src: BinaryIO) -> dict:
+    """Store one uploaded file (seekable, at its start); a zip is unpacked.
+    → {"added": [paths], "skipped": [{name, reason}]}."""
     d = _dir(pid)
     added: list[str] = []
     skipped: list[dict] = []
-    with tempfile.TemporaryFile(dir=d) as tmp:
-        n = 0
-        for c in chunks:
-            n += len(c)
-            if n > MAX_FILE * 4:
-                return {"added": [], "skipped": [{"name": name, "reason": "upload too large"}]}
-            tmp.write(c)
-        tmp.seek(0)
-        if name.lower().endswith(".zip"):
-            try:
-                z = zipfile.ZipFile(tmp)
-            except zipfile.BadZipFile:
-                return {"added": [], "skipped": [{"name": name, "reason": "not a valid zip"}]}
-            members = [i for i in z.infolist() if not i.is_dir()]
-            for i in members[:MAX_ZIP_FILES]:
-                base = re.split(r"[\\/]", i.filename)[-1]
-                if not base or base.startswith(".") or "__MACOSX" in i.filename:
-                    continue   # Finder / editor junk, not worth reporting
-                if os.path.splitext(base)[1].lower() not in KEPT:
-                    skipped.append({"name": i.filename, "reason": f"{os.path.splitext(base)[1] or 'no extension'} isn't a drawing format"})
-                    continue
-                with z.open(i) as src:
-                    p, why = _store(d, base, src, i.file_size)
-                (added.append(_rel(p)) if p else skipped.append({"name": i.filename, "reason": why}))
-            if len(members) > MAX_ZIP_FILES:
-                skipped.append({"name": name, "reason": f"only the first {MAX_ZIP_FILES} files were read"})
-        else:
-            p, why = _store(d, name, tmp)
-            (added.append(_rel(p)) if p else skipped.append({"name": name, "reason": why}))
+    if name.lower().endswith(".zip"):
+        try:
+            z = zipfile.ZipFile(src)
+        except zipfile.BadZipFile:
+            return {"added": [], "skipped": [{"name": name, "reason": "not a valid zip"}]}
+        members = [i for i in z.infolist() if not i.is_dir()]
+        budget = MAX_UPLOAD * 4   # unpacked total: a small zip can expand to far more than it sent
+        for i in members[:MAX_ZIP_FILES]:
+            base = re.split(r"[\\/]", i.filename)[-1]
+            if not base or base.startswith(".") or "__MACOSX" in i.filename:
+                continue   # Finder / editor junk, not worth reporting
+            if os.path.splitext(base)[1].lower() not in KEPT:
+                skipped.append({"name": i.filename, "reason": f"{os.path.splitext(base)[1] or 'no extension'} isn't a drawing format"})
+                continue
+            budget -= i.file_size
+            if budget < 0:
+                skipped.append({"name": i.filename, "reason": "zip unpacks to too much data"})
+                continue
+            with z.open(i) as member:
+                p, why = _store(d, base, member, i.file_size)
+            (added.append(_rel(p)) if p else skipped.append({"name": i.filename, "reason": why}))
+        if len(members) > MAX_ZIP_FILES:
+            skipped.append({"name": name, "reason": f"only the first {MAX_ZIP_FILES} files were read"})
+    else:
+        p, why = _store(d, name, src)
+        (added.append(_rel(p)) if p else skipped.append({"name": name, "reason": why}))
     return {"added": added, "skipped": skipped}
 
 

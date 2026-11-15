@@ -34,11 +34,11 @@ m = uploads.create("  Clinic   Tower ")
 pid = m["id"]
 assert m["name"] == "Clinic Tower" and pid.startswith("clinic-tower-"), m
 
-r = uploads.add(pid, "A-101.pdf", [pdf()])
+r = uploads.add(pid, "A-101.pdf", io.BytesIO(pdf()))
 assert r["added"] == [f"data/uploads/{pid}/A-101.pdf"] and not r["skipped"], r
-assert uploads.add(pid, "A-101.pdf", [pdf()])["added"] == [f"data/uploads/{pid}/A-101 (2).pdf"]
-assert uploads.add(pid, "notes.txt", [b"hi"])["skipped"][0]["reason"].startswith(".txt")
-assert "can't read" in uploads.add(pid, "broken.pdf", [b"%PDF-nope"])["skipped"][0]["reason"]
+assert uploads.add(pid, "A-101.pdf", io.BytesIO(pdf()))["added"] == [f"data/uploads/{pid}/A-101 (2).pdf"]
+assert uploads.add(pid, "notes.txt", io.BytesIO(b"hi"))["skipped"][0]["reason"].startswith(".txt")
+assert "can't read" in uploads.add(pid, "broken.pdf", io.BytesIO(b"%PDF-nope"))["skipped"][0]["reason"]
 
 z = io.BytesIO()
 with zipfile.ZipFile(z, "w") as f:
@@ -48,18 +48,18 @@ with zipfile.ZipFile(z, "w") as f:
     f.writestr("set/../../evil.pdf", pdf())   # zip-slip: flattened to the base name
     f.writestr("__MACOSX/set/._A-201.pdf", b"x")
     f.writestr("set/readme.md", b"x")
-r = uploads.add(pid, "set.zip", [z.getvalue()])
+r = uploads.add(pid, "set.zip", io.BytesIO(z.getvalue()))
 names = sorted(p.split("/")[-1] for p in r["added"])
 assert names == ["A-201.pdf", "evil.pdf", "model.ifc", "scan.png"], r
 assert [s["name"] for s in r["skipped"]] == ["set/readme.md"], r
 assert not (Path(tmp.name) / "evil.pdf").exists()
-assert uploads.add(pid, "bad.zip", [b"nope"])["skipped"][0]["reason"] == "not a valid zip"
+assert uploads.add(pid, "bad.zip", io.BytesIO(b"nope"))["skipped"][0]["reason"] == "not a valid zip"
 
 listed = uploads.listing()
 assert len(listed) == 6 and all(x["project"]["key"] == f"upload/{pid}" for x in listed), listed
 assert uploads.is_upload(listed[0]["path"]) and not uploads.is_upload(f"data/uploads/{pid}/../x.pdf")
 try:
-    uploads.add("../x", "a.pdf", [pdf()])
+    uploads.add("../x", "a.pdf", io.BytesIO(pdf()))
     raise AssertionError("bad id accepted")
 except ValueError:
     pass

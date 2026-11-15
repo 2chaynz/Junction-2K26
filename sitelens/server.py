@@ -568,11 +568,19 @@ def project_create(req: NewProject):
 async def project_add(pid: str, name: str, request: Request):
     """Raw body = one file (a .zip is unpacked). → {added: [paths], skipped: [{name, reason}]}."""
     _uploads_on()
-    chunks = [c async for c in request.stream()]
     try:
-        return await run_in_threadpool(uploads.add, pid, name, chunks)   # PDF checks must not stall the loop
+        tmp = uploads.spool(pid)
     except (KeyError, ValueError):
         raise HTTPException(404, "no such project")
+    with tmp:
+        n = 0
+        async for c in request.stream():   # to disk as it arrives, capped: never the whole body in memory
+            n += len(c)
+            if n > uploads.MAX_UPLOAD:
+                raise HTTPException(413, f"over {uploads.MAX_UPLOAD // 2**20} MB in one upload")
+            tmp.write(c)
+        tmp.seek(0)
+        return await run_in_threadpool(uploads.add, pid, name, tmp)   # PDF checks must not stall the loop
 
 
 @app.delete("/api/projects/{pid}")
