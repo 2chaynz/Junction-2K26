@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from . import data_root, uploads
+from . import data_root, demo, uploads
 from .translate import english_many, english_obj, sheet_title
 
 
@@ -111,10 +111,19 @@ def _model_of(path: str) -> str | None:
     return None
 
 
+def _listed(path: str) -> bool:
+    """A drawing the UI may open: one Stoa asked about, a sheet of a listed set (T96) or an import."""
+    return path in _questions() or path in demo.set_sheets() or uploads.is_upload(path)
+
+
 @app.get("/api/drawings")
 def drawings():
     out = []
-    for path, qs in sorted(_questions().items()):
+    qs_by = _questions()
+    for path in sorted(set(qs_by) | set(demo.set_sheets())):
+        if not demo.keep(path):
+            continue
+        qs = qs_by.get(path, [])
         plan = re.search(r"_plan-(\d+)-(.+)\.\w+$", path)   # IFC plan sheets: storey name in the file name
         out.append({"path": path, "source": path.split("/")[1], "view": _view_of(path), "model": _model_of(path),
                     "title": f"{plan[1]} · {sheet_title(plan[2])}" if plan else None,
@@ -128,7 +137,7 @@ def drawings():
 
 @app.get("/api/original")
 def original(path: str):
-    if path not in _questions() and not uploads.is_upload(path):
+    if not _listed(path):
         raise HTTPException(404, "drawing not found")
     p = _safe(path)
     if p.suffix.lower() in {".pdf", ".png", ".jpg", ".jpeg"}:
@@ -289,11 +298,10 @@ class Ask(BaseModel):
 
 def _related(path: str, related: list[str] | None) -> list[str]:
     """Project sheets the UI sent, limited to drawings the dataset lists. The sheet's own model goes first."""
-    qs = _questions()
     out = [m for m in [_model_of(path)] if m and m != path]
     if path.split("/")[1] in ("swiss_dwellings", "cubicasa5k"):   # one building per file: no shared project
         return out
-    out += [r for r in related or [] if (r in qs or uploads.is_upload(r)) and r != path]
+    out += [r for r in related or [] if _listed(r) and r != path]
     return list(dict.fromkeys(out))
 
 
@@ -507,7 +515,7 @@ def vlm_use(req: VlmModel):
 @app.get("/api/random")
 def surprise():
     qs = _questions()
-    path = random.choice(list(qs))
+    path = random.choice([p for p in qs if demo.keep(p)] or list(qs))
     return {"path": path, "question": random.choice(qs[path])["question"]}
 
 
