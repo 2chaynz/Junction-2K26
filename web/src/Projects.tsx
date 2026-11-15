@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fileUrl, isImage } from "./api";
 import NewProject, { type Picked, fromDrop } from "./NewProject";
+import type { Drawing } from "./types";
 import { KIND_LABEL, type Kind, type Overview, type Proj, type Recent, ago, sheetName, thumbOf } from "./workspace";
 
 type Props = {
@@ -27,9 +28,14 @@ const ModelGlyph = () => (
 );
 
 // BIM projects: a clay turntable of the model, pre-rendered by scripts/render_turntables.py.
+// Full-dataset BIM projects list their plan PDFs, which name the model in `model`, not the .ifc itself.
+// Prefer the architectural or as-built ("project") model: the other disciplines render as bare pipes and ducts.
 const spinOf = (p: Proj) => {
-  const m = p.kind === "BIM" && !p.created ? p.items.find((d) => d.path.toLowerCase().endsWith(".ifc")) : undefined;
-  return m ? `/turntables/${(m.path.split("/").pop() ?? "").replace(/\.ifc$/i, "")}` : null;
+  if (p.kind !== "BIM" || p.created) return null;
+  const ifc = (d: Drawing & { model?: string | null }) => (d.path.toLowerCase().endsWith(".ifc") ? d.path : d.model ?? null);
+  const models = [...new Set(p.items.map(ifc).filter((m): m is string => !!m))];
+  const m = models.find((x) => /architect|[-_]ar[-_c]|project/i.test(x.split("/").pop() ?? "")) ?? models[0];
+  return m ? `/turntables/${(m.split("/").pop() ?? "").replace(/\.ifc$/i, "")}` : null;
 };
 
 function Still({ p, scale }: { p: Proj; scale: number }) {

@@ -40,12 +40,11 @@ fi
 echo "==> secrets (stdin)"
 BASE_ENV='STOA_DATA=/opt/sitelens-data\nSITELENS_MODELS=/opt/sitelens/models\nSITELENS_RATE=30\n'
 [ "$DEMO" = 1 ] && BASE_ENV="${BASE_ENV}SITELENS_DEMO=1\n"
-if [ -n "${GEMINI_API_KEY:-}" ]; then
-  printf "GEMINI_API_KEY=%s\n${BASE_ENV}" "$GEMINI_API_KEY" | $SSH "$HOST" "sudo sh -c 'umask 077; cat > /etc/sitelens.env'"
-else
-  echo "note: no GEMINI_API_KEY here; keeping the key already on the VM (typed free-form questions need one)"
-  printf "${BASE_ENV}" | $SSH "$HOST" "sudo bash -c 'umask 077; k=\$(grep \"^GEMINI_API_KEY=\" /etc/sitelens.env 2>/dev/null || true); { [ -n \"\$k\" ] && echo \"\$k\"; cat; } > /etc/sitelens.env.new && mv /etc/sitelens.env.new /etc/sitelens.env'"
-fi
+# Lines this script owns are replaced; every other line on the VM (VERDA_INFERENCE_KEY, NVIDIA_API_KEY, …) is kept.
+MANAGED='STOA_DATA|SITELENS_MODELS|SITELENS_RATE|SITELENS_DEMO'
+[ -n "${GEMINI_API_KEY:-}" ] && MANAGED="$MANAGED|GEMINI_API_KEY" || echo "note: no GEMINI_API_KEY here; keeping the key already on the VM (typed free-form questions need one)"
+{ [ -n "${GEMINI_API_KEY:-}" ] && printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY"; printf "${BASE_ENV}"; } |
+  $SSH "$HOST" "sudo bash -c 'umask 077; { grep -vE \"^($MANAGED)=\" /etc/sitelens.env 2>/dev/null; cat; } > /etc/sitelens.env.new && mv /etc/sitelens.env.new /etc/sitelens.env'"
 
 echo "==> installing on the VM (first run takes a few minutes)"
 BIND=0.0.0.0; [ "$FUNNEL" = 1 ] && BIND=127.0.0.1
