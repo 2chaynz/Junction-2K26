@@ -72,15 +72,18 @@ export const SOURCE_LABEL: Record<string, string> = {
   ifc_models: "BIM model · IFC",
   ifc_bench: "IFC benchmark model",
   opening_design: "Opening Design · US sheet set",
+  uploads: "Imported by you",
 };
 
 const PREFIX: Record<string, string> = {
-  swiss_dwellings: "SW", cubicasa5k: "CC", ifc_models: "BIM", ifc_bench: "IB", opening_design: "US",
+  swiss_dwellings: "SW", cubicasa5k: "CC", ifc_models: "BIM", ifc_bench: "IB", opening_design: "US", uploads: "IMP",
 };
 
 /** Title-block style sheet number, e.g. SW-001, stable per source. */
 export function sheetCode(paths: string[], path: string, source: string): string {
-  const same = paths.filter((p) => p.split("/")[1] === source);
+  // Imports number per project (their folder), not across every upload.
+  const dir = path.slice(0, path.lastIndexOf("/") + 1);
+  const same = paths.filter((p) => (source === "uploads" ? p.startsWith(dir) : p.split("/")[1] === source));
   return `${PREFIX[source] ?? "XX"}-${String(same.indexOf(path) + 1).padStart(3, "0")}`;
 }
 

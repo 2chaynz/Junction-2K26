@@ -96,3 +96,46 @@
 .pthumb video.pspin, .pthumb img.pspin, .pmini img.pspin {
   width: 100%; height: 100%; object-fit: cover; padding: 0; mix-blend-mode: normal; background: var(--canvas); display: block;
 }
+
+/* T93: New project (import) */
+.pactions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 100%; }
+.btn.primary { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 500; }
+.btn.primary:hover:not(:disabled) { background: #000; border-color: #000; }
+.pnew { padding: 8px 14px; white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; }
+.pnew span { font-size: 17px; line-height: 1; }
+.pdropall { position: fixed; inset: 0; z-index: 60; pointer-events: none; display: grid; place-items: center; background: rgba(255, 255, 255, 0.82); outline: 2px dashed var(--red); outline-offset: -14px; }
+.pdropall div { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.pdropall strong { font-size: 22px; letter-spacing: -0.01em; color: var(--red); }
+.pdropall span { color: var(--dim); }
+
+.npback { position: fixed; inset: 0; z-index: 70; background: rgba(20, 20, 20, 0.32); display: grid; place-items: center; padding: 16px; }
+.npdlg { width: min(560px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; gap: 14px; background: var(--bg); border: 1px solid var(--line-strong); border-radius: 6px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18); padding: 18px 20px; }
+.nphead { display: flex; align-items: center; }
+.nphead h2 { margin: 0; font-size: 18px; letter-spacing: -0.01em; flex: 1; }
+.npx { width: 28px; height: 28px; border-radius: var(--r); font-size: 20px; line-height: 1; color: var(--dim); }
+.npx:hover:not(:disabled) { color: var(--ink); background: var(--canvas); }
+.npx.sm { width: 22px; height: 22px; font-size: 16px; }
+.npname { display: flex; flex-direction: column; gap: 4px; }
+.npname input { padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: var(--r); font-size: 15px; }
+.npname input:focus { outline: none; border-color: var(--ink); }
+.npdrop { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 28px 16px; border: 1.5px dashed var(--line-strong); border-radius: 6px; background: var(--canvas); font-size: 14px; transition: border-color 0.15s, background 0.15s; }
+.npdrop.slim { flex-direction: row; justify-content: center; padding: 10px 12px; }
+.npdrop.slim .npicon { width: 18px; height: 18px; }
+.npdrop.over { border-color: var(--red); background: var(--red-soft); }
+.npicon { width: 28px; height: 28px; fill: none; stroke: var(--dim); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.link { color: var(--red); text-decoration: underline; text-underline-offset: 2px; }
+.npfiles { list-style: none; margin: 0; padding: 0; overflow: auto; max-height: 260px; border: 1px solid var(--line); border-radius: var(--r); }
+.npfiles li { display: grid; grid-template-columns: 18px minmax(0, 1fr) minmax(0, auto) auto; align-items: center; gap: 8px; padding: 5px 8px; font-size: 13px; border-top: 1px solid var(--line); min-height: 32px; }
+.npfiles li:first-child { border-top: 0; }
+.npfiles .npnote { color: var(--dim); max-width: 260px; text-align: right; }
+.npfiles li.bad, .npfiles li.skipped { color: var(--dim); }
+.npfiles li.bad .npfn, .npfiles li.skipped .npfn { text-decoration: line-through; }
+.npfiles li.done .npst { color: var(--ok); }
+.npst { text-align: center; }
+.npspin { display: inline-block; width: 11px; height: 11px; border: 2px solid var(--line-strong); border-top-color: var(--red); border-radius: 50%; animation: npspin 0.7s linear infinite; }
+@keyframes npspin { to { transform: rotate(360deg); } }
+.npbar { height: 4px; background: var(--canvas); border-radius: 2px; overflow: hidden; }
+.npbar span { display: block; height: 100%; background: var(--red); transition: width 0.15s; }
+.nperr { margin: 0; color: var(--red); font-size: 13px; }
+.npfoot { display: flex; align-items: center; gap: 8px; }
+@media (max-width: 640px) { .pactions, .pactions .psearch { width: 100%; } .pnew { flex: 1; justify-content: center; } }

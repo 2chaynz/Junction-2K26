@@ -87,10 +87,12 @@ function SheetInfo({ d, all, view, size, onModel }: {
         <span className="k">Size</span>
         <span className="v mono">{size ? fmtSize(view, size[0], size[1]) : TYPE[d.source]}</span>
       </div>
-      <div className="cell">
-        <span className="k">Stoa Qs</span>
-        <span className="v mono">{d.questions.length}</span>
-      </div>
+      {d.source !== "uploads" && (
+        <div className="cell">
+          <span className="k">Stoa Qs</span>
+          <span className="v mono">{d.questions.length}</span>
+        </div>
+      )}
     </footer>
   );
 }
@@ -344,6 +346,12 @@ export default function App({ revisionDemo = false, sheetDemo = false }: { revis
     if (id === sid) newSession();
   }
 
+  // A just-imported project exists only after the drawings reload re-groups projects.
+  const [openNew, setOpenNew] = useState<string | null>(null);
+  useEffect(() => {
+    if (openNew && projects.some((p) => p.key === openNew)) (openProject(openNew), setOpenNew(null));
+  }, [openNew, projects]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function openProject(key: string, at?: string) {
     const p = projects.find((x) => x.key === key);
     if (!p) return;
@@ -542,7 +550,8 @@ export default function App({ revisionDemo = false, sheetDemo = false }: { revis
               <span className="dim"> Baseline and proposed renovation</span>
             </button>
             {demo.error && <p role="alert">{demo.error}</p>}
-          </div> : <Projects projects={projects} overview={overview} recent={recent} current={projKey} onOpen={openProject} />}
+          </div> : <Projects projects={projects} overview={overview} recent={recent} current={projKey} onOpen={openProject}
+            onCreated={async (k) => { setDrawings(await getDrawings()); setOpenNew(k); }} />}
         </main>
       )}
 
