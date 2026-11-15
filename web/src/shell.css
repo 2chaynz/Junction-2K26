@@ -2,7 +2,7 @@
 /* Row 1: where you are (Home / project). Row 2: tabs, always at the same spot, like GitHub / Vercel. */
 .shell { border-bottom: 1px solid var(--line); }
 .shell .top { height: 48px; border-bottom: 0; }
-.shell .brand { padding: 0; margin: 0; font-size: 18px; }
+.shell .brand { padding: 0; margin: 0; font-size: 26px; line-height: 1; }
 .shell .brand:hover { color: var(--red); }
 .subnav { height: 38px; padding: 0 2px; }
 .subnav button { font-size: 14px; }
