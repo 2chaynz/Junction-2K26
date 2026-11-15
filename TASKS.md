@@ -94,4 +94,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T87 Health: scale bar beside a metres bar, tests run standalone | app |  | 2chaynz | done | 2chaynz/T87-health |  |  |
 | T88 README team credits | pitch |  | Asif | done | asif/T88-team-credits |  |  |
 | T89 Loaders everywhere, no demo stickers, motion on Home | app |  | 2chaynz | done | 2chaynz/T89-loaders |  |  |
-| T90 Rebrand to Sindri, Tac One wordmark | app |  | ccolver | doing | ccolver/T90-sindri |  |  |
+| T90 Rebrand to Sindri, Tac One wordmark | app |  | ccolver | review | ccolver/T90-sindri |  |  |
