@@ -100,4 +100,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T93 Import a folder or zip of drawings as a new project | app |  | Asif | done | asif/T93-import |  |  |
 | T94 Sindri logo: red dot on the last i | app | T90 | ccolver | done | ccolver/T94-logo |  |  |
 | T95 Delete an imported project | app | T93 | Asif | done | asif/T95-delete-project |  |  |
-| T96 Final demo set: curated projects, role chips, runbook | app | T85 | ccolver | review | ccolver/T96-demo-set |  |  |
+| T96 Final demo set: curated projects, role chips, runbook | app | T85 | ccolver | done | ccolver/T96-demo-set |  |  |
