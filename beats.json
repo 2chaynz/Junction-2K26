@@ -496,5 +496,11 @@
   "branch": "asif/T93-import",
   "text": "import feature done locally, awaiting user review before PR",
   "at": "2026-11-15T01:18:25.615Z"
+ },
+ "T94": {
+  "who": "ccolver",
+  "branch": "ccolver/T94-logo",
+  "text": "claimed",
+  "at": "2026-11-15T01:23:27.658Z"
  }
 }
