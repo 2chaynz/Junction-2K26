@@ -86,5 +86,5 @@ assert sessions.drop(key) and sessions.list_sessions(key) == [] and not sessions
 measure.forget(listed[0]["path"])
 assert not measure._store_file(listed[0]["path"]).exists()
 assert uploads.delete(pid) and uploads.listing() == []
-assert not uploads.delete(pid)
+assert not uploads.delete(pid) and not uploads.exists(pid) and not uploads.exists("../x")
 print("uploads ok")

@@ -535,6 +535,8 @@ def session_get(project: str, id: str):
 @app.put("/api/session")
 def session_put(req: SessionBody):
     from . import sessions
+    if req.project.startswith("upload/") and not uploads.exists(req.project.split("/", 1)[1]):
+        raise HTTPException(404, "project was deleted")   # a late answer must not bring its sessions back
     try:
         return sessions.put(req.project, req.id, req.msgs, req.title)
     except ValueError as e:

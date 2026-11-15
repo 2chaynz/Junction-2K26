@@ -355,6 +355,8 @@ export default function App({ revisionDemo = false, sheetDemo = false }: { revis
   // T95: an imported project goes with its files, sessions and measurements; back to Home.
   async function removeProject(key: string) {
     await deleteProject(key.replace(/^upload\//, ""));
+    // Answers still running for this project must not re-save its sessions when they land.
+    for (const [psid, pk] of parked.current) if (pk.key === key) parked.current.delete(psid);
     forgetRecent(key);
     setRecent(getRecent());
     setOverview((o) => {
