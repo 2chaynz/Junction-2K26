@@ -30,6 +30,19 @@ IMAGE_EXT = {".png", ".jpg", ".jpeg"}
 
 app = FastAPI(title="Sindri")
 
+
+@app.middleware("http")
+async def _no_stale_page(request, call_next):
+    """index.html has no cache header, so Firefox reused an old page (and old bundle) after a rebuild.
+    Pages always revalidate; hashed /assets/ files never change and can be cached for good."""
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/assets/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif not path.startswith("/api/") and response.headers.get("content-type", "").startswith("text/html"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
 # A public URL must not be able to burn the Gemini key: per-IP sliding window on the endpoints that can call a
 # paid model. SITELENS_RATE = requests per minute per IP (0 disables; default 30). Static files and /api/file are free.
 _RATE = int(os.environ.get("SITELENS_RATE", "30"))
