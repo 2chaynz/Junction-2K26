@@ -508,5 +508,11 @@
   "branch": "asif/T95-delete-project",
   "text": "delete project done locally, awaiting user review before PR",
   "at": "2026-11-15T02:05:51.677Z"
+ },
+ "T96": {
+  "who": "ccolver",
+  "branch": "ccolver/T96-demo-set",
+  "text": "claimed",
+  "at": "2026-11-15T02:35:26.176Z"
  }
 }
