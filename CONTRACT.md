@@ -68,7 +68,7 @@ GET  /api/vlm                                         → {"backend", "current",
 POST /api/vlm   {"backend"?: "…" | "", "model"?: "…"} → same shape; switches backend ("" = off) and/or model for this server process (no .env write); 400 if unknown or not configured
 POST /api/projects {"name"}                           → {id, name, created, key: "upload/<id>"}: empty imported project (T93)
 PUT  /api/projects/{id}/files?name=<file>  (raw body) → {added: [paths], skipped: [{name, reason}]}; a .zip is unpacked
-DELETE /api/projects/{id}                             → {"deleted"}
+DELETE /api/projects/{id}                             → {"deleted"}: files, saved sessions and measurements of an import (T95)
 GET  /api/sessions                                    → {project: {"sessions", "updated"}} for the project list
 GET  /api/sessions?project=…                          → [{id, title, created, updated, questions, paths, last: {question, value, unit}}], newest first
 GET  /api/session?project=…&id=…                      → {id, project, title?, created, updated, msgs: [Msg]}

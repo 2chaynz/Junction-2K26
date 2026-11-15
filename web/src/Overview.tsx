@@ -20,6 +20,7 @@ type Props = {
   onChanges: (path: string) => void; // open a sheet with "What changed" on
   onSession: (id: string) => void;
   onTakeoff: (path: string) => void;
+  onDelete?: () => Promise<void>; // imported projects only: dataset projects can't be deleted
 };
 
 type Linked = Drawing & { model?: string | null };
@@ -54,7 +55,8 @@ function totals(rows: Row[]): Qty[] {
 }
 
 export default function Overview(props: Props) {
-  const { project: p, allPaths, sessions, lastPath, onOpen, onModel, onChanges, onSession, onTakeoff } = props;
+  const { project: p, allPaths, sessions, lastPath, onOpen, onModel, onChanges, onSession, onTakeoff, onDelete } = props;
+  const [confirm, setConfirm] = useState(false);
   const items = p.items as Linked[];
   const last = items.find((d) => d.path === lastPath) ?? null;
   const start = last ?? p.cover ?? items[0];
@@ -194,6 +196,70 @@ export default function Overview(props: Props) {
             </>
           )}
         </aside>
+      </div>
+
+      {onDelete && (
+        <section className="ov-danger">
+          <div>
+            <h2>Delete project</h2>
+            <p className="dim small">
+              Imported {p.created ? ago(p.created) : ""}. Removes its {p.items.length} file{p.items.length === 1 ? "" : "s"}, saved questions and measurements from this server.
+            </p>
+          </div>
+          <button className="btn danger" onClick={() => setConfirm(true)}>Delete project…</button>
+        </section>
+      )}
+      {confirm && onDelete && <ConfirmDelete p={p} sessions={sessions.length} onCancel={() => setConfirm(false)} onDelete={onDelete} />}
+    </div>
+  );
+}
+
+// Destructive and not undoable: a modal that names what goes, with Cancel focused so Enter is safe.
+function ConfirmDelete({ p, sessions, onCancel, onDelete }: {
+  p: Proj; sessions: number; onCancel: () => void; onDelete: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => e.key === "Escape" && !busy && onCancel();
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [busy, onCancel]);
+  const what = [
+    `${p.items.length} file${p.items.length === 1 ? "" : "s"}`,
+    sessions ? `${sessions} saved session${sessions === 1 ? "" : "s"}` : "",
+    "any measurements",
+  ].filter(Boolean);
+  return (
+    <div className="npback" onMouseDown={(e) => e.target === e.currentTarget && !busy && onCancel()}>
+      <div className="npdlg" role="alertdialog" aria-modal="true" aria-labelledby="del-title" aria-describedby="del-body">
+        <div className="nphead">
+          <h2 id="del-title">Delete “{p.name}”?</h2>
+        </div>
+        <p id="del-body" className="ov-delbody">
+          This removes {what.slice(0, -1).join(", ")} and {what[what.length - 1]}. It can't be undone.
+        </p>
+        {err && <p className="nperr" role="alert">{err}</p>}
+        <div className="npfoot">
+          <span className="spacer" />
+          <button className="btn" onClick={onCancel} disabled={busy} autoFocus>Cancel</button>
+          <button
+            className="btn danger solid"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              setErr("");
+              try {
+                await onDelete();
+              } catch (e) {
+                setErr(String(e).replace(/^Error: /, ""));
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? "Deleting…" : "Delete project"}
+          </button>
+        </div>
       </div>
     </div>
   );

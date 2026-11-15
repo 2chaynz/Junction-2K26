@@ -171,6 +171,13 @@ export function getRecent(): Recent {
     return {};
   }
 }
+export function forgetRecent(key: string) {
+  try {
+    const r = getRecent();
+    delete r[key];
+    localStorage.setItem(RECENT, JSON.stringify(r));
+  } catch {}
+}
 export function touchRecent(key: string, path: string) {
   try {
     const r = getRecent();

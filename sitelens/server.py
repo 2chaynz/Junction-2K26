@@ -11,6 +11,7 @@ import os
 import json
 import random
 import re
+import threading
 import time
 from functools import lru_cache
 from pathlib import Path
@@ -536,7 +537,12 @@ def session_get(project: str, id: str):
 def session_put(req: SessionBody):
     from . import sessions
     try:
-        return sessions.put(req.project, req.id, req.msgs, req.title)
+        if not req.project.startswith("upload/"):
+            return sessions.put(req.project, req.id, req.msgs, req.title)
+        with _project_lock:   # check + write as one step: a save racing a delete must not revive it
+            if not uploads.exists(req.project.split("/", 1)[1]):
+                raise HTTPException(404, "project was deleted")
+            return sessions.put(req.project, req.id, req.msgs, req.title)
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -545,6 +551,9 @@ def session_put(req: SessionBody):
 def session_delete(project: str, id: str):
     from . import sessions
     return {"deleted": sessions.delete(project, id)}
+
+
+_project_lock = threading.Lock()   # imported-project delete vs. session saves for it
 
 
 class NewProject(BaseModel):
@@ -585,8 +594,19 @@ async def project_add(pid: str, name: str, request: Request):
 
 @app.delete("/api/projects/{pid}")
 def project_delete(pid: str):
+    """Files, saved Ask sessions and measurements of an imported project. Dataset projects can't be deleted."""
     _uploads_on()
-    return {"deleted": uploads.delete(pid)}
+    from . import measure, sessions
+    with _project_lock:
+        try:
+            paths = uploads.files(pid)
+        except (KeyError, ValueError):
+            return {"deleted": False}
+        deleted = uploads.delete(pid)   # gone first: from here on session saves for it are refused
+        for p in paths:
+            measure.forget(p)
+        sessions.drop(f"upload/{pid}")
+    return {"deleted": deleted}
 
 
 if WEB.is_dir():
