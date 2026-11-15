@@ -68,5 +68,9 @@ Drawings and models come from Stoa's Junction dataset. Each source keeps its own
 - Swiss Dwellings v3.0.0 (Archilyse AG), CC BY 4.0.
 - Open IFC models and IFC-Bench v2 (Sylvain Hellin, TU Munich), per-model licences.
 - OpeningDesign drawings, per-file licences.
+- `web/public/turntables/` are renders of those IFC models and keep their licences. Partner logos belong to their owners.
+
+## License
+Code: MIT, see [LICENSE](LICENSE). Dataset files and third-party assets keep their own licences (above).
 
 How we built it (agent workflow, setup, board, deploy): [docs/workflow.md](docs/workflow.md).
