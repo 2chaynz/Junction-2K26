@@ -103,4 +103,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T96 Final demo set: curated projects, role chips, runbook | app | T85 | ccolver | done | ccolver/T96-demo-set |  |  |
 | T97 Public URL: Oracle VM + Tailscale Funnel | setup | T58 | Asif | done | asif/T97-oracle-funnel |  |  |
 | T98 3D previews on demo BIM cards | app | T96 | Asif | done | asif/T98-demo-turntables |  |  |
-| T99 Sharp image thumbnails on project cards | app | T98 | Asif | review | asif/T99-sharp-thumbs |  |  |
+| T99 Sharp image thumbnails on project cards | app | T98 | Asif | done | asif/T99-sharp-thumbs |  |  |
