@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-15 03:46 · Asif · T93 merged PR #115: import folder/zip/files as a new project (New project button + drop on Home), stored under STOA_DATA/data/uploads
 - 2026-11-15 03:29 · ccolver · T94 merged PR #114: logo = Tac One Sindri with red dot on the last i (web/src/Wordmark.tsx), UI + video
 - 2026-11-15 03:11 · Asif · Asif: T2 pitch deck draft (11 slides, 3-min script in speaker notes, held-out numbers only) as Claude Slides artifact; exports PDF for submission. Link from Asif
 - 2026-11-15 02:01 · ccolver · T90 merged PR #111: product renamed SiteLens -> Sindri (DECISION.md, UI, video, docs); wordmark in Tac One. Package sitelens/ and SITELENS_* unchanged
