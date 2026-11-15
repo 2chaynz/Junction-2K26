@@ -101,4 +101,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T94 Sindri logo: red dot on the last i | app | T90 | ccolver | done | ccolver/T94-logo |  |  |
 | T95 Delete an imported project | app | T93 | Asif | done | asif/T95-delete-project |  |  |
 | T96 Final demo set: curated projects, role chips, runbook | app | T85 | ccolver | done | ccolver/T96-demo-set |  |  |
-| T97 Public URL: Oracle VM + Tailscale Funnel | setup | T58 | Asif | done | asif/T97-oracle-funnel |  |  |
+| T97 Public URL: Oracle VM + Tailscale Funnel | setup | T58 | Asif | review | asif/T97-oracle-funnel |  |  |
