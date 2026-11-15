@@ -1,3 +1,4 @@
+import { Wordmark } from "./Wordmark";
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { ask, askStream, getDrawings, originalUrl, surprise } from "./api";
 import Benchmark from "./Benchmark";
@@ -475,8 +476,8 @@ export default function App({ revisionDemo = false, sheetDemo = false }: { revis
       <header className="shell">
         <div className="top">
           <nav className="crumbbar" aria-label="Breadcrumb">
-            {revisionDemo ? <span className="brand">Sindri</span> :
-              <button className="brand" onClick={() => setTab("Projects")} title="Home: all projects">Sindri</button>}
+            {revisionDemo ? <span className="brand"><Wordmark /></span> :
+              <button className="brand" onClick={() => setTab("Projects")} title="Home: all projects"><Wordmark /></button>}
             {demoEntered && <><span className="sep">/</span><strong>{demoName}</strong></>}
             {inProject && project && (
               <>

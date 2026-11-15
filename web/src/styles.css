@@ -38,6 +38,8 @@ input { font: inherit; color: inherit; }
 .top { display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--line); }
 .brand { font-family: var(--brand); font-weight: 400; margin-right: 12px; }
 .wordmark { font-family: var(--brand); font-weight: 400; letter-spacing: 0; }
+.wm-dot { position: relative; display: inline-block; line-height: 1; }
+.wm-dot::after { content: ""; position: absolute; left: 50%; top: 0.22em; width: 0.17em; height: 0.17em; margin-left: -0.085em; border-radius: 50%; background: var(--red); }
 .tabs { display: flex; height: 100%; }
 .tabs button { padding: 0 14px; height: 100%; font-size: 14px; color: var(--dim); border-bottom: 2px solid transparent; }
 .tabs button:hover { color: var(--ink); }
