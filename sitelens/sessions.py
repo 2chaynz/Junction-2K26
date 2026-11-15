@@ -100,6 +100,16 @@ def delete(project: str, sid: str) -> bool:
         return True
 
 
+def drop(project: str) -> bool:
+    """Every session of a project, e.g. when the project itself is deleted."""
+    with _lock:
+        f = _file(project)
+        if not f.exists():
+            return False
+        f.unlink()
+        return True
+
+
 def overview() -> dict[str, dict]:
     """{project: {"sessions": n, "updated": t}} for the project picker."""
     out = {}

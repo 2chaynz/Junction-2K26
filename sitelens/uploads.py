@@ -57,6 +57,11 @@ def meta(pid: str) -> dict:
     return json.loads((_dir(pid) / "project.json").read_text(encoding="utf8"))
 
 
+def files(pid: str) -> list[str]:
+    """Dataset-relative paths of every stored file (DXF included), for cleaning up what refers to them."""
+    return [_rel(f) for f in sorted(_dir(pid).iterdir()) if f.is_file() and f.suffix.lower() in KEPT]
+
+
 def delete(pid: str) -> bool:
     try:
         shutil.rmtree(_dir(pid))

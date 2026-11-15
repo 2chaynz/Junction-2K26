@@ -1,6 +1,6 @@
 import { Wordmark } from "./Wordmark";
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { ask, askStream, getDrawings, originalUrl, surprise } from "./api";
+import { ask, askStream, deleteProject, getDrawings, originalUrl, surprise } from "./api";
 import Benchmark from "./Benchmark";
 import Changes, { CHANGE_Q, PAIRS, onNewSheet } from "./Changes";
 import Chat from "./Chat";
@@ -16,7 +16,7 @@ import ProjectOverview from "./Overview";
 import Projects from "./Projects";
 import {
   type Overview, type Recent, type SessionSummary, buildProjects, deleteSession, getRecent, getSession, listSessions,
-  newSessionId, projectKeyOf, saveSession, sessionsOverview, sheetName, touchRecent,
+  forgetRecent, newSessionId, projectKeyOf, saveSession, sessionsOverview, sheetName, touchRecent,
 } from "./workspace";
 import "./shell.css";
 import Takeoff, { type Row } from "./Takeoff";
@@ -352,6 +352,24 @@ export default function App({ revisionDemo = false, sheetDemo = false }: { revis
     if (openNew && projects.some((p) => p.key === openNew)) (openProject(openNew), setOpenNew(null));
   }, [openNew, projects]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // T95: an imported project goes with its files, sessions and measurements; back to Home.
+  async function removeProject(key: string) {
+    await deleteProject(key.replace(/^upload\//, ""));
+    forgetRecent(key);
+    setRecent(getRecent());
+    setOverview((o) => {
+      const { [key]: _, ...rest } = o;
+      return rest;
+    });
+    setTab("Projects");
+    setPath("");
+    setMsgs([]);
+    setSid(newSessionId());
+    sessProj.current = null;
+    loaded.current = null;
+    setDrawings(await getDrawings());
+  }
+
   function openProject(key: string, at?: string) {
     const p = projects.find((x) => x.key === key);
     if (!p) return;
@@ -531,6 +549,7 @@ export default function App({ revisionDemo = false, sheetDemo = false }: { revis
             onChanges={(p) => (select(p), setMsOn(false), setChOn(true))}
             onSession={openSession}
             onTakeoff={(p) => (setTkPath(p), setTab("Takeoff"))}
+            onDelete={project.created ? () => removeProject(project.key) : undefined}
           />
         </main>
       )}

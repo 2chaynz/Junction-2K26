@@ -460,6 +460,11 @@ def _store_file(rel: str) -> Path:
     return _store_dir() / (hashlib.sha1(rel.encode()).hexdigest()[:16] + ".json")
 
 
+def forget(rel: str) -> None:
+    """Drop a drawing's calibrations and takeoffs (its file is gone)."""
+    _store_file(rel).unlink(missing_ok=True)
+
+
 def load(rel: str) -> dict:
     f = _store_file(rel)
     if f.exists():

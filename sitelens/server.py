@@ -585,7 +585,16 @@ async def project_add(pid: str, name: str, request: Request):
 
 @app.delete("/api/projects/{pid}")
 def project_delete(pid: str):
+    """Files, saved Ask sessions and measurements of an imported project. Dataset projects can't be deleted."""
     _uploads_on()
+    from . import measure, sessions
+    try:
+        paths = uploads.files(pid)
+    except (KeyError, ValueError):
+        return {"deleted": False}
+    for p in paths:
+        measure.forget(p)
+    sessions.drop(f"upload/{pid}")
     return {"deleted": uploads.delete(pid)}
 
 

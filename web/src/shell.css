@@ -93,3 +93,13 @@
 @media (max-width: 900px) {
   .ov-cols { grid-template-columns: 1fr; }
 }
+
+/* T95: delete an imported project. Quiet at the foot of the Overview, loud only in the confirm. */
+.ov-danger { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); }
+.ov-danger h2 { margin: 0 0 2px; font-size: 15px; }
+.ov-danger p { margin: 0; }
+.btn.danger { color: var(--red); border-color: var(--line-strong); }
+.btn.danger:hover:not(:disabled) { border-color: var(--red); background: var(--red-soft); }
+.btn.danger.solid { background: var(--red); border-color: var(--red); color: #fff; font-weight: 500; }
+.btn.danger.solid:hover:not(:disabled) { background: #b42318; border-color: #b42318; }
+.ov-delbody { margin: 0; font-size: 14px; }

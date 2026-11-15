@@ -76,5 +76,15 @@ try:
     raise AssertionError("bad id accepted")
 except ValueError:
     pass
+assert len(uploads.files(pid)) == 7
+os.environ["SITELENS_STORE"] = str(Path(tmp.name) / "store" / "measure")
+from sitelens import measure, sessions  # noqa: E402
+key = f"upload/{pid}"
+sessions.put(key, "abcd1234", [{"kind": "user", "path": listed[0]["path"], "text": "How many doors?"}])
+measure._store_file(listed[0]["path"]).write_text("{}")
+assert sessions.drop(key) and sessions.list_sessions(key) == [] and not sessions.drop(key)
+measure.forget(listed[0]["path"])
+assert not measure._store_file(listed[0]["path"]).exists()
 assert uploads.delete(pid) and uploads.listing() == []
+assert not uploads.delete(pid)
 print("uploads ok")
