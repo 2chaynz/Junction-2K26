@@ -40,7 +40,8 @@ const spinOf = (p: Proj) => {
 
 function Still({ p, scale }: { p: Proj; scale: number }) {
   const v = thumbOf(p.cover);
-  return v ? <img src={fileUrl(v, isImage(v) ? scale * 0.6 : scale)} loading="lazy" alt="" /> : <ModelGlyph />;
+  // Scans are already small (CubiCasa median ~750 px): shrinking them like PDF pages left a 45 px blur.
+  return v ? <img src={fileUrl(v, isImage(v) ? Math.min(1, scale * 5) : scale)} loading="lazy" alt="" /> : <ModelGlyph />;
 }
 
 // The turntable only spins while its card is hovered: eight videos decoding at once halved the frame
