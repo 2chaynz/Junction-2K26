@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-15 07:05 · Asif · T98 merged PR #120: demo BIM cards spin (follow model link, Vitoria + Clinic renders); deploy keeps VM env keys. Live URL has gemini, gemma-api, nemotron-verda
 - 2026-11-15 06:49 · Asif · T97: public URL live https://hackathon-2026.tail809231.ts.net/ (Oracle A1 1 OCPU/6 GB + 8 GB swap, Tailscale Funnel, --demo full dataset). demo_check ALL PASS, survives reboot
 - 2026-11-15 05:09 · Asif · T97 merged PR #118: deploy-remote.sh --demo --funnel (Oracle sudo VM + Tailscale Funnel); waiting on Oracle VM
 - 2026-11-15 04:54 · ccolver · T96 merged PR #117: final demo = node scripts/dev.mjs --demo (full dataset, 7 projects), role chips, docs/demo.md, scripts/demo_check.py (22/22 PASS)
