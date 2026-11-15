@@ -96,4 +96,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T89 Loaders everywhere, no demo stickers, motion on Home | app |  | 2chaynz | done | 2chaynz/T89-loaders |  |  |
 | T90 Rebrand to Sindri, Tac One wordmark | app |  | ccolver | done | ccolver/T90-sindri |  |  |
 | T91 Bigger Sindri wordmark in the header | app |  | 2chaynz | done | 2chaynz/T91-wordmark |  |  |
-| T92 Pages never served stale after a rebuild | app |  | 2chaynz | doing | 2chaynz/T92-nocache |  |  |
+| T92 Pages never served stale after a rebuild | app |  | 2chaynz | review | 2chaynz/T92-nocache |  |  |
