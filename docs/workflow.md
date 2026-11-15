@@ -19,6 +19,14 @@ and takes `GEMINI_API_KEY` from your environment or `../junction-data/.env` over
 (`SITELENS_RATE`, default 30 questions/min per IP) so a public URL cannot burn the key. Keep the dataset credits (see
 `data/<source>/LICENSE.md`) if you share it.
 
+Final demo, free, stable HTTPS URL (Oracle Always Free ARM VM + Tailscale Funnel):
+```
+STOA_DATA=../junction-data/full/junction-dataset bash scripts/deploy-remote.sh ubuntu@<ip> --ssh-key ~/.ssh/<key> --demo --funnel
+```
+- Works as root or a sudo user. `--demo`: final demo set, full dataset (~12 GB upload, first run only).
+- `--funnel`: binds 127.0.0.1, no open ports. First run prints a Tailscale login link (and one to enable Funnel); open both.
+- URL: `https://<vm>.<tailnet>.ts.net/`, stable across reboots.
+
 ## How it works
 - **The repo is the team's shared memory.** Agents read and write a few files; nobody re-explains anything.
 - **Code → PR → a human merges.** Agents can't push code to `main` (git hook + Claude deny rules).
