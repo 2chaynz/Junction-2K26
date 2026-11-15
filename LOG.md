@@ -2,6 +2,7 @@
 
 Newest first. One line each: `date time · name · what`.
 
+- 2026-11-15 05:09 · Asif · T97 merged PR #118: deploy-remote.sh --demo --funnel (Oracle sudo VM + Tailscale Funnel); waiting on Oracle VM
 - 2026-11-15 04:54 · ccolver · T96 merged PR #117: final demo = node scripts/dev.mjs --demo (full dataset, 7 projects), role chips, docs/demo.md, scripts/demo_check.py (22/22 PASS)
 - 2026-11-15 04:07 · Asif · T95 merged PR #116: delete imported projects (Overview footer + confirm); also drops their sessions and measurements
 - 2026-11-15 03:46 · Asif · T93 merged PR #115: import folder/zip/files as a new project (New project button + drop on Home), stored under STOA_DATA/data/uploads
