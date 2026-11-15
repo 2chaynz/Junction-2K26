@@ -3,7 +3,6 @@ import { T } from "./introTime";
 import "./intro.css";
 
 const Scene = lazy(() => import("./IntroScene"));
-const SEEN = "sitelens.intro";
 
 const DOORS = 6;
 
@@ -21,20 +20,13 @@ class Quiet extends Component<{ children: ReactNode; onError: () => void }, { fa
   }
 }
 
-function seen() {
-  try {
-    return !!sessionStorage.getItem(SEEN);
-  } catch {
-    return false;
-  }
-}
-
 function show() {
   const q = new URLSearchParams(location.search);
   if (q.has("intro")) return true;
   // Scripted browsers (video capture, tests) would be blocked by the overlay.
   if (q.has("nointro") || navigator.webdriver) return false;
-  return !seen() && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // plays on every page load: it is the loading screen, not a one-time tour
+  return !matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 export default function Intro() {
@@ -64,14 +56,15 @@ export default function Intro() {
   }, []);
 
   const enter = useCallback(() => {
-    try {
-      sessionStorage.setItem(SEEN, "1");
-    } catch {
-      // private mode: the intro just shows again next time
-    }
     setLeaving(true);
     setTimeout(() => setOpen(false), 450);
   }, []);
+  // a loading screen moves on by itself; click or a key still skips it sooner
+  useEffect(() => {
+    if (!done || !open) return;
+    const id = setTimeout(enter, 1800);
+    return () => clearTimeout(id);
+  }, [done, open, enter]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => ["Enter", "Escape", " "].includes(e.key) && (e.preventDefault(), enter());

@@ -34,7 +34,7 @@
 .intro.done .intro-hero > * { opacity: 1; transform: none; }
 .intro.done .intro-hero > :nth-child(2) { transition-delay: 0.06s; }
 .intro.done .intro-hero > :nth-child(3) { transition-delay: 0.14s; }
-.intro-hero h1 { font-size: 76px; font-weight: 400; letter-spacing: 0; line-height: 1; margin: 0; }
+.intro-hero h1 { font-size: clamp(76px, 9vw, 128px); font-weight: 400; letter-spacing: 0; line-height: 1; margin: 0; }
 .intro-hero p { font-size: 20px; color: var(--dim); margin: 14px 0 30px; }
 
 .intro-enter { font-size: 15px; color: #fff; background: var(--red); border-radius: var(--r); padding: 11px 22px; transition: background 0.15s; }
@@ -44,5 +44,5 @@
 
 @media (max-width: 900px) {
   .intro-hero { left: 6vw; top: auto; bottom: 8vh; transform: none; width: 88vw; }
-  .intro-hero h1 { font-size: 52px; }
+  .intro-hero h1 { font-size: 64px; }
 }
