@@ -101,3 +101,28 @@ export const calibrate = async (path: string, points: number[][], length: string
 
 export const chooseScale = async (path: string, scale_id: string | null) =>
   json(await post("/api/measure/scale", { path, scale_id }), "scale");
+
+// T93: imported projects. Files go one request each (raw body) so progress is per file and nothing needs multipart.
+export type Upload = { added: string[]; skipped: { name: string; reason: string }[] };
+
+export const createProject = async (name: string): Promise<{ id: string; key: string; name: string }> =>
+  json(await post("/api/projects", { name }), "new project");
+
+// XHR, not fetch: fetch can't report upload progress, and a 200 MB zip needs a moving bar.
+export const uploadFile = (id: string, name: string, body: Blob, onProgress?: (sent: number) => void) =>
+  new Promise<Upload>((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open("PUT", `/api/projects/${encodeURIComponent(id)}/files?name=${encodeURIComponent(name)}`);
+    x.upload.onprogress = (e) => onProgress?.(e.loaded);
+    x.onload = () => {
+      if (x.status < 300) return resolve(JSON.parse(x.responseText));
+      let msg = x.responseText;
+      try { msg = JSON.parse(msg).detail ?? msg; } catch {}
+      reject(new Error(`upload: ${msg}`));
+    };
+    x.onerror = () => reject(new Error("upload: connection lost"));
+    x.send(body);
+  });
+
+export const deleteProject = async (id: string) =>
+  json(await fetch(`/api/projects/${encodeURIComponent(id)}`, { method: "DELETE" }), "delete project");

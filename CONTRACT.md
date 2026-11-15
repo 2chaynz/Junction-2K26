@@ -66,6 +66,9 @@ GET  /api/takeoff?path=data/…[&format=csv]           → {"path", "source": if
 POST /api/translate {"texts": [...]}                  → {"texts": [...]}: English, same order (strings the browser reads from IFC itself)
 GET  /api/vlm                                         → {"backend", "current", "latest", "available", "models", "backends": [{name, ready, needs, model}]}: latest = newer model of the same family, else null; models = every switchable model of the backend
 POST /api/vlm   {"backend"?: "…" | "", "model"?: "…"} → same shape; switches backend ("" = off) and/or model for this server process (no .env write); 400 if unknown or not configured
+POST /api/projects {"name"}                           → {id, name, created, key: "upload/<id>"}: empty imported project (T93)
+PUT  /api/projects/{id}/files?name=<file>  (raw body) → {added: [paths], skipped: [{name, reason}]}; a .zip is unpacked
+DELETE /api/projects/{id}                             → {"deleted"}
 GET  /api/sessions                                    → {project: {"sessions", "updated"}} for the project list
 GET  /api/sessions?project=…                          → [{id, title, created, updated, questions, paths, last: {question, value, unit}}], newest first
 GET  /api/session?project=…&id=…                      → {id, project, title?, created, updated, msgs: [Msg]}
@@ -88,6 +91,7 @@ DELETE /api/session?project=…&id=…                    → {"deleted"}
 - English only (T83, `sitelens/translate.py`): display strings in ask, stream steps, takeoff, measure and revisions are translated after the Stoa `check`. Ids, paths, GUIDs, `method`, `unit` stay as they are. Quoted names keep the original: `'Zimmer' (room)`; text `value` becomes `orig · English`. Dictionary first; Gemini (cached in `.sitelens/translate.json`) only for takeoff type/storey names and `/api/translate`. `SITELENS_TRANSLATE=dict` turns the model off.
 - Projects (T61): the UI groups drawings into projects (`web/src/workspace.ts`: `bim/<building>`, `set/<sheet set>`, `portfolio/swiss`, `archive/cubicasa`) with typed subfolders. Sessions are stored per project key in `.sitelens/sessions/` (next to `SITELENS_STORE`); `Msg` is `web/src/types.ts`.
 - `/api/file` takes optional `scale` (default 1 = bbox coords).
+- Imports (T93, `sitelens/uploads.py`): files land in `<STOA_DATA>/data/uploads/<id>/`, flattened, so paths are `data/uploads/<id>/<file>` and every path module reads them unchanged. Kept: PDF, PNG, JPG, IFC, DXF (DXF is stored, not listed). `/api/drawings` lists them with `source: "uploads"`, `questions: []` and `project: {key, name, created}`. `SITELENS_UPLOADS=0` turns imports off; `SITELENS_UPLOAD_MB` caps one file (default 500).
 - Takeoff: evidence marks counted objects or schedule entries. dimension_evidence cites plan tags, dimensions and scale references. Drawing rows explain their basis and unknowns in reason; specifications contains cited schedule fields. CSV includes Specifications and Basis columns.
 - Measure (`sitelens/measure.py`): points in bbox units. Scale = `m_per_unit` + `source` (dxf | sibling | note | bar | sheet_size | manual) + `refs: [{file, page, bbox, text, kind}]` (file may be another sheet of the project). `scale: null` → `ask` + `options`. Stored per drawing in `SITELENS_STORE`.
 - Run: `STOA_DATA=… python -m sitelens.server` (serves `web/dist` after `cd web && npm ci && npm run build`). Dev: `npm run dev` in `web/` proxies `/api` to :8000.

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fileUrl, isImage } from "./api";
+import NewProject, { type Picked, fromDrop } from "./NewProject";
 import { KIND_LABEL, type Kind, type Overview, type Proj, type Recent, ago, sheetName, thumbOf } from "./workspace";
 
 type Props = {
@@ -8,6 +9,7 @@ type Props = {
   recent: Recent;
   current: string | null;
   onOpen: (key: string, path?: string) => void;
+  onCreated: (key: string) => Promise<void> | void;
 };
 
 const FILTERS: { label: string; kind: Kind | null }[] = [
@@ -26,7 +28,7 @@ const ModelGlyph = () => (
 
 // BIM projects: a clay turntable of the model, pre-rendered by scripts/render_turntables.py.
 const spinOf = (p: Proj) => {
-  const m = p.kind === "BIM" ? p.items.find((d) => d.path.toLowerCase().endsWith(".ifc")) : undefined;
+  const m = p.kind === "BIM" && !p.created ? p.items.find((d) => d.path.toLowerCase().endsWith(".ifc")) : undefined;
   return m ? `/turntables/${(m.path.split("/").pop() ?? "").replace(/\.ifc$/i, "")}` : null;
 };
 
@@ -85,7 +87,7 @@ function counts(p: Proj) {
   const out: string[] = [];
   if (p.plans) out.push(`${p.plans.toLocaleString("en")} sheet${p.plans === 1 ? "" : "s"}`);
   if (p.models) out.push(`${p.models} model${p.models === 1 ? "" : "s"}`);
-  out.push(`${p.questions.toLocaleString("en")} Q`);
+  if (p.questions || !p.created) out.push(`${p.questions.toLocaleString("en")} Q`);
   return out.join(" · ");
 }
 
@@ -120,9 +122,40 @@ function Card({ p, o, hits, current, onOpen }: {
   );
 }
 
-export default function Projects({ projects, overview, recent, current, onOpen }: Props) {
+// Files dragged from the desktop (not text or a card dragged inside the page).
+const hasFiles = (e: DragEvent) => !!e.dataTransfer && [...e.dataTransfer.types].includes("Files");
+
+export default function Projects({ projects, overview, recent, current, onOpen, onCreated }: Props) {
   const [q, setQ] = useState("");
   const [kind, setKind] = useState<Kind | null>(null);
+  const [dlg, setDlg] = useState<{ files: Picked[]; folder?: string } | null | false>(false);
+  const [drag, setDrag] = useState(false);
+
+  // Drop anywhere on Home starts a project (Drive / Dropbox pattern). The open dialog has its own drop zone.
+  useEffect(() => {
+    if (dlg !== false) return;
+    let depth = 0;
+    const enter = (e: DragEvent) => { if (hasFiles(e)) (depth++, setDrag(true)); };
+    const leave = (e: DragEvent) => { if (hasFiles(e) && --depth <= 0) (depth = 0, setDrag(false)); };
+    const over = (e: DragEvent) => { if (hasFiles(e)) e.preventDefault(); };
+    const drop = async (e: DragEvent) => {
+      if (!hasFiles(e) || !e.dataTransfer) return;
+      e.preventDefault();
+      depth = 0;
+      setDrag(false);
+      setDlg(await fromDrop(e.dataTransfer));
+    };
+    window.addEventListener("dragenter", enter);
+    window.addEventListener("dragleave", leave);
+    window.addEventListener("dragover", over);
+    window.addEventListener("drop", drop);
+    return () => {
+      window.removeEventListener("dragenter", enter);
+      window.removeEventListener("dragleave", leave);
+      window.removeEventListener("dragover", over);
+      window.removeEventListener("drop", drop);
+    };
+  }, [dlg]);
 
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
   const shown = useMemo(() => {
@@ -151,18 +184,42 @@ export default function Projects({ projects, overview, recent, current, onOpen }
       <div className="page-head phero">
         <div>
           <h1>Projects</h1>
-          <p className="lede">Each project holds its sheets, models and the questions your team asked about them. Open one to work in it.</p>
+          <p className="lede">Each project holds its sheets, models and the questions your team asked about them. Open one, or drop your own drawings anywhere here to start a new one.</p>
         </div>
-        <div className="search psearch">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => e.key === "Escape" && setQ("")}
-            placeholder="Find a project or sheet"
-            autoFocus
-          />
+        <div className="pactions">
+          <div className="search psearch">
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => e.key === "Escape" && setQ("")}
+              placeholder="Find a project or sheet"
+              autoFocus
+            />
+          </div>
+          <button className="btn primary pnew" onClick={() => setDlg(null)}>
+            <span aria-hidden>+</span> New project
+          </button>
         </div>
       </div>
+
+      {drag && (
+        <div className="pdropall" aria-hidden>
+          <div>
+            <strong>Drop to create a project</strong>
+            <span className="mono small">PDF · PNG · JPG · IFC · DXF · folders · ZIP</span>
+          </div>
+        </div>
+      )}
+      {dlg !== false && (
+        <NewProject
+          initial={dlg}
+          onClose={() => setDlg(false)}
+          onCreated={async (k) => {
+            await onCreated(k);
+            setDlg(false);
+          }}
+        />
+      )}
 
       {!words.length && !kind && recents.length > 0 && (
         <>

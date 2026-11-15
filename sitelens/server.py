@@ -20,8 +20,9 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
-from . import data_root
+from . import data_root, uploads
 from .translate import english_many, english_obj, sheet_title
 
 
@@ -118,12 +119,15 @@ def drawings():
                     "title": f"{plan[1]} · {sheet_title(plan[2])}" if plan else None,
                     "questions": [{"question": q["question"], "answer": q["answer"], "unit": q["unit"],
                                    "type": q["type"]} for q in qs]})
+    for u in uploads.listing():   # imported projects (T93): no answer key, so no questions
+        out.append({"path": u["path"], "source": "uploads", "view": _view_of(u["path"]), "model": _model_of(u["path"]),
+                    "title": None, "project": u["project"], "questions": []})
     return out
 
 
 @app.get("/api/original")
 def original(path: str):
-    if path not in _questions():
+    if path not in _questions() and not uploads.is_upload(path):
         raise HTTPException(404, "drawing not found")
     p = _safe(path)
     if p.suffix.lower() in {".pdf", ".png", ".jpg", ".jpeg"}:
@@ -288,7 +292,7 @@ def _related(path: str, related: list[str] | None) -> list[str]:
     out = [m for m in [_model_of(path)] if m and m != path]
     if path.split("/")[1] in ("swiss_dwellings", "cubicasa5k"):   # one building per file: no shared project
         return out
-    out += [r for r in related or [] if r in qs and r != path]
+    out += [r for r in related or [] if (r in qs or uploads.is_upload(r)) and r != path]
     return list(dict.fromkeys(out))
 
 
@@ -541,6 +545,40 @@ def session_put(req: SessionBody):
 def session_delete(project: str, id: str):
     from . import sessions
     return {"deleted": sessions.delete(project, id)}
+
+
+class NewProject(BaseModel):
+    name: str
+
+
+def _uploads_on():
+    if not uploads.enabled():
+        raise HTTPException(403, "imports are turned off on this server (SITELENS_UPLOADS=0)")
+
+
+@app.post("/api/projects")
+def project_create(req: NewProject):
+    """T93: an empty imported project; files follow with PUT /api/projects/{id}/files."""
+    _uploads_on()
+    m = uploads.create(req.name)
+    return {**m, "key": f"upload/{m['id']}"}
+
+
+@app.put("/api/projects/{pid}/files")
+async def project_add(pid: str, name: str, request: Request):
+    """Raw body = one file (a .zip is unpacked). → {added: [paths], skipped: [{name, reason}]}."""
+    _uploads_on()
+    chunks = [c async for c in request.stream()]
+    try:
+        return await run_in_threadpool(uploads.add, pid, name, chunks)   # PDF checks must not stall the loop
+    except (KeyError, ValueError):
+        raise HTTPException(404, "no such project")
+
+
+@app.delete("/api/projects/{pid}")
+def project_delete(pid: str):
+    _uploads_on()
+    return {"deleted": uploads.delete(pid)}
 
 
 if WEB.is_dir():

@@ -10,6 +10,7 @@ export type Proj = {
   key: string; name: string; kind: Kind; org: string;
   folders: Folder[]; items: Drawing[]; cover: Drawing | null;
   plans: number; models: number; questions: number; featured: boolean;
+  created?: number; // imported projects: when, for newest-first
 };
 
 export const KIND_LABEL: Record<Kind, string> = {
@@ -55,6 +56,17 @@ const BENCH_DISC = /_(arc|str|mep|heating|plumbing|ventilation|electrical|city)$
 /** Project and subfolder of one drawing. */
 function place(d: Drawing): Place {
   const name = shortName(d.path);
+  if (d.source === "uploads" && d.project) {
+    const t = name.toLowerCase();
+    const [c, l] = discipline(name);
+    const folder: [string, string, string] = isModel(d) ? [`m-${c}`, l, c]
+      : /\.(png|jpe?g)$/i.test(d.path) ? ["scan", "Scans", "SC"]
+      : /schedule/.test(t) ? ["sch", "Schedules", "SCH"]
+      : /elevation/.test(t) ? ["elev", "Elevations", "EL"]
+      : /section/.test(t) ? ["sec", "Sections", "SEC"]
+      : ["sheets", "Sheets", "SH"];
+    return { key: d.project.key, name: d.project.name, kind: "Sheet set", org: "Imported", folder };
+  }
   if (d.source === "ifc_models") {
     const base = name.replace(/_plan-.*$/, "");
     const [orgBldg, model = ""] = base.split(/_(.*)/);
@@ -106,7 +118,7 @@ const placeOf = (d: Drawing) => {
 export const projectKeyOf = (d: Drawing) => placeOf(d).key;
 
 const KIND_ORDER: Kind[] = ["BIM", "Sheet set", "Portfolio", "Archive"];
-const FOLDER_ORDER = ["FP", "A", "S", "M", "E", "P", "C", "SCH", "EL", "SEC", "DET"];
+const FOLDER_ORDER = ["FP", "SH", "A", "S", "M", "E", "P", "C", "SCH", "EL", "SEC", "DET", "SC"];
 
 export function buildProjects(drawings: Drawing[]): Proj[] {
   const m = new Map<string, Proj & { _f: Map<string, Folder> }>();
@@ -119,6 +131,7 @@ export function buildProjects(drawings: Drawing[]): Proj[] {
       m.set(pl.key, p);
     }
     if (p.org === "IFC benchmark") p.org = pl.org; // the real author beats the benchmark that re-published it
+    if (d.project) p.created = d.project.created;
     p.items.push(d);
     p.questions += d.questions.length;
     isModel(d) ? p.models++ : p.plans++;
@@ -138,9 +151,11 @@ export function buildProjects(drawings: Drawing[]): Proj[] {
     folders.sort((a, b) => FOLDER_ORDER.indexOf(a.code) - FOLDER_ORDER.indexOf(b.code) || a.label.localeCompare(b.label, "en", { numeric: true }));
     const demo = p.items.find((d) => DEMO.includes(d.path));
     p.cover = demo ?? p.items.find((d) => !isModel(d)) ?? p.items[0] ?? null;
+    if (p.created && p.models) p.kind = "BIM"; // an import with a model is a building
     out.push({ ...p, folders });
   }
-  return out.sort((a, b) => Number(b.featured) - Number(a.featured) || KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || b.items.length - a.items.length);
+  // Your own imports first, newest on top: you just made them.
+  return out.sort((a, b) => (b.created ?? 0) - (a.created ?? 0) || Number(b.featured) - Number(a.featured) || KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || b.items.length - a.items.length);
 }
 
 /** Thumbnail source for a drawing: its plan, or the plan rendered from an IFC model. */
