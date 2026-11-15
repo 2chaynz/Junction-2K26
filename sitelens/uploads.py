@@ -118,14 +118,19 @@ def _store(d: Path, name: str, src: BinaryIO, size_hint: int | None = None) -> t
         return None, f"over {MAX_FILE // 2**20} MB"
     out = _free(d, _clean(name))
     n = 0
-    with open(out, "wb") as f:
-        while chunk := src.read(1 << 20):
-            n += len(chunk)
-            if n > MAX_FILE:
-                f.close()
-                out.unlink()
-                return None, f"over {MAX_FILE // 2**20} MB"
-            f.write(chunk)
+    try:
+        with open(out, "wb") as f:
+            while chunk := src.read(1 << 20):
+                n += len(chunk)
+                if n > MAX_FILE:
+                    break
+                f.write(chunk)
+    except BaseException:
+        out.unlink(missing_ok=True)   # no half-written drawing left behind
+        raise
+    if n > MAX_FILE:
+        out.unlink()
+        return None, f"over {MAX_FILE // 2**20} MB"
     if reason := _check(out):
         out.unlink()
         return None, reason
@@ -168,8 +173,11 @@ def add(pid: str, name: str, src: BinaryIO) -> dict:
             if budget < 0:
                 skipped.append({"name": i.filename, "reason": "zip unpacks to too much data"})
                 continue
-            with z.open(i) as member:
-                p, why = _store(d, base, member, i.file_size)
+            try:
+                with z.open(i) as member:
+                    p, why = _store(d, base, member, i.file_size)
+            except (RuntimeError, zipfile.BadZipFile, OSError, EOFError) as e:   # encrypted / bad CRC: skip only this entry
+                p, why = None, "encrypted entry" if "encrypt" in str(e).lower() or "password" in str(e).lower() else f"damaged in the zip ({type(e).__name__})"
             (added.append(_rel(p)) if p else skipped.append({"name": i.filename, "reason": why}))
         if len(members) > MAX_ZIP_FILES:
             skipped.append({"name": name, "reason": f"only the first {MAX_ZIP_FILES} files were read"})

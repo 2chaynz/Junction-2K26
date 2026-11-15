@@ -55,8 +55,21 @@ assert [s["name"] for s in r["skipped"]] == ["set/readme.md"], r
 assert not (Path(tmp.name) / "evil.pdf").exists()
 assert uploads.add(pid, "bad.zip", io.BytesIO(b"nope"))["skipped"][0]["reason"] == "not a valid zip"
 
+# A damaged entry (bad CRC) skips only itself; the rest still import.
+z = io.BytesIO()
+with zipfile.ZipFile(z, "w", zipfile.ZIP_STORED) as f:
+    f.writestr("good.pdf", pdf())
+    f.writestr("bad.pdf", pdf())
+raw = bytearray(z.getvalue())
+at = raw.rindex(b"%PDF")   # second entry's data
+raw[at + 20] ^= 0xFF
+r = uploads.add(pid, "crc.zip", io.BytesIO(bytes(raw)))
+assert [x.split("/")[-1] for x in r["added"]] == ["good.pdf"], r
+assert r["skipped"][0]["name"] == "bad.pdf" and "damaged" in r["skipped"][0]["reason"], r
+assert not any("bad" in f.name for f in (Path(tmp.name) / "data" / "uploads" / pid).iterdir())
+
 listed = uploads.listing()
-assert len(listed) == 6 and all(x["project"]["key"] == f"upload/{pid}" for x in listed), listed
+assert len(listed) == 7 and all(x["project"]["key"] == f"upload/{pid}" for x in listed), listed
 assert uploads.is_upload(listed[0]["path"]) and not uploads.is_upload(f"data/uploads/{pid}/../x.pdf")
 try:
     uploads.add("../x", "a.pdf", io.BytesIO(pdf()))
