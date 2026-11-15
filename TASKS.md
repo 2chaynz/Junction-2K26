@@ -104,3 +104,4 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T97 Public URL: Oracle VM + Tailscale Funnel | setup | T58 | Asif | done | asif/T97-oracle-funnel |  |  |
 | T98 3D previews on demo BIM cards | app | T96 | Asif | done | asif/T98-demo-turntables |  |  |
 | T99 Sharp image thumbnails on project cards | app | T98 | Asif | done | asif/T99-sharp-thumbs |  |  |
+| T100 Add MIT licence for submission | setup |  |  | todo |  |  |  |
