@@ -3,6 +3,7 @@
 //   node scripts/dev.mjs            set up venv + web build if missing, then serve (dataset is yours to drop in)
 //   node scripts/dev.mjs --check    only report what is missing
 //   node scripts/dev.mjs --no-build skip the web build
+//   node scripts/dev.mjs --demo     final demo: full dataset first, only the demo projects (docs/demo.md)
 import { spawnSync, spawn } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync, mkdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
@@ -57,7 +58,8 @@ function findData(dir, depth = 3) {
   const subs = readdirSync(dir, { withFileTypes: true })
     .filter((e) => e.isDirectory())
     .map((e) => e.name)
-    .sort((x, y) => Number(/preview/i.test(y)) - Number(/preview/i.test(x)));
+    // the demo needs the full dataset (Vitoria revisions, whole sheet sets); otherwise the small preview loads faster
+    .sort((x, y) => (Number(/preview/i.test(y)) - Number(/preview/i.test(x))) * (args.has("--demo") ? -1 : 1));
   for (const n of subs) {
     const hit = findData(join(dir, n), depth - 1);
     if (hit) return hit;
@@ -104,6 +106,9 @@ if (needData) {
   process.exit(1);
 }
 
+if (args.has("--demo") && /preview/i.test(dataDir))
+  console.error("WARN --demo on the preview dataset: the Vitoria revisions and whole sheet sets need the full one (set STOA_DATA)");
+
 // fail here, not after minutes of install, when another copy of the server holds the port
 const PORT = 8000;
 const portFree = await new Promise((done) => {
@@ -144,7 +149,7 @@ log(`serving http://localhost:8000  (STOA_DATA=${dataDir})`);
 const child = spawn(venvPy, ["-m", "sitelens.server"], {
   cwd: ROOT,
   stdio: "inherit",
-  env: { ...process.env, ...loadEnv(), STOA_DATA: dataDir },
+  env: { ...process.env, ...loadEnv(), STOA_DATA: dataDir, ...(args.has("--demo") ? { SITELENS_DEMO: "1" } : {}) },
 });
 child.on("exit", (code) => process.exit(code ?? 0));
 for (const s of ["SIGINT", "SIGTERM"]) process.on(s, () => child.kill(s));

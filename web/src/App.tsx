@@ -481,7 +481,10 @@ export default function App({ revisionDemo = false, sheetDemo = false }: { revis
   const act = active !== null ? msgs[active] : null;
   const shownMark = mark ?? (act?.kind === "answer" && act.path === path ? act.mark ?? null : null);
   const answer = act?.kind === "answer" && act.path === path ? act.answer : null;
-  const view = showCh || msOn ? drawing?.view ?? "" : answer?.view ?? drawing?.view ?? "";
+  // A cross-sheet citation (cross-check: tag on a plan, entry in the schedule) opens the sheet it is on.
+  const focusEv = focus !== null ? answer?.evidence[focus] : undefined;
+  const evSheet = focusEv?.file && focusEv.bbox.length === 4 && !focusEv.file.endsWith(".ifc") ? focusEv.file : null;
+  const view = showCh || msOn ? drawing?.view ?? "" : evSheet ?? answer?.view ?? drawing?.view ?? "";
   // A "what changed" chat answer draws like the changes panel: removed items as ghosts on the new sheet.
   const isDiff = !showCh && !msOn && answer?.method === "diff";
   const shown = useMemo(() => (isDiff && answer ? onNewSheet(answer, view) : answer), [isDiff, answer, view]);

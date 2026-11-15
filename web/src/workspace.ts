@@ -25,7 +25,7 @@ const ORG: Record<string, string> = {
 const ALIAS: Record<string, string> = { fzkhouse: "fzkhaus" };
 const NAME: Record<string, string> = {
   fzkhaus: "FZK-Haus", digitalhub: "Digital Hub", sixty5: "Sixty5", ac20: "AC20 Institute", "4351": "Project 4351",
-  hitos: "HITOS", ettenheimgis: "Ettenheim GIS", ctr: "CTR",
+  hitos: "HITOS", ettenheimgis: "Ettenheim GIS", ctr: "Cannery Trail Residences", clinic: "Medical-Dental Clinic",
 };
 
 // US National CAD Standard discipline letters, which sheet numbers and model names use.
@@ -155,7 +155,9 @@ export function buildProjects(drawings: Drawing[]): Proj[] {
     out.push({ ...p, folders });
   }
   // Your own imports first, newest on top: you just made them.
-  return out.sort((a, b) => (b.created ?? 0) - (a.created ?? 0) || Number(b.featured) - Number(a.featured) || KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || b.items.length - a.items.length);
+  // Demo projects next, in demo order (T96).
+  const rank = (p: Proj) => (p.featured && p.cover ? DEMO.indexOf(p.cover.path) : DEMO.length);
+  return out.sort((a, b) => (b.created ?? 0) - (a.created ?? 0) || rank(a) - rank(b) || KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || b.items.length - a.items.length);
 }
 
 /** Thumbnail source for a drawing: its plan, or the plan rendered from an IFC model. */

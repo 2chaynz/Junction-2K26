@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { METHOD_NAME, fmtAnswer, fmtEur, fmtTime, fmtValue, shortName } from "./format";
+import { type Chip, METHOD_NAME, fmtAnswer, fmtEur, fmtTime, fmtValue, shortName } from "./format";
 import { CountUpText } from "./motion";
 import VlmPicker from "./VlmPicker";
 import type { Answer, Mark, Msg, Reason, Source, Step, Table } from "./types";
@@ -7,7 +7,7 @@ import type { Answer, Mark, Msg, Reason, Source, Step, Table } from "./types";
 type Props = {
   msgs: Msg[];
   path: string;
-  chips: string[];
+  chips: Chip[];
   active: number | null; // index in msgs of the answer whose marks are on the plan
   hover: number | null;
   focus: number | null;
@@ -25,6 +25,9 @@ type Props = {
 };
 
 const MAX_CITES = 9;
+
+// Opening Design questions repeat the sheet and address first; the chip shows the part that differs.
+const chipLabel = (q: string) => q.replace(/^On sheet [^,(]+(\([^)]*\))?[^,]*?drawings( \([^)]*\))?, (\w)/i, (_m, _a, _b, c: string) => c.toUpperCase());
 
 // A reader that was tried and declined reads as one line: "Is there an earlier issue…? No."
 function lines(steps: Step[]) {
@@ -417,9 +420,10 @@ export default function Chat(p: Props) {
       <div className="composer">
         {p.chips.length > 0 && (
           <div className="chips">
-            {p.chips.map((q) => (
+            {p.chips.map(({ q, role }) => (
               <button key={q} className="chip" disabled={p.busy} onClick={() => p.onAsk(q)} title={q}>
-                {q}
+                {role && <span className="chip-role">{role}</span>}
+                {chipLabel(q)}
               </button>
             ))}
           </div>

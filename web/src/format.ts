@@ -1,4 +1,5 @@
 import type { Answer, Drawing } from "./types";
+import script from "./demoScript.json";
 
 const UNIT: Record<string, string> = { m2: "m²", m3: "m³", m: "m", ft2: "ft²", count: "" };
 
@@ -41,14 +42,11 @@ export const TYPE: Record<string, string> = {
   cubicasa5k: "PNG", swiss_dwellings: "PDF", ifc_models: "IFC", ifc_bench: "IFC", opening_design: "PDF",
 };
 
-// One per type. The first one opens on load.
-export const DEMO = [
-  "data/swiss_dwellings/site418_bldg1080_floor4724.pdf",
-  "data/cubicasa5k/colorful-2002.png",
-  "data/ifc_models/bsc-esplanades_1807-ep-ar-v18_plan-04-4-korrus.pdf",
-  "data/ifc_models/bsc-molio_molio-with-uris.ifc",
-  "data/opening_design/Sports_Complex/Sheets - Current Set/A-801 - Door and Finish Schedules & Wall Types.pdf",
-];
+// Final demo (T96): featured drawings in demo order, each with verified role-tagged questions.
+export type Chip = { q: string; role?: string };
+type Scripted = { project: string; path: string; chips: (Chip & { expect: unknown; method?: string })[] };
+export const SCRIPT = script as Scripted[];
+export const DEMO = SCRIPT.map((s) => s.path);
 
 export const shortName = (path: string) => (path.split("/").pop() ?? path).replace(/\.(pdf|png|jpe?g|ifc)$/i, "");
 
@@ -56,14 +54,16 @@ export const shortName = (path: string) => (path.split("/").pop() ?? path).repla
 export const isEnglishQuestion = (question: string): boolean =>
   /^(?:how|what|which|who|where|when|why|is|are|does|do|can|could|would|on sheet)\b/i.test(question.trimStart());
 
-export function pickChips(d: Drawing | undefined, n = 3): string[] {
+export function pickChips(d: Drawing | undefined, n = 3): Chip[] {
   if (!d) return [];
+  const scripted = SCRIPT.find((s) => s.path === d.path);
+  if (scripted) return scripted.chips.map(({ q, role }) => ({ q, role }));
   const pool = d.questions.filter((q) => isEnglishQuestion(q.question));
   const out: string[] = [];
   const types = new Set<string>();
   for (const q of pool) if (!types.has(q.type) && out.length < n) (types.add(q.type), out.push(q.question));
   for (const q of pool) if (!out.includes(q.question) && out.length < n) out.push(q.question);
-  return out;
+  return out.map((q) => ({ q }));
 }
 
 export const SOURCE_LABEL: Record<string, string> = {

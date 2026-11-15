@@ -1,0 +1,67 @@
+[
+  {
+    "project": "Vitoria ALD26",
+    "path": "data/ifc_models/bimspeed-vitoria_ald26-project_plan-03-p2.pdf",
+    "chips": [
+      { "role": "Project engineer", "q": "What is the total net floor area of all rooms (spaces) on 'P2', in m²?", "expect": 157.04 },
+      { "role": "Estimator", "q": "How many doors are shown on the floor plan of 'P2'?", "expect": 16 },
+      { "role": "Site manager", "q": "How many stairs are shown on the floor plan of 'P2'?", "expect": 1 }
+    ]
+  },
+  {
+    "project": "CTR · Cannery Trail Residences",
+    "path": "data/opening_design/CTR/Most Current Set/Full size sheets/A700 - SCHEDULES.pdf",
+    "chips": [
+      { "role": "Site manager", "q": "Do the doors on the plans match the door schedule?", "expect": "4 conflicts", "method": "crosscheck" },
+      { "role": "Estimator", "q": "On sheet A700 of the Cannery Trail Residences drawings (1750 N Oxford Ave, Eau Claire, WI), how many unit entry doors (type U01) are scheduled?", "expect": 71 },
+      { "role": "Estimator", "q": "On sheet A700 of the Cannery Trail Residences drawings (1750 N Oxford Ave, Eau Claire, WI), how many windows of type SS (2-WIDE (TEMP ALL LOW) ESDH3066) are scheduled?", "expect": 118 },
+      { "role": "Project engineer", "q": "On sheet A700 of the Cannery Trail Residences drawings (1750 N Oxford Ave, Eau Claire, WI), how many doors with an acoustical seal (type U41) are scheduled?", "expect": 52 }
+    ]
+  },
+  {
+    "project": "Sports Complex",
+    "path": "data/opening_design/Sports_Complex/Sheets - Current Set/A-801 - Door and Finish Schedules & Wall Types.pdf",
+    "chips": [
+      { "role": "Project manager", "q": "How many doors were removed since the previous issue?", "expect": 6, "method": "diff" },
+      { "role": "Project manager", "q": "What is the net area change since the previous issue?", "expect": 19, "method": "diff" },
+      { "role": "Estimator", "q": "List the doors in the door schedule with their sizes", "expect": "38 doors", "method": "takeoff" },
+      { "role": "Project engineer", "q": "On sheet A-801 of the Xcel Sports Complex drawings, what is the width of door 121.A?", "expect": "10 3/8" }
+    ]
+  },
+  {
+    "project": "Esplanades",
+    "path": "data/ifc_models/bsc-esplanades_1807-ep-ar-v18_plan-02-2-korrus.pdf",
+    "chips": [
+      { "role": "Project engineer", "q": "Kui suur on ruumi „ARVUTIKLASS (203)“ netopõrandapind korrusel „2.korrus“ (m²)?", "expect": 22.4 },
+      { "role": "Site manager", "q": "How many doors are shown on the floor plan of '2.korrus'?", "expect": 42 },
+      { "role": "Estimator", "q": "What is the total net floor area of all rooms (spaces) on '2.korrus', in m²?", "expect": 859.31 }
+    ]
+  },
+  {
+    "project": "Medical-Dental Clinic",
+    "path": "data/ifc_models/bsc-clinic_clinic-architectural.ifc",
+    "chips": [
+      { "role": "Estimator", "q": "How many doors are there in the model 'Medical-Dental Clinic - architectural'?", "expect": 254 },
+      { "role": "Project engineer", "q": "What is the net floor area of the room 'CENTRAL WAITING (1AC1)' on 'First Floor', in m²?", "expect": 136.8 },
+      { "role": "Site manager", "q": "How many windows are shown on the floor plan of 'First Floor'?", "expect": 22 }
+    ]
+  },
+  {
+    "project": "Swiss Dwellings",
+    "path": "data/swiss_dwellings/site418_bldg1080_floor4724.pdf",
+    "chips": [
+      { "role": "Estimator", "q": "What is the total net area in m² of all rooms labelled 'Zimmer' on this floor?", "expect": 81.16 },
+      { "role": "Project engineer", "q": "Wie gross ist die Nettowohnfläche von Wohnung C in m² (Summe aller Räume ohne Balkone, Loggien, Terrassen und andere Aussenräume)?", "expect": 97.23 },
+      { "role": "Site manager", "q": "How many doors (interior doors and entrance doors together) are drawn on this floor plan?", "expect": 33 }
+    ]
+  },
+  {
+    "project": "CubiCasa scan",
+    "path": "data/cubicasa5k/colorful-11485.png",
+    "chips": [
+      { "role": "Estimator", "q": "How many doors are shown on this floor plan? Count doorways fitted with a door; open doorways without a door leaf do not count.", "expect": 4 },
+      { "role": "Estimator", "q": "How many windows are shown on this floor plan?", "expect": 2 },
+      { "role": "Project engineer", "q": "How many bathrooms or washrooms (e.g. KH, KPH, PH, PESUH, SH) are on this floor plan, not counting separate WC rooms?", "expect": 1 }
+    ]
+  }
+]
