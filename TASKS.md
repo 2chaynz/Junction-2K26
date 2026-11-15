@@ -97,5 +97,5 @@ Status: todo · doing · blocked · review · done. Area: short tag (hw, fw, app
 | T90 Rebrand to Sindri, Tac One wordmark | app |  | ccolver | done | ccolver/T90-sindri |  |  |
 | T91 Bigger Sindri wordmark in the header | app |  | 2chaynz | done | 2chaynz/T91-wordmark |  |  |
 | T92 Pages never served stale after a rebuild | app |  | 2chaynz | done | 2chaynz/T92-nocache |  |  |
-| T93 Import a folder or zip of drawings as a new project | app |  | Asif | review | asif/T93-import |  |  |
+| T93 Import a folder or zip of drawings as a new project | app |  | Asif | done | asif/T93-import |  |  |
 | T94 Sindri logo: red dot on the last i | app | T90 | ccolver | done | ccolver/T94-logo |  |  |
