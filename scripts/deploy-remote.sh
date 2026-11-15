@@ -52,9 +52,12 @@ BIND=0.0.0.0; [ "$FUNNEL" = 1 ] && BIND=127.0.0.1
 $SSH "$HOST" sudo env PORT="$PORT" BIND="$BIND" FUNNEL="$FUNNEL" bash -s <<'REMOTE'
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
-command -v python3 >/dev/null && python3 -m venv --help >/dev/null 2>&1 || { apt-get -qq update; apt-get -qq install -y python3-venv python3-pip >/dev/null; }
+# venv --help passes without ensurepip (Ubuntu cloud images), so check ensurepip itself.
+python3 -c "import ensurepip" 2>/dev/null || { apt-get -qq update; apt-get -qq install -y python3-venv python3-pip >/dev/null; }
+# OpenCV (ultralytics, rapidocr) needs libGL; minimal cloud images lack it.
+dpkg -s libgl1 >/dev/null 2>&1 || { apt-get -qq update; apt-get -qq install -y libgl1 libglib2.0-0t64 >/dev/null; }
 cd /opt/sitelens
-[ -d venv ] || python3 -m venv venv
+[ -x venv/bin/pip ] || { rm -rf venv; python3 -m venv venv; }
 . venv/bin/activate
 pip install -q -U pip
 python -c "import torch" 2>/dev/null || pip install -q torch torchvision --index-url https://download.pytorch.org/whl/cpu || pip install -q torch torchvision
