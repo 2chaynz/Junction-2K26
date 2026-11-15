@@ -46,3 +46,4 @@
   .intro-hero { left: 6vw; top: auto; bottom: 8vh; transform: none; width: 88vw; }
   .intro-hero h1 { font-size: 64px; }
 }
+.intro-enter .wm-dot::after { background: #fff; }

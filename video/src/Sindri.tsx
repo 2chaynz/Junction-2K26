@@ -10,6 +10,14 @@ const INK = "#0e1117";
 const FONT = "Inter, 'Segoe UI', Helvetica, Arial, sans-serif";
 const MONO = "'JetBrains Mono', Consolas, monospace";
 const BRAND = "'Tac One', Inter, sans-serif";
+// Logo B: dotless last i with a red round dot, same geometry as web/src/styles.css .wm-dot.
+const Wordmark: React.FC = () => (
+  <span style={{ fontFamily: BRAND, fontWeight: 400, letterSpacing: 0 }}>
+    Sindr<span style={{ position: "relative", display: "inline-block", lineHeight: 1 }}>ı
+      <span style={{ position: "absolute", left: "50%", top: "0.22em", width: "0.17em", height: "0.17em", marginLeft: "-0.085em", borderRadius: "50%", background: RED }} />
+    </span>
+  </span>
+);
 
 // ---------- real screen clips: frames captured from Chrome (capture/capture.mjs), played back by timestamp ----------
 type Frame = { t: number; file: string };
@@ -111,7 +119,7 @@ const Title: React.FC<{ big: string; line: string; small: string; bigSize?: numb
   const b = spring({ frame: frame - 8, fps, config: { damping: 14, stiffness: 150 } });
   return (
     <AbsoluteFill style={{ background: INK, justifyContent: "center", alignItems: "center", fontFamily: FONT, textAlign: "center", padding: "0 120px" }}>
-      <div style={{ fontSize: bigSize, fontWeight: big === "Sindri" ? 400 : 800, fontFamily: big === "Sindri" ? BRAND : FONT, color: "#fff", transform: `scale(${0.5 + 0.5 * a})`, opacity: Math.min(a * 2, 1), letterSpacing: big === "Sindri" ? 0 : -5, lineHeight: 1.02 }}>{big}</div>
+      <div style={{ fontSize: bigSize, fontWeight: big === "Sindri" ? 400 : 800, fontFamily: big === "Sindri" ? BRAND : FONT, color: "#fff", transform: `scale(${0.5 + 0.5 * a})`, opacity: Math.min(a * 2, 1), letterSpacing: big === "Sindri" ? 0 : -5, lineHeight: 1.02 }}>{big === "Sindri" ? <Wordmark /> : big}</div>
       <div style={{ fontSize: 58, color: RED, opacity: b, marginTop: 22, transform: `translateY(${(1 - b) * 24}px)`, fontWeight: 700 }}>{line}</div>
       <div style={{ fontSize: 30, color: "#9aa3b2", opacity: b, marginTop: 40, fontFamily: MONO }}>{small}</div>
       <Wipe />
@@ -160,7 +168,7 @@ const Versus: React.FC = () => {
       </div>
       <div style={{ position: "absolute", top: 190, right: 110, width: 800, transform: `scale(${0.7 + 0.3 * r})`, opacity: r }}>
         <div style={{ border: `4px solid ${RED}`, borderRadius: 20, padding: "30px 44px", background: "rgba(217,45,32,.12)", position: "relative" }}>
-          <div style={{ fontSize: 34, color: "#fda29b", fontWeight: 400, fontFamily: BRAND }}>Sindri</div>
+          <div style={{ fontSize: 34, color: "#fda29b", fontWeight: 400 }}><Wordmark /></div>
           <div style={{ fontSize: 330, fontWeight: 800, color: "#fff", lineHeight: 1.05 }}>{d.hook.ours}</div>
           <div style={{ fontSize: 40, fontFamily: MONO, color: "#fda29b" }}>every door marked on the plan</div>
           <div style={{ position: "absolute", right: 30, top: 70, transform: `rotate(-8deg) scale(${0.3 + 0.7 * ok})`, opacity: Math.min(ok * 2, 1), color: "#12b76a", fontSize: 150, fontWeight: 900 }}>✓</div>

@@ -1,3 +1,4 @@
+import { Wordmark } from "./Wordmark";
 import { Component, Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { T } from "./introTime";
 import "./intro.css";
@@ -90,10 +91,10 @@ export default function Intro() {
       </div>
 
       <div className="intro-hero">
-        <h1 className="wordmark">Sindri</h1>
+        <h1><Wordmark /></h1>
         <p>Ask your drawings. See the answer on the plan.</p>
         <button className="intro-enter" onClick={enter} tabIndex={done ? 0 : -1}>
-          Open <span className="wordmark">Sindri</span> <span aria-hidden>→</span>
+          Open <Wordmark /> <span aria-hidden>→</span>
         </button>
       </div>
     </div>

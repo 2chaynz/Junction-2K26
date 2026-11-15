@@ -1,3 +1,4 @@
+import { Wordmark } from "./Wordmark";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fileUrl, viewScale } from "./api";
 import { BOARDS, HELD_OUT, MODELS, type Entry } from "./benchData";
@@ -73,7 +74,7 @@ function Leaderboard() {
                 <span className="rank mono">{e.acc === null ? "" : i + 1}</span>
                 <ModelLogo maker={mo.maker} />
                 <span className="who">
-                  <span className={`name ${mo.maker === "sitelens" ? "wordmark" : ""}`}>{mo.name}</span>
+                  <span className="name">{mo.maker === "sitelens" ? <Wordmark /> : mo.name}</span>
                   <span className="maker dim">{mo.makerName}</span>
                 </span>
                 <span className="track">
@@ -96,7 +97,7 @@ function Leaderboard() {
         <div className="panel-who">
           <ModelLogo maker={m.maker} size={30} />
           <div>
-            <h3 className={m.maker === "sitelens" ? "wordmark" : undefined}>{m.name}</h3>
+            <h3>{m.maker === "sitelens" ? <Wordmark /> : m.name}</h3>
             <div className="dim small">{m.makerName}</div>
           </div>
         </div>
@@ -107,7 +108,7 @@ function Leaderboard() {
           <dd className="mono">{picked.cost}</dd>
           {picked.model !== "sitelens" && picked.acc !== null && us.acc !== null && (
             <>
-              <dt>vs <span className="wordmark">Sindri</span></dt>
+              <dt>vs <Wordmark /></dt>
               <dd>
                 {picked.acc === us.acc
                   ? "tied"
@@ -151,7 +152,7 @@ function SideBySide() {
         <div className="vs-score us">
           <ModelLogo maker="sitelens" size={26} />
           <span className="big mono">{v.summary.ours.correct}/{v.summary.ours.n}</span>
-          <span className="dim small"><span className="wordmark">Sindri</span> · {eur(v.summary.ours.eur)} total</span>
+          <span className="dim small"><Wordmark /> · {eur(v.summary.ours.eur)} total</span>
         </div>
         <span className="vs-x dim">vs</span>
         <div className="vs-score">
@@ -183,7 +184,7 @@ function SideBySide() {
               <span className="mono big2">{String(row.truth)}</span>
             </div>
             <div className={`ans us ${row.ours.correct ? "ok" : "ko"}`}>
-              <span className="lbl"><ModelLogo maker="sitelens" size={16} /> <span className="wordmark">Sindri</span></span>
+              <span className="lbl"><ModelLogo maker="sitelens" size={16} /> <Wordmark /></span>
               <span className="mono big2">{String(row.ours.value)} {row.ours.correct ? "✓" : "✗"}</span>
               <span className="dim small mono">{eur(row.ours.cost_eur)} · {row.ours.seconds.toFixed(1)} s</span>
             </div>
@@ -212,7 +213,7 @@ function SideBySide() {
             )}
           </div>
           <div className="vs-legend small">
-            <span><i className="sw us" /> <span className="wordmark">Sindri</span> marks ({boxes.ours.length})</span>
+            <span><i className="sw us" /> <Wordmark /> marks ({boxes.ours.length})</span>
             <span><i className="sw g" /> Gemini marks ({boxes.vlm.length})</span>
             <span className="dim">Every mark can be checked against the drawing.</span>
           </div>
@@ -248,11 +249,11 @@ function Headline() {
     <div className="headline" ref={box}>
       <div>
         <span className="big mono"><CountUp to={Math.round(HELD_ACC * 10) / 10} decimals={1} run={seen} />%</span>
-        <span className="small"><span className="wordmark">Sindri</span> on {HELD_N.toLocaleString("en")} held-out questions</span>
+        <span className="small"><Wordmark /> on {HELD_N.toLocaleString("en")} held-out questions</span>
       </div>
       <div>
         <span className="big mono"><CountUp to={100} run={seen} />% <span className="dim">vs</span> <CountUp to={60} run={seen} />%</span>
-        <span className="small">vector plans, same 40 questions, <span className="wordmark">Sindri</span> vs Gemini 3.8 Flash</span>
+        <span className="small">vector plans, same 40 questions, <Wordmark /> vs Gemini 3.8 Flash</span>
       </div>
       <div>
         <span className="big mono"><CountUp to={24} run={seen} />×</span>
@@ -270,7 +271,7 @@ export default function Benchmark() {
       <header className="page-head">
         <h1>Benchmark</h1>
         <p className="lede">
-          Same drawings, same questions, Stoa's answer key. <span className="wordmark">Sindri</span> against today's frontier vision models: how often
+          Same drawings, same questions, Stoa's answer key. <Wordmark /> against today's frontier vision models: how often
           each is right, and what each answer costs.
         </p>
       </header>
@@ -288,7 +289,7 @@ export default function Benchmark() {
       </p>
       <SideBySide />
 
-      <h2><span className="wordmark">Sindri</span> by drawing type</h2>
+      <h2><Wordmark /> by drawing type</h2>
       <HeldOut />
       <p className="dim tiny">
         Held-out = Stoa preview dev split: drawings never used to train the detector or tune rules. Reproduce:{" "}
